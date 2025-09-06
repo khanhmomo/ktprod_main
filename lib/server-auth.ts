@@ -2,6 +2,17 @@
 
 import { cookies } from 'next/headers';
 
+type Cookie = {
+  name: string;
+  value: string;
+  path?: string;
+  domain?: string;
+  expires?: Date | number;
+  httpOnly?: boolean;
+  secure?: boolean;
+  sameSite?: 'strict' | 'lax' | 'none';
+};
+
 type AuthResponse = {
   success: boolean;
   error?: string;
@@ -11,9 +22,15 @@ type AuthResponse = {
 // In Next.js 13+, we need to handle cookies through the headers in the response
 export async function isAuthenticated(): Promise<boolean> {
   const cookieStore = cookies();
-  // Use type assertion to access the cookies
-  const authCookie = (cookieStore as any).get('isAuthenticated');
-  return authCookie?.value === 'true';
+  try {
+    // Use type assertion to access the cookies
+    const allCookies = cookieStore as unknown as Cookie[];
+    const authCookie = allCookies.find(cookie => cookie.name === 'isAuthenticated');
+    return authCookie?.value === 'true';
+  } catch (error) {
+    console.error('Error reading cookies:', error);
+    return false;
+  }
 }
 
 export async function authenticate(username: string, password: string): Promise<AuthResponse> {
