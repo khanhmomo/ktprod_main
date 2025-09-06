@@ -1,10 +1,15 @@
+// @ts-ignore - No type definitions for tailwindcss
 import type { Config } from 'tailwindcss';
+// @ts-ignore - No type definitions for @tailwindcss/forms
+import forms from '@tailwindcss/forms';
 
 const config: Config = {
   content: [
     './app/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/**/*.{js,ts,jsx,tsx,mdx}',
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {

@@ -3,23 +3,19 @@ const nextConfig = {
   reactStrictMode: true,
   experimental: {
     serverActions: true,
-    serverComponentsExternalPackages: ['mongoose']
+    serverComponentsExternalPackages: ['mongoose'],
+    optimizePackageImports: ['@heroicons/react', 'framer-motion'],
+    reactCompiler: true,
   },
   images: {
     remotePatterns: [
       {
         protocol: 'https',
         hostname: '**',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'scontent-*.fna.fbcdn.net',
-        port: '',
-        pathname: '/**',
       },
     ],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   async headers() {
     return [
