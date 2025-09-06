@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { FiMenu, FiX } from 'react-icons/fi';
 
@@ -42,13 +43,24 @@ export default function Navbar() {
     >
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center">
-          <Link 
-            href="/" 
-            className="text-2xl font-bold"
-          >
-            <span className={scrolled || !isHomePage ? 'text-black' : 'text-white'}>khanhtran </span>
-            <span style={{ color: '#A92022' }}>prod</span>
-            <span className={scrolled || !isHomePage ? 'text-black' : 'text-white'}>uction</span>
+          <Link href="/" className="flex items-center h-16">
+            <Image
+              src="/Trans_logo_white.png"
+              alt="KT Productions"
+              width={120}
+              height={45}
+              className={`h-full w-auto ${scrolled || !isHomePage ? 'hidden' : 'block'}`}
+              priority
+            />
+            <Image
+              src="/Trans_logo_white.png"
+              alt="KT Productions"
+              width={120}
+              height={45}
+              className={`h-full w-auto ${scrolled || !isHomePage ? 'block' : 'hidden'}`}
+              style={{ filter: 'brightness(0) invert(0)' }}
+              priority
+            />
           </Link>
           
           {/* Desktop Navigation */}

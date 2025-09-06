@@ -17,8 +17,8 @@ export default function About() {
           >
             <div className="relative h-96 w-full rounded-lg overflow-hidden shadow-xl">
               <Image
-                src="https://images.unsplash.com/photo-1555421689-3f034debb7a6?q=80&w=2070&auto=format&fit=crop"
-                alt="Photographer at work"
+                src="https://scontent.faus1-1.fna.fbcdn.net/v/t39.30808-6/471333544_122138681282450398_8999774020313144697_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=127cfc&_nc_ohc=WrWBSht0_2wQ7kNvwHXOgZw&_nc_oc=Admex4JouO-Nj0BRjv5rLgZnRbQ0IzHj6u4WiKDkoKmAnQl5lqWQvSZsXRxZBGvwYkQ&_nc_zt=23&_nc_ht=scontent.faus1-1.fna&_nc_gid=RH5YmYUnarwFr34TR_lpaw&oh=00_AfYn4PZkQNgCKfgwAap8O4tDMziVcFspa-LpVY8O8fQAGA&oe=68C17E36"
+                alt="Our Story"
                 fill
                 className="object-cover"
               />

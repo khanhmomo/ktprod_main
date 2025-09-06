@@ -40,10 +40,9 @@ export default function Footer() {
           <div>
             <h4 className="text-lg font-semibold mb-4">Contact Us</h4>
             <address className="not-italic text-gray-400 space-y-2">
-              <p>9710 South Kirkwood, Suite 500</p>
-              <p>Houston, Texas 77099</p>
-              <p>Phone: (832) 992-7879</p>
-              <p>Email: thewildstudio.nt@gmail.com</p>
+              <p>D5/20-21 KDC Long Thinh, Hung Phu, Can Tho</p>
+              <p>0817278182</p>
+              <p>khanhtranproduction@gmail.com</p>
             </address>
           </div>
         </div>

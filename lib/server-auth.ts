@@ -2,31 +2,26 @@
 
 import { cookies } from 'next/headers';
 
-type Cookie = {
-  name: string;
-  value: string;
-  path?: string;
-  domain?: string;
-  expires?: Date | number;
-  httpOnly?: boolean;
-  secure?: boolean;
-  sameSite?: 'strict' | 'lax' | 'none';
-};
-
 type AuthResponse = {
   success: boolean;
   error?: string;
   headers?: Headers;
 };
 
-// In Next.js 13+, we need to handle cookies through the headers in the response
 export async function isAuthenticated(): Promise<boolean> {
-  const cookieStore = cookies();
   try {
-    // Use type assertion to access the cookies
-    const allCookies = cookieStore as unknown as Cookie[];
-    const authCookie = allCookies.find(cookie => cookie.name === 'isAuthenticated');
-    return authCookie?.value === 'true';
+    const cookieStore = cookies();
+    const cookieHeader = cookieStore.toString();
+    if (!cookieHeader) return false;
+    
+    const cookieMap = new Map(
+      cookieHeader.split('; ').map(cookie => {
+        const [name, ...rest] = cookie.split('=');
+        return [name.trim(), rest.join('=')];
+      })
+    );
+    
+    return cookieMap.get('isAuthenticated') === 'true';
   } catch (error) {
     console.error('Error reading cookies:', error);
     return false;
@@ -40,11 +35,25 @@ export async function authenticate(username: string, password: string): Promise<
     
     if (isValid) {
       const headers = new Headers();
-      headers.append('Set-Cookie', 
-        `isAuthenticated=true; Path=/; HttpOnly; ${process.env.NODE_ENV === 'production' ? 'Secure; ' : ''}SameSite=Strict`
-      );
+      headers.append('Content-Type', 'application/json');
       
-      return { 
+      // Set secure flag based on environment
+      const isProduction = process.env.NODE_ENV === 'production';
+      const secureFlag = isProduction ? 'Secure; ' : '';
+      
+      // Set the cookie with proper attributes
+      const cookieValue = [
+        'isAuthenticated=true',
+        'Path=/',
+        'HttpOnly',
+        secureFlag,
+        'SameSite=Lax',
+        'Max-Age=604800' // 1 week
+      ].filter(Boolean).join('; ');
+      
+      headers.append('Set-Cookie', cookieValue);
+      
+      return {
         success: true,
         headers
       };

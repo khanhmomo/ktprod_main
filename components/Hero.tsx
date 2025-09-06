@@ -148,12 +148,10 @@ export default function Hero() {
           transition={{ duration: 0.8 }}
           className="max-w-4xl mx-auto"
         >
-          <div className="w-full overflow-hidden">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-6 whitespace-nowrap text-center">
-              Capturing Life&apos;s Precious Moments
-            </h1>
-          </div>
-          <p className="text-base sm:text-lg md:text-xl mb-8 text-gray-200 whitespace-nowrap px-4 w-full text-center">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 sm:mb-6 px-4 text-center">
+            Capturing Life&apos;s Precious Moments
+          </h1>
+          <p className="text-base sm:text-lg md:text-xl mb-6 sm:mb-8 text-gray-200 px-4 max-w-2xl mx-auto text-center">
             Professional photography that tells your unique story through beautiful imagery
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
