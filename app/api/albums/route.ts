@@ -9,8 +9,11 @@ interface ImageObject {
 
 export async function GET(request: Request) {
   console.log('GET /api/albums called');
+  console.log('Environment:', process.env.NODE_ENV);
   
   try {
+    console.log('MongoDB URI:', process.env.MONGODB_URI ? 'Set' : 'Not set');
+    
     console.log('Connecting to database...');
     await dbConnect();
     console.log('Database connected');
@@ -18,32 +21,43 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const all = searchParams.get('all') === 'true';
     
-    console.log('Fetching albums with all=', all);
-    
     // If all=true is specified, return all albums (for admin)
     // Otherwise, only return published albums (for public access)
     const query = all ? {} : { isPublished: true };
     
-    console.log('Query:', JSON.stringify(query, null, 2));
+    console.log('Fetching albums with query:', JSON.stringify(query));
     
-    const albums = await Album.find(query).sort({ createdAt: -1 });
-    console.log(`Found ${albums.length} albums`);
+    try {
+      const albums = await Album.find(query).sort({ createdAt: -1 });
+      console.log(`Successfully fetched ${albums.length} albums`);
+      return NextResponse.json(albums);
+    } catch (queryError: unknown) {
+      const errorMessage = queryError instanceof Error ? queryError.message : 'Unknown database error';
+      console.error('Database query error:', errorMessage);
+      throw new Error(`Database query failed: ${errorMessage}`);
+    }
     
-    return NextResponse.json(albums);
-  } catch (error) {
-    console.error('Error in GET /api/albums:', error);
-    const errorMessage = error instanceof Error 
-      ? error.message 
-      : 'An unknown error occurred';
-    
-    return NextResponse.json(
-      { 
-        error: 'Failed to fetch albums',
-        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
-        stack: process.env.NODE_ENV === 'development' && error instanceof Error ? error.stack : undefined
-      },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error('Error in GET /api/albums:');
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      
+      return NextResponse.json(
+        { 
+          error: 'Failed to fetch albums',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        },
+        { status: 500 }
+      );
+    } else {
+      console.error('Unknown error occurred in GET /api/albums');
+      return NextResponse.json(
+        { error: 'An unknown error occurred' },
+        { status: 500 }
+      );
+    }
   }
 }
 
