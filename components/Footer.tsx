@@ -11,7 +11,7 @@ export default function Footer() {
           <div className="md:col-span-2">
             <h3 className="text-lg font-semibold mb-4">KTProd</h3>
             <p className="text-gray-400 mb-4">
-              Capturing life's most precious moments with creativity and passion. 
+              Capturing life&apos;s most precious moments with creativity and passion. 
               Professional photography services for all occasions.
             </p>
             <div className="flex space-x-4">

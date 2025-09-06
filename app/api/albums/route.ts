@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db/connect';
 import Album from '@/models/Album';
 
+interface ImageObject {
+  url: string;
+  alt?: string;
+}
+
 export async function GET(request: Request) {
   console.log('GET /api/albums called');
   
@@ -76,7 +81,7 @@ export async function POST(request: Request) {
       slug,
       description: data.description || '',
       coverImage: data.coverImage || (data.images[0]?.url || ''),
-      images: data.images.map((img: any) => ({
+      images: data.images.map((img: ImageObject) => ({
         url: img.url,
         alt: img.alt || ''
       })),

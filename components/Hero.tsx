@@ -150,7 +150,7 @@ export default function Hero() {
         >
           <div className="w-full overflow-hidden">
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-6 whitespace-nowrap text-center">
-              Capturing Life's Precious Moments
+              Capturing Life&apos;s Precious Moments
             </h1>
           </div>
           <p className="text-base sm:text-lg md:text-xl mb-8 text-gray-200 whitespace-nowrap px-4 w-full text-center">

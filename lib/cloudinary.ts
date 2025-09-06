@@ -1,4 +1,4 @@
-import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
+import { v2 as cloudinary } from 'cloudinary';
 
 // Configure Cloudinary with environment variables
 cloudinary.config({

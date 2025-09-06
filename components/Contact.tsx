@@ -79,8 +79,8 @@ export default function Contact() {
         >
           <h2 className="text-3xl md:text-4xl font-bold mb-4">Get In Touch</h2>
           <div className="w-20 h-1 bg-black mx-auto mb-6"></div>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            Have a question or want to book a session? Send us a message and we'll get back to you as soon as possible.
+          <p className="text-gray-600 mb-6">
+            Have a project in mind? Let&apos;s talk about how we can help you capture your vision.
           </p>
         </motion.div>
 
