@@ -15,7 +15,13 @@ interface AlbumData {
   isPublished: boolean;
 }
 
-export default function EditAlbumPage({ params }: { params: { id: string } }) {
+interface PageProps {
+  params: {
+    id: string;
+  };
+}
+
+export default function EditAlbumPage({ params }: PageProps) {
   const [album, setAlbum] = useState<AlbumData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
