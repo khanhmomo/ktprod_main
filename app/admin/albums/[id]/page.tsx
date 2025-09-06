@@ -15,12 +15,7 @@ interface AlbumData {
   isPublished: boolean;
 }
 
-type PageProps = {
-  params: { id: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-};
-
-export default function EditAlbumPage({ params }: PageProps) {
+export default function EditAlbumPage({ params }: { params: { id: string } }) {
   const [album, setAlbum] = useState<AlbumData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
