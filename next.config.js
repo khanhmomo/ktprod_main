@@ -4,8 +4,9 @@ const nextConfig = {
   experimental: {
     serverActions: true,
     serverComponentsExternalPackages: ['mongoose'],
-    optimizePackageImports: ['@heroicons/react', 'framer-motion'],
-    reactCompiler: true,
+    optimizePackageImports: ['@heroicons/react', 'framer-motion']
+    // Temporarily disabled React Compiler as it requires additional setup
+    // reactCompiler: true,
   },
   images: {
     remotePatterns: [
