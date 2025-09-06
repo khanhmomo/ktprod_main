@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/db/connect';
-import Gallery, { IGallery } from '@/models/Gallery';
+import Gallery from '@/models/Gallery';
 import { Types } from 'mongoose';
+
+interface GalleryQuery {
+  _id: string | Types.ObjectId;
+  isPublished?: boolean;
+}
 
 type RouteParams = {
   params: {
@@ -28,7 +33,7 @@ export async function GET(
     // In a real app, you would check for admin status here
     const isAdmin = false; // Default to false for now
     
-    const query: any = { _id: id };
+    const query: GalleryQuery = { _id: id };
     if (!isAdmin) {
       query.isPublished = true;
     }

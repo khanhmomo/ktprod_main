@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db/connect';
-import Gallery, { IGallery } from '@/models/Gallery';
+import Gallery from '@/models/Gallery';
 import { isAuthenticated } from '@/lib/server-auth';
+
+interface GalleryQuery {
+  isPublished?: boolean;
+}
 
 export async function GET(request: Request) {
   try {
@@ -14,7 +18,7 @@ export async function GET(request: Request) {
     const authCheck = await isAuthenticated();
     const isAdmin = !!authCheck;
     
-    let query: any = {};
+    const query: GalleryQuery = {};
     
     // If not admin or not requesting all, only return published galleries
     if (!all || !isAdmin) {

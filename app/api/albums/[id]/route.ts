@@ -75,7 +75,7 @@ export async function PUT(
       title: data.title,
       description: data.description || '',
       coverImage: data.coverImage || (data.images[0]?.url || ''),
-      images: data.images.map((img: any) => ({
+      images: data.images.map((img: { url: string; alt?: string }) => ({
         url: img.url,
         alt: img.alt || ''
       })),

@@ -1,4 +1,4 @@
-import { v2 as cloudinary } from 'cloudinary';
+import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 
 // Configure Cloudinary with environment variables
 cloudinary.config({
@@ -16,7 +16,7 @@ export const uploadToCloudinary = async (file: File, folder: string): Promise<{ 
     // Convert buffer to base64
     const base64Data = `data:${file.type};base64,${buffer.toString('base64')}`;
     
-    const result = await new Promise((resolve, reject) => {
+    const result = await new Promise<{ url: string; public_id: string }>((resolve, reject) => {
       cloudinary.uploader.upload(
         base64Data,
         {
@@ -25,16 +25,27 @@ export const uploadToCloudinary = async (file: File, folder: string): Promise<{ 
           quality: 'auto',
           fetch_format: 'auto',
         },
-        (error: any, result: any) => {
+        (error, result) => {
           if (error) {
             console.error('Cloudinary upload error:', error);
-            reject(error);
-          } else {
-            resolve({
-              url: result.secure_url,
-              public_id: result.public_id,
-            });
+            reject(new Error(error.message || 'Upload failed'));
+            return;
           }
+          
+          if (!result) {
+            reject(new Error('No result from Cloudinary'));
+            return;
+          }
+          
+          if (!result.secure_url || !result.public_id) {
+            reject(new Error('Invalid response from Cloudinary'));
+            return;
+          }
+          
+          resolve({
+            url: result.secure_url,
+            public_id: result.public_id,
+          });
         }
       );
     });

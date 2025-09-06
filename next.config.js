@@ -2,12 +2,15 @@
 const nextConfig = {
   reactStrictMode: true,
   experimental: {
-    serverActions: true,
-    serverComponentsExternalPackages: ['mongoose'],
-    optimizePackageImports: ['@heroicons/react', 'framer-motion']
-    // Temporarily disabled React Compiler as it requires additional setup
-    // reactCompiler: true,
+    // Enable server actions
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
+    // Optimize package imports
+    optimizePackageImports: ['@heroicons/react', 'framer-motion'],
   },
+  // External packages for server components
+  serverExternalPackages: ['mongoose'],
   images: {
     remotePatterns: [
       {
