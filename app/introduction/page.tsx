@@ -69,20 +69,20 @@ export default function Introduction() {
               <p className="text-gray-600 mb-6">
               No two weddings are ever the same - and that's exactly why we take time to understand the unique style and personality of each couple, from their
 wedding concept to the color tones of their special day.
-To us. capturinQ authentic moments is the heart
-of everything. We study the wedding schedule closely ahead of time, approaching each event with an open mind while avoidinQ preconceived ideas.
-This allows us to na1urally tell a true and vivid love story, not one that feels staged or forced.
+To us, capturing authentic moments is the heart
+of everything. We study the wedding schedule closely ahead of time, approaching each event with an open mind while avoiding preconceived ideas.
+This allows us to naturally tell a true and vivid love story, not one that feels staged or forced.
               </p>
               <p className="text-gray-600">
               Rather than focusing only on the couple, we seek
-out the emotions of everyone present -	family, friends, Quests -	weaving them into one heartfelt narrative.
-A single hug, a smile, a tear, a glance -	each small moment is captured with honesty, and later. they come together like pieces of a timeless memory.
+out the emotions of everyone present - family, friends, guests - weaving them into one heartfelt narrative.
+A single hug, a smile, a tear, a glance - each small moment is captured with honesty, and later, they come together like pieces of a timeless memory.
               </p>
               <p className="text-gray-600">
-              We do not direct or interfere with natural moments during your wedding day. Instead. we observe gently, creating space for genuine emotions to unfold naturally, capturing the true spirit of your love story.
+              We do not direct or interfere with natural moments during your wedding day. Instead, we observe gently, creating space for genuine emotions to unfold naturally, capturing the true spirit of your love story.
               </p>
               <p className="text-gray-600">
-              We also avoid spending too much time on posing or arranginQ scenes artificially. Instead we embrace
+              We also avoid spending too much time on posing or arranging scenes artificially. Instead, we embrace
 natural light candid beauty, and relaxed moments that make every couple feel truly at ease and themselves.
               </p>
               
