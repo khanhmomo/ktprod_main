@@ -84,7 +84,12 @@ export async function GET(
     }
     
     // Format the response
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+                   (process.env.VERCEL_URL 
+                     ? `https://${process.env.VERCEL_URL}` 
+                     : 'http://localhost:3000');
+    
+    console.log(`[${requestId}] Using base URL: ${baseUrl}`);
     const formattedAlbum = {
       ...album,
       images: (album.images || []).map(img => ({

@@ -37,19 +37,24 @@ async function getAlbum(id: string) {
     throw new Error('Album ID is required');
   }
   
-  // Ensure BASE_URL ends with a slash for proper URL construction
-  const baseUrl = BASE_URL.endsWith('/') ? BASE_URL : `${BASE_URL}/`;
-  const apiUrl = `${baseUrl}api/albums/${id}`;
   const requestId = Math.random().toString(36).substring(2, 9);
   
-  console.log(`[${requestId}] Fetching album from: ${apiUrl}`);
-  
   try {
+    // Get the base URL
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+                   (process.env.VERCEL_URL 
+                     ? `https://${process.env.VERCEL_URL}` 
+                     : 'http://localhost:3000');
+    
+    // Ensure BASE_URL ends with a slash for proper URL construction
+    const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+    const apiUrl = `${normalizedBaseUrl}api/albums/${id}`;
+    
+    console.log(`[${requestId}] Fetching album from: ${apiUrl}`);
+    
     // Add a timeout to the fetch request
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-    
-    console.log(`[${requestId}] Sending request to: ${apiUrl}`);
     
     const fetchOptions: RequestInit = {
       method: 'GET',
@@ -64,6 +69,15 @@ async function getAlbum(id: string) {
       },
       signal: controller.signal
     };
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[${requestId}] Environment:`, {
+        NODE_ENV: process.env.NODE_ENV,
+        VERCEL_URL: process.env.VERCEL_URL,
+        NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
+        API_URL: apiUrl
+      });
+    }
     
     if (process.env.NODE_ENV === 'development') {
       console.log(`[${requestId}] Fetch options:`, JSON.stringify(fetchOptions, null, 2));
@@ -187,64 +201,57 @@ export default async function AlbumPage({ params }: { params: { id: string } }) 
   } catch (error: unknown) {
     console.error('[Server] Error in AlbumPage:', error);
     
-    // Safely type the error object
-    const typedError = error as ErrorResponse;
+    // Extract error information with type safety
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+    let errorDetails = '';
+    let requestId = '';
     
-    // Extract error details with type safety
-    const errorCode = typeof (error as any)?.status === 'number' ? (error as any).status : 500;
-    const requestId = typeof (error as any)?.requestId === 'string' ? (error as any).requestId : undefined;
-    const errorDetails = (error as any)?.details;
-    
-    // Determine error message
-    let errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred while loading the album.';
-    if (errorCode === 404) {
-      errorMessage = 'The requested album could not be found.';
-    } else if (errorCode === 500) {
-      errorMessage = 'A server error occurred while loading the album.';
+    if (error && typeof error === 'object') {
+      if ('details' in error && typeof error.details === 'string') {
+        errorDetails = error.details;
+      }
+      if ('requestId' in error && typeof error.requestId === 'string') {
+        requestId = error.requestId;
+      } else if ('requestId' in error && typeof error.requestId === 'number') {
+        requestId = String(error.requestId);
+      }
     }
     
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-        <div className="max-w-2xl w-full bg-white p-8 rounded-lg shadow-md text-center">
-          <div className="text-red-500 mb-4">
-            <FiAlertCircle className="w-16 h-16 mx-auto" />
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <FiAlertCircle className="mx-auto h-12 w-12 text-red-500" />
+          <h3 className="mt-2 text-lg font-medium text-gray-900">Error loading album</h3>
+          <p className="mt-1 text-sm text-gray-700">{errorMessage}</p>
+          
+          {(errorDetails || requestId) && (
+            <div className="mt-2 p-2 bg-gray-100 rounded text-xs text-left overflow-auto">
+              <details>
+                <summary className="cursor-pointer text-gray-600">Show details</summary>
+                <div className="mt-2 space-y-1">
+                  {requestId && <p><span className="font-medium">Request ID:</span> {requestId}</p>}
+                  {errorDetails && <pre className="whitespace-pre-wrap break-words">{errorDetails}</pre>}
+                </div>
+              </details>
+            </div>
+          )}
+          
+          <div className="mt-6">
+            <Link
+              href="/albums"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+            >
+              <FiArrowLeft className="-ml-1 mr-2 h-5 w-5" />
+              Back to albums
+            </Link>
           </div>
           
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">
-            {errorCode === 404 ? 'Album Not Found' : 'Error Loading Album'}
-          </h1>
-          
-          <p className="text-gray-600 mb-4">{errorMessage}</p>
-          
-          <div className="flex flex-col sm:flex-row justify-center gap-4 mt-6">
-            <Link 
-              href={`/albums/${params.id}`}
-              className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <FiRefreshCw className="mr-2" /> Try Again
-            </Link>
-            
-            <Link 
-              href="/albums" 
-              className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <FiArrowLeft className="mr-2" /> Back to Albums
-            </Link>
-            
-            <a
-              href="/contact"
-              className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Contact Support
-            </a>
-          </div>
-          
-          {(process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'production') && (
-            <div className="mt-8 p-4 bg-gray-50 rounded-lg text-left text-sm text-gray-600">
-              {renderErrorDetail('Error Code', errorCode || 'N/A')}
-              {requestId && renderErrorDetail('Request ID', requestId)}
-              {errorDetails && renderErrorDetail('Details', errorDetails)}
-              {error instanceof Error && error.stack && renderErrorDetail('Stack Trace', error.stack)}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-6 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-700">
+              <p className="font-medium">Development Mode:</p>
+              <p>Check the browser console for more detailed error information.</p>
+              <p className="mt-1">NEXT_PUBLIC_BASE_URL: {process.env.NEXT_PUBLIC_BASE_URL || 'Not set'}</p>
+              <p>VERCEL_URL: {process.env.VERCEL_URL || 'Not set'}</p>
             </div>
           )}
         </div>
