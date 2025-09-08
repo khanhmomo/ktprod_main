@@ -30,15 +30,17 @@ interface Album {
   isPublished: boolean;
 }
 
+interface AlbumPageClientProps {
+  initialAlbum: Album | null;
+  id: string;
+  initialError?: string | null;
+}
+
 export default function AlbumPageClient({ 
   initialAlbum, 
-  initialError, 
-  id 
-}: { 
-  initialAlbum: Album | null, 
-  initialError: string | null, 
-  id: string 
-}) {
+  id,
+  initialError = null 
+}: AlbumPageClientProps) {
   const [album, setAlbum] = useState<Album | null>(initialAlbum);
   const [isLoading, setIsLoading] = useState(!initialAlbum);
   const [error, setError] = useState<string | null>(initialError);

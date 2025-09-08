@@ -1,10 +1,36 @@
 // Server Component - No 'use client' directive here
-import Link from 'next/link';
-import { FiArrowLeft, FiAlertCircle } from 'react-icons/fi';
-import AlbumPageClient from './AlbumPageClient';
-import { env } from '@/app/config/env';
+'use server';
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+import Link from 'next/link';
+import { FiArrowLeft, FiAlertCircle, FiRefreshCw } from 'react-icons/fi';
+import { env } from '@/app/config/env';
+import { ReactNode } from 'react';
+
+// Import the client component dynamically to avoid SSR issues
+import dynamic from 'next/dynamic';
+
+// Define the Album type for the client component
+interface AlbumPageClientProps {
+  initialAlbum: Album | null;
+  id: string;
+}
+
+// Import the client component with proper typing
+const AlbumPageClient = dynamic<AlbumPageClientProps>(
+  () => import('./AlbumPageClient').then(mod => mod.default as React.ComponentType<AlbumPageClientProps>),
+  { 
+    ssr: false, 
+    loading: () => (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    )
+  }
+);
+
+// Use relative URL in production, absolute in development
+const isProduction = process.env.NODE_ENV === 'production';
+const BASE_URL = isProduction ? '' : (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000');
 
 interface AlbumImage {
   url: string;
@@ -23,54 +49,99 @@ interface Album {
 
 // Server Component that fetches the album data with optimizations
 async function getAlbum(id: string) {
+  const apiUrl = `${BASE_URL}/api/albums/${id}`;
+  const requestId = Math.random().toString(36).substring(2, 9);
+  
+  console.log(`[${requestId}] Fetching album from: ${apiUrl}`);
+  
   try {
-    const apiUrl = `${BASE_URL}/api/albums/${id}`;
-    console.log(`Fetching album from: ${apiUrl}`);
-    
     const response = await fetch(apiUrl, {
       next: { 
-        revalidate: 60, // Cache for 1 minute (shorter for testing)
+        revalidate: 60, // Cache for 1 minute
         tags: [`album-${id}`]
       },
       headers: {
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30'
+        'Cache-Control': 'no-store, max-age=0',
+        'X-Request-ID': requestId
       }
     });
     
+    const responseData = await response.json().catch(() => ({}));
+    
     if (!response.ok) {
-      let errorMessage = 'Failed to fetch album';
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.error || errorMessage;
-        console.error('API Error:', errorData);
-      } catch (e) {
-        console.error('Failed to parse error response:', e);
-      }
+      console.error(`[${requestId}] API Error:`, {
+        status: response.status,
+        statusText: response.statusText,
+        response: responseData
+      });
       
-      throw new Error(errorMessage);
+      const errorMessage = responseData?.error || 'Failed to fetch album';
+      const error = new Error(errorMessage) as Error & {
+        status?: number;
+        details?: any;
+        requestId?: string;
+      };
+      
+      error.status = response.status;
+      error.details = responseData.details;
+      error.requestId = requestId;
+      
+      throw error;
     }
     
-    const data = await response.json();
-    
-    if (!data) {
-      throw new Error('No data returned from API');
+    if (!responseData) {
+      const error = new Error('No data returned from API');
+      (error as any).requestId = requestId;
+      throw error;
     }
+    
+    // Add request ID to the response for debugging
+    responseData._requestId = requestId;
     
     // Optimize image data structure before sending to client
-    if (data.images && Array.isArray(data.images)) {
-      data.images = data.images.map((img: any) => ({
+    if (responseData.images && Array.isArray(responseData.images)) {
+      responseData.images = responseData.images.map((img: any) => ({
         url: img.url,
         alt: img.alt || '',
       }));
     } else {
-      data.images = [];
+      responseData.images = [];
     }
     
-    return data;
+    return responseData;
   } catch (error) {
     console.error('Error in getAlbum:', error);
     throw error;
   }
+}
+
+interface ErrorResponse extends Error {
+  status?: number;
+  details?: unknown;
+  requestId?: string;
+}
+
+// Helper function to safely render error details
+function renderErrorDetail(label: string, value: unknown): ReactNode {
+  if (value === undefined || value === null) return null;
+  
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return (
+      <div className="mb-2">
+        <span className="font-mono font-bold">{label}:</span>{' '}
+        <span className="font-mono">{String(value)}</span>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="mb-2">
+      <p className="font-mono font-bold mb-1">{label}:</p>
+      <pre className="whitespace-pre-wrap break-all bg-white p-2 rounded border border-gray-200">
+        {JSON.stringify(value, null, 2)}
+      </pre>
+    </div>
+  );
 }
 
 export default async function AlbumPage({ params }: { params: { id: string } }) {
@@ -79,48 +150,67 @@ export default async function AlbumPage({ params }: { params: { id: string } }) 
   try {
     const album = await getAlbum(params.id);
     return <AlbumPageClient initialAlbum={album} id={params.id} />;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Server] Error in AlbumPage:', error);
+    
+    // Safely type the error object
+    const typedError = error as ErrorResponse;
+    
+    // Extract error details with type safety
+    const errorCode = typeof (error as any)?.status === 'number' ? (error as any).status : 500;
+    const requestId = typeof (error as any)?.requestId === 'string' ? (error as any).requestId : undefined;
+    const errorDetails = (error as any)?.details;
+    
+    // Determine error message
+    let errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred while loading the album.';
+    if (errorCode === 404) {
+      errorMessage = 'The requested album could not be found.';
+    } else if (errorCode === 500) {
+      errorMessage = 'A server error occurred while loading the album.';
+    }
     
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
         <div className="max-w-2xl w-full bg-white p-8 rounded-lg shadow-md text-center">
           <div className="text-red-500 mb-4">
-            <FiAlertCircle className="w-12 h-12 mx-auto" />
+            <FiAlertCircle className="w-16 h-16 mx-auto" />
           </div>
+          
           <h1 className="text-2xl font-bold text-gray-800 mb-2">
-            {error.message?.includes('not found') ? 'Album Not Found' : 'Error Loading Album'}
+            {errorCode === 404 ? 'Album Not Found' : 'Error Loading Album'}
           </h1>
-          <p className="text-gray-600 mb-4">
-            {error.message || 'An unexpected error occurred while loading the album.'}
-          </p>
-          <p className="text-sm text-gray-500 mb-6">
-            Please try again later or contact support if the problem persists.
-          </p>
-          <div className="flex justify-center space-x-4">
+          
+          <p className="text-gray-600 mb-4">{errorMessage}</p>
+          
+          <div className="flex flex-col sm:flex-row justify-center gap-4 mt-6">
+            <Link 
+              href={`/albums/${params.id}`}
+              className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <FiRefreshCw className="mr-2" /> Try Again
+            </Link>
+            
             <Link 
               href="/albums" 
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               <FiArrowLeft className="mr-2" /> Back to Albums
             </Link>
+            
             <a
               href="/contact"
-              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               Contact Support
             </a>
           </div>
           
-          {process.env.NODE_ENV === 'development' && (
+          {(process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'production') && (
             <div className="mt-8 p-4 bg-gray-50 rounded-lg text-left text-sm text-gray-600">
-              <p className="font-mono font-bold mb-2">Error Details:</p>
-              <pre className="whitespace-pre-wrap break-all">
-                {error instanceof Error 
-                  ? `${error.name}: ${error.message}\n${error.stack || 'No stack trace available'}`
-                  : JSON.stringify(error, null, 2)
-                }
-              </pre>
+              {renderErrorDetail('Error Code', errorCode || 'N/A')}
+              {requestId && renderErrorDetail('Request ID', requestId)}
+              {errorDetails && renderErrorDetail('Details', errorDetails)}
+              {error instanceof Error && error.stack && renderErrorDetail('Stack Trace', error.stack)}
             </div>
           )}
         </div>
