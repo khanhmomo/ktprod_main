@@ -102,6 +102,7 @@ export async function GET(
       console.log(`[${requestId}] Album with ID ${id} not found`);
       return NextResponse.json(
         { 
+          success: false,
           error: 'Album not found',
           requestId,
           timestamp: new Date().toISOString()
@@ -109,6 +110,7 @@ export async function GET(
         { 
           status: 404,
           headers: {
+            'Content-Type': 'application/json',
             'X-Request-ID': requestId,
             'Cache-Control': 'no-store, max-age=0'
           }

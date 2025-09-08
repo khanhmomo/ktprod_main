@@ -34,26 +34,37 @@ interface Album {
 // Server Component that fetches the album data with optimizations
 async function getAlbum(id: string) {
   // Construct the URL object to ensure proper URL formatting
-  const apiUrl = new URL(`/api/albums/${id}`, BASE_URL).toString();
+  const apiUrl = new URL(`/api/albums/${id}`, BASE_URL);
   const requestId = Math.random().toString(36).substring(2, 9);
   
-  console.log(`[${requestId}] Fetching album from: ${apiUrl}`);
+  console.log(`[${requestId}] Fetching album from: ${apiUrl.toString()}`);
   
   try {
-    const response = await fetch(apiUrl, {
+    const response = await fetch(apiUrl.toString(), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store, max-age=0',
+        'X-Request-ID': requestId
+      },
       next: { 
         revalidate: 60, // Cache for 1 minute
         tags: [`album-${id}`]
-      },
-      headers: {
-        'Cache-Control': 'no-store, max-age=0',
-        'X-Request-ID': requestId
       }
     });
     
-    const responseData = await response.json().catch(() => ({}));
-    
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error(`[${requestId}] API Error:`, response.status, response.statusText, errorData);
+      throw new Error(`Failed to fetch album: ${response.status} ${response.statusText}`);
+    }
+    
+    const responseData = await response.json().catch((e) => {
+      console.error(`[${requestId}] Failed to parse JSON:`, e);
+      return { success: false, error: 'Invalid response from server' };
+    });
+    
+    if (!response.ok || !responseData?.success) {
       console.error(`[${requestId}] API Error:`, {
         status: response.status,
         statusText: response.statusText,
