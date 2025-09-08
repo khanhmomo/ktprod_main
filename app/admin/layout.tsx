@@ -98,18 +98,6 @@ export default function AdminLayout({
               >
                 Dashboard
               </Link>
-              <Link
-                href="/admin/albums"
-                className="group flex items-center px-2 py-2 text-sm font-medium rounded-md hover:bg-gray-100"
-              >
-                Albums
-              </Link>
-              <Link
-                href="/admin/galleries"
-                className="group flex items-center px-2 py-2 text-sm font-medium rounded-md hover:bg-gray-100"
-              >
-                Galleries
-              </Link>
               <button
                 onClick={async () => {
                   await fetch('/api/auth/logout', { method: 'POST' });

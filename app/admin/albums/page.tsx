@@ -32,6 +32,7 @@ export default function AlbumsPage() {
       }
       
       const data = await response.json();
+      console.log('Fetched albums:', JSON.stringify(data, null, 2));
       setAlbums(data);
     } catch (error) {
       console.error('Error fetching albums:', error);
@@ -69,6 +70,7 @@ export default function AlbumsPage() {
       setError('Failed to update album status');
     }
   };
+
 
   const deleteAlbum = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this album?')) return;

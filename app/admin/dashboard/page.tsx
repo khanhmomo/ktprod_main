@@ -16,6 +16,25 @@ interface Album {
   images: { url: string; alt?: string }[];
 }
 
+// Function to process image URLs for display
+function processImageUrl(url: string): string {
+  if (!url) return '';
+  
+  // If it's a Google Drive URL, use the proxy API
+  if (url.includes('drive.google.com')) {
+    // Extract file ID from Google Drive URL
+    let fileId = '';
+    const match = url.match(/[\w-]{25,}/);
+    if (match) fileId = match[0];
+    
+    if (fileId) {
+      return `/api/drive/image?id=${encodeURIComponent(fileId)}`;
+    }
+  }
+  
+  return url;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [albums, setAlbums] = useState<Album[]>([]);
@@ -293,7 +312,18 @@ export default function DashboardPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-16 w-16">
-                            <img className="h-16 w-16 object-cover rounded" src={album.coverImage} alt={album.title} />
+                            <img 
+                            className="h-16 w-16 object-cover rounded" 
+                            src={processImageUrl(album.coverImage)} 
+                            alt={album.title} 
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              // Fallback to the original URL if the proxy fails
+                              if (target.src !== album.coverImage) {
+                                target.src = album.coverImage;
+                              }
+                            }}
+                          />
                           </div>
                           <div className="ml-4">
                             <div className="text-sm font-medium text-gray-900">{album.title}</div>

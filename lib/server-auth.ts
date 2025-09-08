@@ -10,18 +10,9 @@ type AuthResponse = {
 
 export async function isAuthenticated(): Promise<boolean> {
   try {
-    const cookieStore = cookies();
-    const cookieHeader = cookieStore.toString();
-    if (!cookieHeader) return false;
-    
-    const cookieMap = new Map(
-      cookieHeader.split('; ').map(cookie => {
-        const [name, ...rest] = cookie.split('=');
-        return [name.trim(), rest.join('=')];
-      })
-    );
-    
-    return cookieMap.get('isAuthenticated') === 'true';
+    const cookieStore = await cookies();
+    const authCookie = cookieStore.get('isAuthenticated');
+    return authCookie?.value === 'true';
   } catch (error) {
     console.error('Error reading cookies:', error);
     return false;
@@ -34,28 +25,21 @@ export async function authenticate(username: string, password: string): Promise<
     const isValid = username === 'admin' && password === 'password123';
     
     if (isValid) {
-      const headers = new Headers();
-      headers.append('Content-Type', 'application/json');
-      
-      // Set secure flag based on environment
+      const cookieStore = await cookies();
       const isProduction = process.env.NODE_ENV === 'production';
-      const secureFlag = isProduction ? 'Secure; ' : '';
       
-      // Set the cookie with proper attributes
-      const cookieValue = [
-        'isAuthenticated=true',
-        'Path=/',
-        'HttpOnly',
-        secureFlag,
-        'SameSite=Lax',
-        'Max-Age=604800' // 1 week
-      ].filter(Boolean).join('; ');
-      
-      headers.append('Set-Cookie', cookieValue);
+      cookieStore.set({
+        name: 'isAuthenticated',
+        value: 'true',
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7, // 1 week
+        path: '/',
+      });
       
       return {
-        success: true,
-        headers
+        success: true
       };
     }
     
@@ -74,20 +58,17 @@ export async function authenticate(username: string, password: string): Promise<
 
 export async function logout(): Promise<AuthResponse> {
   try {
-    const headers = new Headers();
-    headers.append('Set-Cookie', 
-      'isAuthenticated=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict'
-    );
+    const cookieStore = await cookies();
+    cookieStore.delete('isAuthenticated');
     
-    return { 
-      success: true,
-      headers
+    return {
+      success: true
     };
   } catch (error) {
-    console.error('Logout failed:', error);
+    console.error('Logout error:', error);
     return { 
       success: false, 
-      error: 'Logout failed' 
+      error: 'An error occurred during logout' 
     };
   }
 }

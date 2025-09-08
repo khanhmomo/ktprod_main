@@ -2,6 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/db/connect';
 import Album from '@/models/Album';
 
+interface AlbumImage {
+  url: string;
+  alt?: string;
+}
+
+interface AlbumDocument {
+  _id: string;
+  title: string;
+  images: AlbumImage[];
+  date: string;
+  location: string;
+  description?: string;
+  isPublished: boolean;
+  __v: number;
+}
+
 type RouteParams = {
   params: {
     id: string;
@@ -13,23 +29,89 @@ export async function GET(
   context: RouteParams
 ) {
   const { id } = context.params;
+  console.log(`Fetching album with ID: ${id}`);
+  
   try {
+    console.log('Connecting to database...');
     await dbConnect();
-    const album = await Album.findById(id);
+    console.log('Database connected, querying album...');
+    
+    const album = await Album.findById(id).lean<AlbumDocument>();
     
     if (!album) {
+      console.log(`Album with ID ${id} not found`);
       return NextResponse.json(
         { error: 'Album not found' },
         { status: 404 }
       );
     }
     
-    return NextResponse.json(album);
+    const albumDoc = album;
+    
+    // Log detailed info about the album and its images
+    const albumInfo = {
+      _id: albumDoc._id,
+      title: albumDoc.title,
+      imageCount: albumDoc.images?.length || 0,
+      firstImage: albumDoc.images?.[0] ? {
+        url: albumDoc.images[0].url,
+        urlType: typeof albumDoc.images[0].url,
+        urlStartsWithHttp: albumDoc.images[0].url?.startsWith('http'),
+        urlStartsWithSlash: albumDoc.images[0].url?.startsWith('/'),
+        alt: albumDoc.images[0].alt
+      } : 'No images',
+      allImages: albumDoc.images?.map((img: any) => ({
+        url: img.url,
+        urlType: typeof img.url,
+        urlStartsWithHttp: img.url?.startsWith('http'),
+        urlStartsWithSlash: img.url?.startsWith('/'),
+        alt: img.alt
+      }))
+    };
+    
+    console.log('Album details:', JSON.stringify(albumInfo, null, 2));
+    
+    // Ensure image URLs are properly formatted
+    const formattedAlbum = {
+      ...album,
+      images: album.images?.map(img => ({
+        ...img,
+        // If URL is relative, prepend the base URL
+        url: img.url?.startsWith('http') ? img.url : 
+             img.url?.startsWith('/') ? `${process.env.NEXT_PUBLIC_BASE_URL || ''}${img.url}` : 
+             img.url
+      }))
+    };
+    
+    return NextResponse.json(formattedAlbum);
+    
   } catch (error) {
-    console.error('Error fetching album:', error);
+    console.error('Error in GET /api/albums/[id]:', error);
+    
+    let errorMessage = 'Failed to fetch album';
+    let statusCode = 500;
+    
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      
+      if (error.name === 'CastError') {
+        errorMessage = 'Invalid album ID format';
+        statusCode = 400;
+      } else if (error.name === 'MongoServerError') {
+        errorMessage = 'Database error occurred';
+      }
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to fetch album' },
-      { status: 500 }
+      { 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      },
+      { status: statusCode }
     );
   }
 }
@@ -82,6 +164,7 @@ export async function PUT(
       date: data.date || new Date(),
       location: data.location || '',
       isPublished: Boolean(data.isPublished),
+      featuredInHero: Boolean(data.featuredInHero),
       updatedAt: new Date()
     };
     
@@ -102,6 +185,53 @@ export async function PUT(
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       { error: `Failed to update album: ${errorMessage}` },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  context: RouteParams
+) {
+  const { id } = context.params;
+  try {
+    await dbConnect();
+    const data = await request.json();
+    
+    console.log(`Updating album status for ${id}:`, JSON.stringify(data, null, 2));
+    
+    // Only allow updating isPublished field via PATCH
+    if (typeof data.isPublished === 'undefined') {
+      return NextResponse.json(
+        { error: 'isPublished field is required' },
+        { status: 400 }
+      );
+    }
+    
+    const album = await Album.findByIdAndUpdate(
+      id, 
+      { 
+        isPublished: Boolean(data.isPublished),
+        updatedAt: new Date() 
+      },
+      { new: true }
+    );
+    
+    if (!album) {
+      console.error(`Album not found: ${id}`);
+      return NextResponse.json(
+        { error: 'Album not found' },
+        { status: 404 }
+      );
+    }
+    
+    console.log(`Successfully updated album status: ${id} to ${data.isPublished}`);
+    return NextResponse.json(album);
+  } catch (error) {
+    console.error('Error updating album status:', error);
+    return NextResponse.json(
+      { error: 'Failed to update album status' },
       { status: 500 }
     );
   }

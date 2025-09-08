@@ -10,6 +10,7 @@ interface Album {
   title: string;
   coverImage: string;
   images: { url: string; alt?: string }[];
+  featuredInHero?: boolean;
 }
 
 export default function Hero() {
@@ -20,12 +21,15 @@ export default function Hero() {
   useEffect(() => {
     const fetchAlbums = async () => {
       try {
+        console.log('Fetching albums...');
         const response = await fetch('/api/albums');
         if (response.ok) {
           const data = await response.json();
+          console.log(`Received ${data.length} albums from API`);
           setAlbums(data);
           // Start slideshow only if we have albums
           if (data.length > 0) {
+            console.log('Starting slideshow with', data.length, 'albums');
             startSlideshow();
           }
         }
@@ -69,7 +73,7 @@ export default function Hero() {
   const slideshowInterval = useRef<NodeJS.Timeout | null>(null);
 
   return (
-    <section className="relative h-screen flex items-center justify-center overflow-hidden">
+    <section className="relative h-screen w-full -mt-24 pt-24 flex items-center justify-center overflow-hidden">
       {/* Background Slideshow */}
       <div className="absolute inset-0 z-0">
         {isLoading ? (

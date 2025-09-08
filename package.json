@@ -9,6 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@google-cloud/local-auth": "^3.0.1",
+    "@headlessui/react": "^2.2.7",
+    "@heroicons/react": "^2.2.0",
     "@react-oauth/google": "^0.12.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/nodemailer": "^7.0.1",
@@ -37,6 +40,8 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.16",
+    "esbuild": "^0.25.9",
+    "esbuild-register": "^3.6.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
     "typescript": "^5"

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import GoogleDriveImport from '@/components/GoogleDriveImport';
 
 interface AlbumFormProps {
   initialData?: {
@@ -13,6 +14,7 @@ interface AlbumFormProps {
     date: string;
     location: string;
     isPublished: boolean;
+    featuredInHero?: boolean;
   };
   isEditing?: boolean;
   onSave?: () => void;
@@ -24,13 +26,23 @@ export default function AlbumForm({ initialData, isEditing = false, onSave, isNe
   interface AlbumImage {
     url: string;
     alt?: string;
+    originalUrl?: string;
+    source?: 'upload' | 'google-drive';
   }
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    title: string;
+    description: string;
+    coverImage: string;
+    images: AlbumImage[];
+    date: string;
+    location: string;
+    isPublished: boolean;
+  }>({
     title: '',
     description: '',
     coverImage: '',
-    images: [] as AlbumImage[],
+    images: [],
     date: new Date().toISOString().split('T')[0],
     location: '',
     isPublished: false,
@@ -38,31 +50,22 @@ export default function AlbumForm({ initialData, isEditing = false, onSave, isNe
   const [imageUrl, setImageUrl] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // Initialize form data when initialData changes
-  useEffect(() => {
-    if (initialData) {
-      setFormData({
-        ...initialData,
-        // Ensure images always have an alt property
-        images: initialData.images.map(img => ({
-          url: img.url,
-          alt: img.alt || ''
-        }))
-      });
-    }
-  }, [initialData]);
-
   useEffect(() => {
     if (initialData) {
       setFormData({
         title: initialData.title,
         description: initialData.description,
         coverImage: initialData.coverImage,
-        images: initialData.images,
+        images: initialData.images.map(img => ({
+          url: img.url,
+          alt: img.alt || ''
+        })),
         date: initialData.date ? new Date(initialData.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         location: initialData.location,
-        isPublished: initialData.isPublished,
+        isPublished: initialData.isPublished
       });
     }
   }, [initialData]);
@@ -92,14 +95,41 @@ export default function AlbumForm({ initialData, isEditing = false, onSave, isNe
         return;
       }
       
+      const newImage: AlbumImage = { 
+        url: trimmedUrl, 
+        alt: '',
+        originalUrl: trimmedUrl,
+        source: 'upload'
+      };
+      
       setFormData(prev => ({
         ...prev,
-        images: [...prev.images, { url: trimmedUrl, alt: '' }]
+        images: [...prev.images, newImage],
+        // Set as cover image if it's the first image
+        coverImage: prev.images.length === 0 ? trimmedUrl : prev.coverImage
       }));
       setImageUrl('');
     } catch (e) {
       alert('Please enter a valid URL (e.g., https://example.com/image.jpg)');
     }
+  };
+  
+  const handleImportFromDrive = (images: Array<{ url: string; originalUrl: string; name: string }>) => {
+    const newImages: AlbumImage[] = images.map(img => ({
+      url: img.url,
+      alt: img.name,
+      originalUrl: img.originalUrl,
+      source: 'google-drive'
+    }));
+    
+    setFormData(prev => ({
+      ...prev,
+      images: [...prev.images, ...newImages],
+      // Set cover image if it's not set yet
+      coverImage: prev.coverImage || (newImages[0]?.url || '')
+    }));
+    
+    setIsImportModalOpen(false);
   };
 
   const removeImage = (index: number) => {
@@ -188,6 +218,25 @@ export default function AlbumForm({ initialData, isEditing = false, onSave, isNe
     }
   };
 
+  // Function to process image URLs for display
+  const processImageUrl = (url: string): string => {
+    if (!url) return '';
+    
+    // If it's a Google Drive URL, use the proxy API
+    if (url.includes('drive.google.com')) {
+      // Extract file ID from Google Drive URL
+      let fileId = '';
+      const match = url.match(/[\w-]{25,}/);
+      if (match) fileId = match[0];
+      
+      if (fileId) {
+        return `/api/drive/image?id=${encodeURIComponent(fileId)}`;
+      }
+    }
+    
+    return url;
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
       <h2 className="text-2xl font-bold mb-6">{isEditing ? 'Edit Album' : 'Create New Album'}</h2>
@@ -243,22 +292,18 @@ export default function AlbumForm({ initialData, isEditing = false, onSave, isNe
             />
           </div>
           
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="isPublished"
-              name="isPublished"
-              checked={formData.isPublished}
-              onChange={handleChange}
-              className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
-            />
-            <label htmlFor="isPublished" className="ml-2 block text-sm text-gray-700">
-              Publish this album
-            </label>
+          <div className="space-y-4">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                name="isPublished"
+                checked={formData.isPublished}
+                onChange={handleChange}
+                className="rounded border-gray-300 text-black focus:ring-black"
+              />
+              <span className="ml-2">Publish Album</span>
+            </div>
           </div>
-        </div>
-        
-        <div className="mt-6">
           <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
             Description
           </label>
@@ -283,22 +328,29 @@ export default function AlbumForm({ initialData, isEditing = false, onSave, isNe
           </div>
           
           <div className="mb-4">
-            <div className="flex gap-2 mb-2">
+            <div className="mt-1 flex rounded-md shadow-sm">
               <input
-                type="url"
+                type="text"
                 value={imageUrl}
                 onChange={(e) => setImageUrl(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addImage())}
-                placeholder="https://example.com/image.jpg"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black"
-                pattern="https?://.+"
-                title="Please enter a valid URL starting with http:// or https://"
+                className="block w-full rounded-l-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                placeholder="Image URL"
               />
+              <button
+                type="button"
+                onClick={() => setIsImportModalOpen(true)}
+                className="inline-flex items-center rounded-r-md border border-l-0 border-gray-300 bg-gray-50 px-3 text-gray-500 hover:bg-gray-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+                <span className="ml-1 hidden sm:inline">Import from Drive</span>
+              </button>
               <button
                 type="button"
                 onClick={addImage}
                 disabled={!imageUrl.trim()}
-                className={`px-4 py-2 rounded-md ${
+                className={`ml-2 px-4 py-2 rounded-md ${
                   imageUrl.trim() 
                     ? 'bg-blue-600 hover:bg-blue-700 text-white' 
                     : 'bg-gray-200 text-gray-500 cursor-not-allowed'
@@ -315,13 +367,17 @@ export default function AlbumForm({ initialData, isEditing = false, onSave, isNe
                 {formData.images.map((img, index) => (
                   <div key={index} className="relative group">
                     <img
-                      src={img.url}
+                      src={processImageUrl(img.url)}
                       alt={img.alt || `Image ${index + 1}`}
                       className={`w-full h-32 object-cover rounded-md ${
                         formData.coverImage === img.url 
                           ? 'ring-2 ring-blue-500 ring-offset-2' 
                           : 'border border-gray-200'
                       }`}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = img.originalUrl || img.url; // Fallback to original URL if proxy fails
+                      }}
                     />
                     {formData.coverImage === img.url && (
                       <div className="absolute top-1 left-1 bg-blue-600 text-white text-xs px-1 rounded">
@@ -359,28 +415,7 @@ export default function AlbumForm({ initialData, isEditing = false, onSave, isNe
                 ))}
               </div>
               
-              {/* Image alt text inputs */}
-              <div className="space-y-2">
-                {formData.images.map((img, index) => (
-                  <div key={index} className="flex items-center space-x-2">
-                    <span className="text-xs text-gray-500 w-8">{index + 1}.</span>
-                    <input
-                      type="text"
-                      value={img.alt || ''}
-                      onChange={(e) => {
-                        const newImages = [...formData.images];
-                        newImages[index].alt = e.target.value;
-                        setFormData(prev => ({
-                          ...prev,
-                          images: newImages
-                        }));
-                      }}
-                      placeholder="Image description (optional)"
-                      className="flex-1 text-sm px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
-                    />
-                  </div>
-                ))}
-              </div>
+              
             </div>
           ) : (
             <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-md text-gray-500">
@@ -411,6 +446,12 @@ export default function AlbumForm({ initialData, isEditing = false, onSave, isNe
           </button>
         </div>
       </form>
+      
+      <GoogleDriveImport
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImport={handleImportFromDrive}
+      />
     </div>
   );
 }

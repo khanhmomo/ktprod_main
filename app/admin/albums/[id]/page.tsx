@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import AlbumForm from '@/components/admin/AlbumForm';
+import React from 'react';
 
 interface AlbumData {
   _id: string;
@@ -15,25 +16,30 @@ interface AlbumData {
   isPublished: boolean;
 }
 
-export default function EditAlbumPage({ params }: { params: { id: string } }) {
+export default function EditAlbumPage() {
   const [album, setAlbum] = useState<AlbumData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const router = useRouter();
+  const params = useParams();
+  const albumId = params?.id;
 
   useEffect(() => {
+    if (!albumId) return;
+
     const fetchAlbum = async () => {
-      // First check authentication
-      const authCheck = await fetch('/api/auth/check', {
-        credentials: 'include',
-      });
-      
-      if (!authCheck.ok) {
-        router.push('/admin');
-        return;
-      }
       try {
-        const response = await fetch(`/api/albums/${params.id}`);
+        // First check authentication
+        const authCheck = await fetch('/api/auth/check', {
+          credentials: 'include',
+        });
+        
+        if (!authCheck.ok) {
+          router.push('/admin');
+          return;
+        }
+
+        const response = await fetch(`/api/albums/${albumId}`);
         if (!response.ok) {
           throw new Error('Failed to fetch album');
         }
@@ -48,7 +54,7 @@ export default function EditAlbumPage({ params }: { params: { id: string } }) {
     };
 
     fetchAlbum();
-  }, [params.id, router]);
+  }, [albumId, router]);
 
   if (loading) {
     return (

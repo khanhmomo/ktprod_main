@@ -5,6 +5,8 @@ import Album from '@/models/Album';
 interface ImageObject {
   url: string;
   alt?: string;
+  originalUrl?: string;
+  source?: 'upload' | 'google-drive';
 }
 
 export async function GET(request: Request) {
@@ -90,18 +92,24 @@ export async function POST(request: Request) {
       .replace(/\s+/g, '-')      // Replace spaces with hyphens
       .replace(/--+/g, '-');     // Replace multiple hyphens with a single one
 
+    // Process images - add source information
+    const processedImages = data.images.map((img: ImageObject) => ({
+      url: img.url,
+      alt: img.alt || '',
+      originalUrl: img.originalUrl || img.url,
+      source: img.originalUrl?.includes('drive.google.com') ? 'google-drive' : 'upload'
+    }));
+
     const album = new Album({
       title: data.title,
       slug,
       description: data.description || '',
-      coverImage: data.coverImage || (data.images[0]?.url || ''),
-      images: data.images.map((img: ImageObject) => ({
-        url: img.url,
-        alt: img.alt || ''
-      })),
+      coverImage: data.coverImage || (processedImages[0]?.url || ''),
+      images: processedImages,
       date: data.date || new Date(),
       location: data.location || '',
       isPublished: Boolean(data.isPublished),
+      featuredInHero: Boolean(data.featuredInHero),
     });
     
     const savedAlbum = await album.save();

@@ -37,13 +37,13 @@ export default function Navbar() {
     <nav 
       className={`fixed w-full z-50 transition-all duration-300 ${
         scrolled || !isHomePage
-          ? 'bg-white text-black shadow-md py-2' 
-          : 'bg-transparent text-white py-4'
+          ? 'bg-white text-black shadow-md h-16' 
+          : 'bg-transparent text-white h-20'
       }`}
     >
-      <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center">
-          <Link href="/" className="flex items-center h-16">
+      <div className="container mx-auto px-4 h-full">
+        <div className="flex justify-between items-center h-full">
+          <Link href="/" className="flex items-center h-full">
             <Image
               src="/Trans_logo_white.png"
               alt="KT Productions"
@@ -72,10 +72,28 @@ export default function Navbar() {
               Home
             </Link>
             <Link 
+              href="/introduction" 
+              className={`hover:opacity-80 transition-opacity ${(scrolled || !isHomePage) ? 'text-black' : 'text-white'}`}
+            >
+              About Us
+            </Link>
+            <Link 
+              href="/pricing" 
+              className={`hover:opacity-80 transition-opacity ${(scrolled || !isHomePage) ? 'text-black' : 'text-white'}`}
+            >
+              Pricing
+            </Link>
+            <Link 
               href="/albums" 
               className={`hover:opacity-80 transition-opacity ${(scrolled || !isHomePage) ? 'text-black' : 'text-white'}`}
             >
               Albums
+            </Link>
+            <Link 
+              href="/kind-words" 
+              className={`hover:opacity-80 transition-opacity ${(scrolled || !isHomePage) ? 'text-black' : 'text-white'}`}
+            >
+              Kind Words
             </Link>
           </div>
 
@@ -114,11 +132,32 @@ export default function Navbar() {
               Home
             </Link>
             <Link 
+              href="/introduction" 
+              className="hover:opacity-80 transition-opacity py-2"
+              onClick={() => setIsOpen(false)}
+            >
+              About Us
+            </Link>
+            <Link 
+              href="/pricing" 
+              className="hover:opacity-80 transition-opacity py-2"
+              onClick={() => setIsOpen(false)}
+            >
+              Pricing
+            </Link>
+            <Link 
               href="/albums" 
               className="hover:opacity-80 transition-opacity py-2"
               onClick={() => setIsOpen(false)}
             >
               Albums
+            </Link>
+            <Link 
+              href="/kind-words" 
+              className="hover:opacity-80 transition-opacity py-2"
+              onClick={() => setIsOpen(false)}
+            >
+              Kind Words
             </Link>
           </div>
         </div>
