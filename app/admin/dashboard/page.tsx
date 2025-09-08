@@ -248,7 +248,7 @@ export default function DashboardPage() {
           )}
 
           {albums.length === 0 ? (
-            <div className="bg-white shadow overflow-hidden sm:rounded-lg p-6 text-center">
+            <div className="bg-white shadow overflow-hidden rounded-lg p-6 text-center">
               <svg
                 className="mx-auto h-12 w-12 text-gray-400"
                 fill="none"
@@ -288,100 +288,174 @@ export default function DashboardPage() {
               </div>
             </div>
           ) : (
-            <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Album
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Details
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th scope="col" className="relative px-6 py-3">
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+            <div className="bg-white shadow overflow-hidden rounded-lg">
+              {/* Desktop Table */}
+              <div className="hidden md:block">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Album
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Details
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th scope="col" className="relative px-6 py-3">
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {albums.map((album) => (
+                      <tr key={`desktop-${album._id}`} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-16 w-16">
+                              <img 
+                                className="h-16 w-16 object-cover rounded" 
+                                src={processImageUrl(album.coverImage)} 
+                                alt={album.title} 
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  if (target.src !== album.coverImage) {
+                                    target.src = album.coverImage;
+                                  }
+                                }}
+                              />
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">{album.title}</div>
+                              <div className="text-sm text-gray-500">
+                                {album.images.length} {album.images.length === 1 ? 'photo' : 'photos'}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {album.location || 'No location set'}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {album.date ? new Date(album.date).toLocaleDateString() : 'No date set'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              album.isPublished
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}
+                          >
+                            {album.isPublished ? 'Published' : 'Draft'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex space-x-2 justify-end">
+                            <button
+                              onClick={() => togglePublish(album._id, album.isPublished)}
+                              className={`px-3 py-1 rounded-md text-sm ${
+                                album.isPublished
+                                  ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                                  : 'bg-green-100 text-green-800 hover:bg-green-200'
+                              }`}
+                            >
+                              {album.isPublished ? 'Unpublish' : 'Publish'}
+                            </button>
+                            <Link
+                              href={`/admin/albums/${album._id}`}
+                              className="px-3 py-1 bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200 text-sm"
+                            >
+                              Edit
+                            </Link>
+                            <button
+                              onClick={() => handleDelete(album._id)}
+                              className="px-3 py-1 bg-red-100 text-red-800 rounded-md hover:bg-red-200 text-sm"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile List */}
+              <div className="md:hidden">
+                <div className="divide-y divide-gray-200">
                   {albums.map((album) => (
-                    <tr key={album._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-16 w-16">
-                            <img 
-                            className="h-16 w-16 object-cover rounded" 
+                    <div key={`mobile-${album._id}`} className="p-4 hover:bg-gray-50">
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0 h-20 w-20">
+                          <img 
+                            className="h-20 w-20 object-cover rounded" 
                             src={processImageUrl(album.coverImage)} 
-                            alt={album.title} 
+                            alt={album.title}
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
-                              // Fallback to the original URL if the proxy fails
                               if (target.src !== album.coverImage) {
                                 target.src = album.coverImage;
                               }
                             }}
                           />
+                        </div>
+                        <div className="ml-4 flex-1">
+                          <div className="flex justify-between">
+                            <h3 className="text-sm font-medium text-gray-900">{album.title}</h3>
+                            <span
+                              className={`ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                album.isPublished
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-yellow-100 text-yellow-800'
+                              }`}
+                            >
+                              {album.isPublished ? 'Published' : 'Draft'}
+                            </span>
                           </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">{album.title}</div>
-                            <div className="text-sm text-gray-500">
-                              {album.images.length} {album.images.length === 1 ? 'photo' : 'photos'}
-                            </div>
+                          <div className="mt-1 text-sm text-gray-500">
+                            {album.images.length} {album.images.length === 1 ? 'photo' : 'photos'}
+                          </div>
+                          <div className="mt-1 text-sm text-gray-500">
+                            {album.location || 'No location set'}
+                          </div>
+                          <div className="mt-1 text-sm text-gray-500">
+                            {album.date ? new Date(album.date).toLocaleDateString() : 'No date set'}
+                          </div>
+                          <div className="mt-2 flex space-x-2">
+                            <button
+                              onClick={() => togglePublish(album._id, album.isPublished)}
+                              className={`px-2 py-1 rounded text-xs ${
+                                album.isPublished
+                                  ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                                  : 'bg-green-100 text-green-800 hover:bg-green-200'
+                              }`}
+                            >
+                              {album.isPublished ? 'Unpublish' : 'Publish'}
+                            </button>
+                            <Link
+                              href={`/admin/albums/${album._id}`}
+                              className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs hover:bg-blue-200"
+                            >
+                              Edit
+                            </Link>
+                            <button
+                              onClick={() => handleDelete(album._id)}
+                              className="px-2 py-1 bg-red-100 text-red-800 rounded text-xs hover:bg-red-200"
+                            >
+                              Delete
+                            </button>
                           </div>
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {album.location || 'No location set'}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {album.date ? new Date(album.date).toLocaleDateString() : 'No date set'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            album.isPublished
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}
-                        >
-                          {album.isPublished ? 'Published' : 'Draft'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex space-x-2 justify-end">
-                          <button
-                            onClick={() => togglePublish(album._id, album.isPublished)}
-                            className={`px-3 py-1 rounded-md text-sm ${
-                              album.isPublished
-                                ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                                : 'bg-green-100 text-green-800 hover:bg-green-200'
-                            }`}
-                          >
-                            {album.isPublished ? 'Unpublish' : 'Publish'}
-                          </button>
-                          <Link
-                            href={`/admin/albums/${album._id}`}
-                            className="px-3 py-1 bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200 text-sm"
-                          >
-                            Edit
-                          </Link>
-                          <button
-                            onClick={() => handleDelete(album._id)}
-                            className="px-3 py-1 bg-red-100 text-red-800 rounded-md hover:bg-red-200 text-sm"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
+                </div>
+              </div>
             </div>
           )}
         </div>
