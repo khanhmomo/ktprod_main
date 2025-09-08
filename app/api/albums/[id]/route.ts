@@ -29,31 +29,90 @@ export async function GET(
   context: RouteParams
 ) {
   const { id } = context.params;
-  console.log(`Fetching album with ID: ${id}`);
+  console.log(`[API] Fetching album with ID: ${id}`);
+  
+  // Add request ID for better tracing
+  const requestId = Math.random().toString(36).substring(2, 9);
   
   try {
-    console.log('Connecting to database...');
-    console.log('MongoDB URI:', process.env.MONGODB_URI ? 'Set' : 'Not set');
+    console.log(`[${requestId}] Connecting to database...`);
+    
+    // Log environment info (without sensitive data)
+    console.log(`[${requestId}] Environment: ${process.env.NODE_ENV}`);
+    console.log(`[${requestId}] Database: ${process.env.MONGODB_URI ? 'Configured' : 'Not configured'}`);
     
     try {
       await dbConnect();
-      console.log('Database connected successfully');
+      console.log(`[${requestId}] Database connected successfully`);
     } catch (dbError: any) {
-      console.error('Database connection error:', dbError);
+      const errorMessage = dbError?.message || 'Unknown database error';
+      console.error(`[${requestId}] Database connection error:`, errorMessage);
+      
       return NextResponse.json(
-        { error: 'Database connection failed', details: dbError?.message || 'Unknown error' },
-        { status: 500 }
+        { 
+          error: 'Database connection failed',
+          requestId,
+          timestamp: new Date().toISOString()
+        },
+        { 
+          status: 500,
+          headers: {
+            'X-Request-ID': requestId,
+            'Cache-Control': 'no-store, max-age=0'
+          }
+        }
       );
     }
     
-    console.log('Querying album...');
-    const album = await Album.findById(id).lean<AlbumDocument>();
+    console.log(`[${requestId}] Querying album with ID: ${id}`);
+    
+    // Add query timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    
+    let album;
+    try {
+      album = await Album.findById(id)
+        .lean<AlbumDocument>()
+        .maxTimeMS(10000); // 10 second query timeout
+        
+      clearTimeout(timeout);
+    } catch (queryError: any) {
+      clearTimeout(timeout);
+      console.error(`[${requestId}] Query error:`, queryError);
+      
+      return NextResponse.json(
+        { 
+          error: 'Failed to query album',
+          details: queryError.message,
+          requestId,
+          timestamp: new Date().toISOString()
+        },
+        { 
+          status: 500,
+          headers: {
+            'X-Request-ID': requestId,
+            'Cache-Control': 'no-store, max-age=0'
+          }
+        }
+      );
+    }
     
     if (!album) {
-      console.log(`Album with ID ${id} not found`);
+      console.log(`[${requestId}] Album with ID ${id} not found`);
       return NextResponse.json(
-        { error: 'Album not found' },
-        { status: 404 }
+        { 
+          error: 'Album not found',
+          requestId,
+          timestamp: new Date().toISOString()
+        },
+        { 
+          status: 404,
+          headers: {
+            'X-Request-ID': requestId,
+            'Cache-Control': 'no-store, max-age=0'
+          }
+        }
       );
     }
     
