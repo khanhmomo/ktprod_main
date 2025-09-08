@@ -13,9 +13,8 @@ interface AlbumPageProps {
   id: string;
 }
 
-// Use relative URL in production, absolute in development
-const isProduction = process.env.NODE_ENV === 'production';
-const BASE_URL = isProduction ? '' : (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000');
+// In Next.js 13+, we should use the full URL in both environments
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
 interface AlbumImage {
   url: string;
@@ -34,7 +33,8 @@ interface Album {
 
 // Server Component that fetches the album data with optimizations
 async function getAlbum(id: string) {
-  const apiUrl = `${BASE_URL}/api/albums/${id}`;
+  // Construct the URL object to ensure proper URL formatting
+  const apiUrl = new URL(`/api/albums/${id}`, BASE_URL).toString();
   const requestId = Math.random().toString(36).substring(2, 9);
   
   console.log(`[${requestId}] Fetching album from: ${apiUrl}`);
