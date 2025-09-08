@@ -10,10 +10,7 @@ import {
   FiChevronRight, 
   FiArrowLeft, 
   FiX,
-  FiAlertCircle,
-  FiZoomIn,
-  FiZoomOut,
-  FiRotateCw
+  FiAlertCircle
 } from 'react-icons/fi';
 
 interface AlbumImage {
@@ -40,7 +37,6 @@ export default function AlbumViewer({ album, id }: { album: Album | null; id: st
   const [error, setError] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
-  const [scale, setScale] = useState(1);
   const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
   const [imageLoadErrors, setImageLoadErrors] = useState<Record<string, boolean>>({});
   
@@ -105,19 +101,6 @@ export default function AlbumViewer({ album, id }: { album: Album | null; id: st
         case 'ArrowRight':
           handleNext();
           break;
-        case '+':
-        case '=':
-          e.preventDefault();
-          setScale(prev => Math.min(prev + 0.2, 3));
-          break;
-        case '-':
-          e.preventDefault();
-          setScale(prev => Math.max(prev - 0.2, 0.5));
-          break;
-        case '0':
-          e.preventDefault();
-          setScale(1);
-          break;
       }
     };
 
@@ -171,7 +154,6 @@ export default function AlbumViewer({ album, id }: { album: Album | null; id: st
     setCurrentImageIndex(prev => 
       prev < album.images.length - 1 ? prev + 1 : 0
     );
-    setScale(1);
   };
 
   const handlePrev = () => {
@@ -179,13 +161,11 @@ export default function AlbumViewer({ album, id }: { album: Album | null; id: st
     setCurrentImageIndex(prev => 
       prev > 0 ? prev - 1 : album.images.length - 1
     );
-    setScale(1);
   };
 
   const handleThumbnailClick = (index: number) => {
     setCurrentImageIndex(index);
     setIsViewerOpen(true);
-    setScale(1);
   };
 
   if (isLoading) {
@@ -319,28 +299,7 @@ export default function AlbumViewer({ album, id }: { album: Album | null; id: st
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="absolute top-4 right-4 z-50 flex space-x-2">
-              <button
-                onClick={() => setScale(prev => Math.min(prev + 0.2, 3))}
-                className="p-2 text-white hover:bg-white/10 rounded-full"
-                aria-label="Zoom in"
-              >
-                <FiZoomIn className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setScale(prev => Math.max(prev - 0.2, 0.5))}
-                className="p-2 text-white hover:bg-white/10 rounded-full"
-                aria-label="Zoom out"
-              >
-                <FiZoomOut className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setScale(1)}
-                className="p-2 text-white hover:bg-white/10 rounded-full"
-                aria-label="Reset zoom"
-              >
-                <FiRotateCw className="w-5 h-5" />
-              </button>
+            <div className="absolute top-4 right-4 z-50">
               <button
                 onClick={() => setIsViewerOpen(false)}
                 className="p-2 text-white hover:bg-white/10 rounded-full"
@@ -361,11 +320,14 @@ export default function AlbumViewer({ album, id }: { album: Album | null; id: st
             <div className="relative w-full h-full flex items-center justify-center">
               <motion.div
                 className="relative max-w-full max-h-full"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                style={{ transform: `scale(${scale})` }}
+                style={{
+                  maxWidth: '90vw',
+                  maxHeight: '90vh'
+                }}
               >
                 <Image
                   src={processedImageUrl}

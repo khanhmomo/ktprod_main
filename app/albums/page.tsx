@@ -139,7 +139,7 @@ export default function AlbumsPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <h1 className="text-3xl md:text-4xl font-bold mb-4">Our Albums</h1>
+            <h1 className="text-3xl md:text-4xl font-bold mb-4">Our Gallery</h1>
             <div className="w-20 h-1 bg-black mx-auto mb-6"></div>
             <p className="text-gray-600 max-w-2xl mx-auto">
               Browse through our collection of photo albums from various sessions and events.
