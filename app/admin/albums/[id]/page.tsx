@@ -131,7 +131,12 @@ export default function EditAlbumPage() {
           </nav>
         </div>
         
-        {album && <AlbumForm initialData={album} isEditing />}
+        {album && (
+          <>
+            {console.log('Passing album to AlbumForm:', album)}
+            <AlbumForm initialData={album} isEditing />
+          </>
+        )}
       </div>
     </div>
   );

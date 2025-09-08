@@ -54,8 +54,9 @@ export default function AlbumForm({ initialData, isEditing = false, onSave, isNe
 
   // Initialize form data when initialData changes
   useEffect(() => {
+    console.log('Initial data received:', initialData);
     if (initialData) {
-      setFormData({
+      const formData = {
         title: initialData.title || '',
         description: initialData.description || '',
         coverImage: initialData.coverImage || '',
@@ -66,7 +67,11 @@ export default function AlbumForm({ initialData, isEditing = false, onSave, isNe
         date: initialData.date ? new Date(initialData.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         location: initialData.location || '',
         isPublished: initialData.isPublished || false,
-      });
+      };
+      console.log('Setting form data:', formData);
+      setFormData(formData);
+    } else {
+      console.log('No initial data provided');
     }
   }, [initialData]);
 
@@ -236,6 +241,8 @@ export default function AlbumForm({ initialData, isEditing = false, onSave, isNe
     
     return url;
   };
+
+  console.log('Current form data:', formData);
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
