@@ -33,24 +33,34 @@ interface Album {
 
 // Server Component that fetches the album data with optimizations
 async function getAlbum(id: string) {
-  // Construct the URL object to ensure proper URL formatting
-  const apiUrl = new URL(`/api/albums/${id}`, BASE_URL);
+  if (!id) {
+    throw new Error('Album ID is required');
+  }
+  
+  // Ensure BASE_URL ends with a slash for proper URL construction
+  const baseUrl = BASE_URL.endsWith('/') ? BASE_URL : `${BASE_URL}/`;
+  const apiUrl = `${baseUrl}api/albums/${id}`;
   const requestId = Math.random().toString(36).substring(2, 9);
   
-  console.log(`[${requestId}] Fetching album from: ${apiUrl.toString()}`);
+  console.log(`[${requestId}] Fetching album from: ${apiUrl}`);
   
   try {
-    const response = await fetch(apiUrl.toString(), {
+    // Add a timeout to the fetch request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
+    const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
+        'Accept': 'application/json',
         'Cache-Control': 'no-store, max-age=0',
         'X-Request-ID': requestId
       },
       next: { 
         revalidate: 60, // Cache for 1 minute
         tags: [`album-${id}`]
-      }
+      },
+      signal: controller.signal
     });
     
     const responseData = await response.json().catch((e) => {

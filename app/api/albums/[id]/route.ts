@@ -33,14 +33,36 @@ export async function GET(
   
   console.log(`[${requestId}] Fetching album with ID: ${id}`);
   
+  // Validate ID format
+  if (!id || typeof id !== 'string' || id.length !== 24) {
+    console.error(`[${requestId}] Invalid album ID format: ${id}`);
+    return NextResponse.json(
+      { 
+        success: false,
+        error: 'Invalid album ID format',
+        requestId
+      },
+      { 
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Request-ID': requestId,
+          'Cache-Control': 'no-store, max-age=0'
+        }
+      }
+    );
+  }
+  
   try {
-    // Connect to database
+    console.log(`[${requestId}] Connecting to database...`);
     await dbConnect();
     
-    // Find the album
+    console.log(`[${requestId}] Querying album with ID: ${id}`);
     const album = await Album.findOne({ _id: id, isPublished: true })
       .select('-__v')
-      .lean<AlbumDocument>();
+      .lean<AlbumDocument>()
+      .maxTimeMS(5000) // 5 second timeout for the query
+      .exec();
     
     if (!album) {
       console.log(`[${requestId}] Album with ID ${id} not found or not published`);
