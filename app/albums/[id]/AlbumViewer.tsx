@@ -10,8 +10,6 @@ import {
   FiChevronRight, 
   FiArrowLeft, 
   FiX,
-  FiMaximize2,
-  FiMinimize2,
   FiAlertCircle,
   FiZoomIn,
   FiZoomOut,
@@ -43,7 +41,6 @@ export default function AlbumViewer({ album, id }: { album: Album | null; id: st
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [scale, setScale] = useState(1);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
   const [imageLoadErrors, setImageLoadErrors] = useState<Record<string, boolean>>({});
   
@@ -245,32 +242,22 @@ export default function AlbumViewer({ album, id }: { album: Album | null; id: st
   const processedImageUrl = currentImage ? processImageUrl(currentImage.url) : '';
 
   return (
-    <div className={`${isFullscreen ? 'fixed inset-0 bg-black z-50' : 'min-h-screen bg-gray-50'}`}>
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
           <Link 
             href="/albums"
             className="inline-flex items-center text-gray-700 hover:text-gray-900"
           >
             <FiArrowLeft className="-ml-1 mr-2 h-5 w-5" />
-            Back to albums
+            <span className="text-lg font-medium text-gray-900">{album.title}</span>
           </Link>
-          <h1 className="text-lg font-medium text-gray-900">{album.title}</h1>
-          <div className="w-24">
-            <button
-              onClick={() => setIsFullscreen(!isFullscreen)}
-              className="ml-auto p-2 text-gray-700 hover:text-gray-900 focus:outline-none"
-              aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-            >
-              {isFullscreen ? <FiMinimize2 /> : <FiMaximize2 />}
-            </button>
-          </div>
         </div>
       </header>
 
       {/* Main content */}
-      <main className={`${isFullscreen ? 'h-[calc(100vh-64px)]' : 'max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8'}`}>
+      <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         {/* Album Info */}
         <div className="mb-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-left">
