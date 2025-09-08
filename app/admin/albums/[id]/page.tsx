@@ -47,9 +47,27 @@ export default function EditAlbumPage() {
           console.error('Failed to fetch album:', response.status, errorData);
           throw new Error(`Failed to fetch album: ${response.status} ${errorData}`);
         }
-        const data = await response.json();
-        console.log('Fetched album data:', data);
-        setAlbum(data);
+        const responseData = await response.json();
+        console.log('Fetched album data:', responseData);
+        
+        // Handle nested data structure
+        const albumData = responseData.data || responseData;
+        console.log('Extracted album data:', albumData);
+        
+        if (!albumData) {
+          throw new Error('No album data found in response');
+        }
+        
+        setAlbum({
+          _id: albumData._id,
+          title: albumData.title || '',
+          description: albumData.description || '',
+          coverImage: albumData.coverImage || (albumData.images?.[0]?.url || ''),
+          images: albumData.images || [],
+          date: albumData.date || new Date().toISOString(),
+          location: albumData.location || '',
+          isPublished: albumData.isPublished || false
+        });
       } catch (err) {
         console.error('Error fetching album:', err);
         setError('Failed to load album. Please try again.');
