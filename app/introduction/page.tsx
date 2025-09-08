@@ -73,12 +73,12 @@ To us, capturing authentic moments is the heart
 of everything. We study the wedding schedule closely ahead of time, approaching each event with an open mind while avoiding preconceived ideas.
 This allows us to naturally tell a true and vivid love story, not one that feels staged or forced.
               </p>
-              <p className="text-gray-600">
+              <p className="text-gray-600 mb-6">
               Rather than focusing only on the couple, we seek
 out the emotions of everyone present - family, friends, guests - weaving them into one heartfelt narrative.
 A single hug, a smile, a tear, a glance - each small moment is captured with honesty, and later, they come together like pieces of a timeless memory.
               </p>
-              <p className="text-gray-600">
+              <p className="text-gray-600 mb-6">
               We do not direct or interfere with natural moments during your wedding day. Instead, we observe gently, creating space for genuine emotions to unfold naturally, capturing the true spirit of your love story.
               </p>
               <p className="text-gray-600">
