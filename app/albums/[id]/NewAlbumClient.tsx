@@ -185,16 +185,39 @@ export default function NewAlbumClient({
       if (initialAlbum) return;
       
       setIsLoading(true);
+      setError(null);
+      
       try {
-        const response = await fetch(`/api/albums/${id}`);
+        // Use absolute URL to avoid path resolution issues
+        const baseUrl = window.location.origin;
+        const response = await fetch(`${baseUrl}/api/albums/${id}`, {
+          cache: 'no-store',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
         if (!response.ok) {
-          throw new Error(`Failed to fetch album: ${response.statusText}`);
+          const errorData = await response.text();
+          console.error('Failed to fetch album:', {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData,
+          });
+          throw new Error(`Failed to fetch album: ${response.status} ${response.statusText}`);
         }
+        
         const data = await response.json();
+        console.log('Fetched album data:', data);
+        
+        if (!data || !data.images) {
+          throw new Error('Invalid album data received from server');
+        }
+        
         setAlbum(data);
       } catch (err) {
         console.error('Error fetching album:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load album');
+        setError(err instanceof Error ? err.message : 'Failed to load album. Please try again.');
       } finally {
         setIsLoading(false);
       }
