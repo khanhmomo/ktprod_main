@@ -30,20 +30,18 @@ interface Album {
   isPublished: boolean;
 }
 
-interface AlbumPageClientProps {
-  initialAlbum: Album | null;
+export interface AlbumPageClientProps {
+  album: Album | null;
   id: string;
-  initialError?: string | null;
 }
 
 export default function AlbumPageClient({ 
-  initialAlbum, 
+  album: initialAlbum, 
   id,
-  initialError = null 
 }: AlbumPageClientProps) {
   const [album, setAlbum] = useState<Album | null>(initialAlbum);
   const [isLoading, setIsLoading] = useState(!initialAlbum);
-  const [error, setError] = useState<string | null>(initialError);
+  const [error, setError] = useState<string | null>(null);
 
   // Memoize the processImageUrl function to prevent unnecessary recalculations
   const processImageUrl = useCallback((url: string | undefined): string => {

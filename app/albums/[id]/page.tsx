@@ -5,28 +5,13 @@ import Link from 'next/link';
 import { FiArrowLeft, FiAlertCircle, FiRefreshCw } from 'react-icons/fi';
 import { env } from '@/app/config/env';
 import { ReactNode } from 'react';
-
-// Import the client component dynamically to avoid SSR issues
-import dynamic from 'next/dynamic';
+import AlbumClient from './AlbumClient';
 
 // Define the Album type for the client component
-interface AlbumPageClientProps {
-  initialAlbum: Album | null;
+interface AlbumPageProps {
+  album: Album | null;
   id: string;
 }
-
-// Import the client component with proper typing
-const AlbumPageClient = dynamic<AlbumPageClientProps>(
-  () => import('./AlbumPageClient').then(mod => mod.default as React.ComponentType<AlbumPageClientProps>),
-  { 
-    ssr: false, 
-    loading: () => (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    )
-  }
-);
 
 // Use relative URL in production, absolute in development
 const isProduction = process.env.NODE_ENV === 'production';
@@ -149,7 +134,7 @@ export default async function AlbumPage({ params }: { params: { id: string } }) 
   
   try {
     const album = await getAlbum(params.id);
-    return <AlbumPageClient initialAlbum={album} id={params.id} />;
+    return <AlbumClient album={album} id={params.id} />;
   } catch (error: unknown) {
     console.error('[Server] Error in AlbumPage:', error);
     
