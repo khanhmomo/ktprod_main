@@ -49,7 +49,9 @@ async function getAlbum(id: string) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
     
-    const response = await fetch(apiUrl, {
+    console.log(`[${requestId}] Sending request to: ${apiUrl}`);
+    
+    const fetchOptions: RequestInit = {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -61,23 +63,57 @@ async function getAlbum(id: string) {
         tags: [`album-${id}`]
       },
       signal: controller.signal
-    });
+    };
     
-    const responseData = await response.json().catch((e) => {
-      console.error(`[${requestId}] Failed to parse JSON:`, e);
-      throw new Error('Invalid response from server');
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[${requestId}] Fetch options:`, JSON.stringify(fetchOptions, null, 2));
+    }
+    
+    const response = await fetch(apiUrl, fetchOptions);
+    
+    // Clear the timeout if the request completes
+    clearTimeout(timeoutId);
+    
+    let responseData: any;
+    try {
+      const responseText = await response.text();
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (jsonError) {
+        const error = jsonError as Error;
+        console.error(`[${requestId}] Failed to parse JSON. Response text:`, responseText);
+        throw new Error(`Invalid JSON response: ${error.message}`);
+      }
+    } catch (readError) {
+      const error = readError as Error;
+      console.error(`[${requestId}] Failed to read response:`, error);
+      throw new Error(`Failed to process server response: ${error.message}`);
+    }
     
     if (!response.ok) {
-      console.error(`[${requestId}] API Error:`, response.status, response.statusText, responseData);
-      const error = new Error(responseData?.error || `Failed to fetch album: ${response.status} ${response.statusText}`) as Error & {
+      console.error(`[${requestId}] API Error:`, {
+        status: response.status,
+        statusText: response.statusText,
+        url: apiUrl,
+        response: responseData,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+      
+      const error = new Error(
+        responseData?.error || 
+        `API request failed with status ${response.status}: ${response.statusText}`
+      ) as Error & {
         status?: number;
         details?: any;
         requestId?: string;
+        url?: string;
       };
+      
       error.status = response.status;
-      error.details = responseData.details;
+      error.details = responseData.details || responseData;
       error.requestId = requestId;
+      error.url = apiUrl;
+      
       throw error;
     }
     
