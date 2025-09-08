@@ -39,11 +39,16 @@ export default function EditAlbumPage() {
           return;
         }
 
-        const response = await fetch(`/api/albums/${albumId}`);
+        const response = await fetch(`/api/albums/${albumId}`, {
+          cache: 'no-store'
+        });
         if (!response.ok) {
-          throw new Error('Failed to fetch album');
+          const errorData = await response.text();
+          console.error('Failed to fetch album:', response.status, errorData);
+          throw new Error(`Failed to fetch album: ${response.status} ${errorData}`);
         }
         const data = await response.json();
+        console.log('Fetched album data:', data);
         setAlbum(data);
       } catch (err) {
         console.error('Error fetching album:', err);
@@ -58,29 +63,33 @@ export default function EditAlbumPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <span className="ml-3 text-lg">Loading album data...</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full text-center">
-          <div className="text-red-500 mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
+      <div className="p-8 max-w-4xl mx-auto">
+        <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-6 rounded-lg shadow-md" role="alert">
+          <h2 className="text-xl font-bold mb-2">Error Loading Album</h2>
+          <p className="mb-4">{error}</p>
+          <div className="flex space-x-4">
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => router.push('/admin/albums')}
+              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
+            >
+              Back to Albums
+            </button>
           </div>
-          <h2 className="text-xl font-bold mb-2">Error</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <button
-            onClick={() => router.push('/admin/dashboard')}
-            className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
-          >
-            Back to Dashboard
-          </button>
         </div>
       </div>
     );
