@@ -90,7 +90,7 @@ const bookingProcess = [
   'Final Product Delivery'
 ];
 
-export default function Pricing() {
+export default function Services() {
   return (
     <div className="bg-white -mt-8">
       {/* Hero Section */}

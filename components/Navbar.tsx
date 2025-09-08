@@ -78,10 +78,10 @@ export default function Navbar() {
               About Us
             </Link>
             <Link 
-              href="/pricing" 
+              href="/services" 
               className={`hover:opacity-80 transition-opacity ${(scrolled || !isHomePage) ? 'text-black' : 'text-white'}`}
             >
-              Pricing
+              Services
             </Link>
             <Link 
               href="/albums" 
@@ -139,11 +139,11 @@ export default function Navbar() {
               About Us
             </Link>
             <Link 
-              href="/pricing" 
+              href="/services" 
               className="hover:opacity-80 transition-opacity py-2"
               onClick={() => setIsOpen(false)}
             >
-              Pricing
+              Services
             </Link>
             <Link 
               href="/albums" 
