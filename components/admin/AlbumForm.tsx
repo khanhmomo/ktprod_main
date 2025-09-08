@@ -56,16 +56,16 @@ export default function AlbumForm({ initialData, isEditing = false, onSave, isNe
   useEffect(() => {
     if (initialData) {
       setFormData({
-        title: initialData.title,
-        description: initialData.description,
-        coverImage: initialData.coverImage,
-        images: initialData.images.map(img => ({
+        title: initialData.title || '',
+        description: initialData.description || '',
+        coverImage: initialData.coverImage || '',
+        images: (initialData.images || []).map(img => ({
           url: img.url,
           alt: img.alt || ''
         })),
         date: initialData.date ? new Date(initialData.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        location: initialData.location,
-        isPublished: initialData.isPublished
+        location: initialData.location || '',
+        isPublished: initialData.isPublished || false,
       });
     }
   }, [initialData]);
@@ -361,7 +361,7 @@ export default function AlbumForm({ initialData, isEditing = false, onSave, isNe
             </div>
           </div>
           
-          {formData.images.length > 0 ? (
+          {formData.images && formData.images.length > 0 ? (
             <div className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 {formData.images.map((img, index) => (
