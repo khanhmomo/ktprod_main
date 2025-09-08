@@ -53,58 +53,50 @@ async function getAlbum(id: string) {
       }
     });
     
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error(`[${requestId}] API Error:`, response.status, response.statusText, errorData);
-      throw new Error(`Failed to fetch album: ${response.status} ${response.statusText}`);
-    }
-    
     const responseData = await response.json().catch((e) => {
       console.error(`[${requestId}] Failed to parse JSON:`, e);
-      return { success: false, error: 'Invalid response from server' };
+      throw new Error('Invalid response from server');
     });
     
-    if (!response.ok || !responseData?.success) {
-      console.error(`[${requestId}] API Error:`, {
-        status: response.status,
-        statusText: response.statusText,
-        response: responseData
-      });
-      
-      const errorMessage = responseData?.error || 'Failed to fetch album';
-      const error = new Error(errorMessage) as Error & {
+    if (!response.ok) {
+      console.error(`[${requestId}] API Error:`, response.status, response.statusText, responseData);
+      const error = new Error(responseData?.error || `Failed to fetch album: ${response.status} ${response.statusText}`) as Error & {
         status?: number;
         details?: any;
         requestId?: string;
       };
-      
       error.status = response.status;
       error.details = responseData.details;
       error.requestId = requestId;
-      
       throw error;
     }
     
     if (!responseData) {
-      const error = new Error('No data returned from API');
-      (error as any).requestId = requestId;
-      throw error;
+      throw new Error('No data returned from API');
+    }
+    
+    // Handle both direct album data and wrapped { data: album } format
+    const albumData = responseData.data || responseData;
+    
+    if (!albumData) {
+      throw new Error('Invalid album data format');
     }
     
     // Add request ID to the response for debugging
-    responseData._requestId = requestId;
+    albumData._requestId = requestId;
     
-    // Optimize image data structure before sending to client
-    if (responseData.images && Array.isArray(responseData.images)) {
-      responseData.images = responseData.images.map((img: any) => ({
-        url: img.url,
-        alt: img.alt || '',
-      }));
-    } else {
-      responseData.images = [];
+    // Ensure images array exists
+    if (!Array.isArray(albumData.images)) {
+      albumData.images = [];
     }
     
-    return responseData;
+    // Optimize image data structure
+    albumData.images = albumData.images.map((img: any) => ({
+      url: img.url,
+      alt: img.alt || '',
+    }));
+    
+    return albumData;
   } catch (error) {
     console.error('Error in getAlbum:', error);
     throw error;
