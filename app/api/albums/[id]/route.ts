@@ -33,9 +33,20 @@ export async function GET(
   
   try {
     console.log('Connecting to database...');
-    await dbConnect();
-    console.log('Database connected, querying album...');
+    console.log('MongoDB URI:', process.env.MONGODB_URI ? 'Set' : 'Not set');
     
+    try {
+      await dbConnect();
+      console.log('Database connected successfully');
+    } catch (dbError: any) {
+      console.error('Database connection error:', dbError);
+      return NextResponse.json(
+        { error: 'Database connection failed', details: dbError?.message || 'Unknown error' },
+        { status: 500 }
+      );
+    }
+    
+    console.log('Querying album...');
     const album = await Album.findById(id).lean<AlbumDocument>();
     
     if (!album) {

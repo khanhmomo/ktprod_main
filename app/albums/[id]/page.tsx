@@ -1,8 +1,10 @@
 // Server Component - No 'use client' directive here
 import Link from 'next/link';
-import { FiArrowLeft } from 'react-icons/fi';
+import { FiArrowLeft, FiAlertCircle } from 'react-icons/fi';
 import AlbumPageClient from './AlbumPageClient';
 import { env } from '@/app/config/env';
+
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
 interface AlbumImage {
   url: string;
@@ -22,31 +24,46 @@ interface Album {
 // Server Component that fetches the album data with optimizations
 async function getAlbum(id: string) {
   try {
-    // Use the edge runtime for faster responses
-    const response = await fetch(`${env.baseUrl}/api/albums/${id}`, {
+    const apiUrl = `${BASE_URL}/api/albums/${id}`;
+    console.log(`Fetching album from: ${apiUrl}`);
+    
+    const response = await fetch(apiUrl, {
       next: { 
-        revalidate: 3600, // Cache for 1 hour (longer cache time)
-        tags: [`album-${id}`] // Add cache tag for on-demand revalidation
+        revalidate: 60, // Cache for 1 minute (shorter for testing)
+        tags: [`album-${id}`]
       },
       headers: {
-        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=300'
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30'
       }
     });
     
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || 'Failed to fetch album');
+      let errorMessage = 'Failed to fetch album';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorMessage;
+        console.error('API Error:', errorData);
+      } catch (e) {
+        console.error('Failed to parse error response:', e);
+      }
+      
+      throw new Error(errorMessage);
     }
     
     const data = await response.json();
+    
+    if (!data) {
+      throw new Error('No data returned from API');
+    }
     
     // Optimize image data structure before sending to client
     if (data.images && Array.isArray(data.images)) {
       data.images = data.images.map((img: any) => ({
         url: img.url,
         alt: img.alt || '',
-        // Add any other necessary fields, but keep it minimal
       }));
+    } else {
+      data.images = [];
     }
     
     return data;
@@ -62,39 +79,37 @@ export default async function AlbumPage({ params }: { params: { id: string } }) 
   try {
     const album = await getAlbum(params.id);
     return <AlbumPageClient initialAlbum={album} id={params.id} />;
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Server] Error in AlbumPage:', error);
     
-    let errorMessage = 'Failed to load album. Please try again later.';
-    
-    if (error instanceof Error) {
-      if (error.message.includes('not found')) {
-        errorMessage = 'Album not found. It may have been removed or the link is incorrect.';
-      } else if (error.message.includes('Invalid album ID')) {
-        errorMessage = 'Invalid album ID format. Please check the URL and try again.';
-      }
-    }
-    
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="text-center max-w-md">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Oops! Something went wrong</h1>
-          <p className="text-gray-700 mb-6">{errorMessage}</p>
-          
-          <div className="space-y-4">
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+        <div className="max-w-2xl w-full bg-white p-8 rounded-lg shadow-md text-center">
+          <div className="text-red-500 mb-4">
+            <FiAlertCircle className="w-12 h-12 mx-auto" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">
+            {error.message?.includes('not found') ? 'Album Not Found' : 'Error Loading Album'}
+          </h1>
+          <p className="text-gray-600 mb-4">
+            {error.message || 'An unexpected error occurred while loading the album.'}
+          </p>
+          <p className="text-sm text-gray-500 mb-6">
+            Please try again later or contact support if the problem persists.
+          </p>
+          <div className="flex justify-center space-x-4">
             <Link 
               href="/albums" 
-              className="inline-block w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
-              Back to All Albums
+              <FiArrowLeft className="mr-2" /> Back to Albums
             </Link>
-            
-            <button 
-              onClick={() => window.location.reload()}
-              className="w-full px-6 py-3 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors"
+            <a
+              href="/contact"
+              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
-              Try Again
-            </button>
+              Contact Support
+            </a>
           </div>
           
           {process.env.NODE_ENV === 'development' && (
