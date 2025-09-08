@@ -30,6 +30,7 @@ export default function AlbumForm({ initialData, isEditing = false, onSave, isNe
     source?: 'upload' | 'google-drive';
   }
 
+  // Initialize form with default values or data from initialData
   const [formData, setFormData] = useState<{
     title: string;
     description: string;
@@ -38,25 +39,10 @@ export default function AlbumForm({ initialData, isEditing = false, onSave, isNe
     date: string;
     location: string;
     isPublished: boolean;
-  }>({
-    title: '',
-    description: '',
-    coverImage: '',
-    images: [],
-    date: new Date().toISOString().split('T')[0],
-    location: '',
-    isPublished: false,
-  });
-  const [imageUrl, setImageUrl] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-
-  // Initialize form data when initialData changes
-  useEffect(() => {
-    console.log('Initial data received:', initialData);
+  }>(() => {
+    // If initialData is provided, use it to initialize the form
     if (initialData) {
-      const formData = {
+      return {
         title: initialData.title || '',
         description: initialData.description || '',
         coverImage: initialData.coverImage || '',
@@ -68,10 +54,48 @@ export default function AlbumForm({ initialData, isEditing = false, onSave, isNe
         location: initialData.location || '',
         isPublished: initialData.isPublished || false,
       };
-      console.log('Setting form data:', formData);
-      setFormData(formData);
-    } else {
-      console.log('No initial data provided');
+    }
+    // Default values if no initialData
+    return {
+      title: '',
+      description: '',
+      coverImage: '',
+      images: [],
+      date: new Date().toISOString().split('T')[0],
+      location: '',
+      isPublished: false,
+    };
+  });
+  const [imageUrl, setImageUrl] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  // Update form data when initialData changes (for cases where it loads after initial render)
+  useEffect(() => {
+    console.log('Initial data received in effect:', initialData);
+    if (initialData) {
+      const newFormData = {
+        title: initialData.title || '',
+        description: initialData.description || '',
+        coverImage: initialData.coverImage || '',
+        images: (initialData.images || []).map(img => ({
+          url: img.url,
+          alt: img.alt || ''
+        })),
+        date: initialData.date ? new Date(initialData.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        location: initialData.location || '',
+        isPublished: initialData.isPublished || false,
+      };
+      console.log('Updating form data in effect:', newFormData);
+      setFormData(prev => ({
+        ...prev,
+        ...newFormData,
+        // Only update images if they're different to prevent unnecessary re-renders
+        images: JSON.stringify(prev.images) === JSON.stringify(newFormData.images) 
+          ? prev.images 
+          : newFormData.images
+      }));
     }
   }, [initialData]);
 
