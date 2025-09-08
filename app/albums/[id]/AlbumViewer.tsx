@@ -272,13 +272,17 @@ export default function AlbumViewer({ album, id }: { album: Album | null; id: st
       {/* Main content */}
       <main className={`${isFullscreen ? 'h-[calc(100vh-64px)]' : 'max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8'}`}>
         {/* Album Info */}
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">{album.title}</h1>
-          {album.location && (
-            <p className="text-gray-600">{album.location} • {new Date(album.date).toLocaleDateString()}</p>
-          )}
+        <div className="mb-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-left">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{album.title}</h1>
+            {album.location && (
+              <p className="text-gray-600">{album.location} • {new Date(album.date).toLocaleDateString()}</p>
+            )}
+          </div>
           {album.description && (
-            <p className="mt-2 text-gray-700 max-w-3xl mx-auto">{album.description}</p>
+            <p className="mt-4 text-gray-700 text-justify">
+              {album.description}
+            </p>
           )}
         </div>
 

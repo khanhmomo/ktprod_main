@@ -307,16 +307,7 @@ export default function NewAlbumClient({
             <FiArrowLeft className="-ml-1 mr-2 h-5 w-5" />
             Back to albums
           </Link>
-          <h1 className="text-lg font-medium text-gray-900">{album.title}</h1>
-          <div className="w-24">
-            <button
-              onClick={() => setIsFullscreen(!isFullscreen)}
-              className="ml-auto p-2 text-gray-700 hover:text-gray-900 focus:outline-none"
-              aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-            >
-              {isFullscreen ? <FiMinimize2 /> : <FiMaximize2 />}
-            </button>
-          </div>
+          
         </div>
       </header>
 
