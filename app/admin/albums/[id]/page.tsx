@@ -131,11 +131,27 @@ export default function EditAlbumPage() {
           </nav>
         </div>
         
-        {album && (
+        {album ? (
           <>
-            {console.log('Passing album to AlbumForm:', album)}
-            <AlbumForm initialData={album} isEditing />
+            {console.group('AlbumEditPage - Rendering AlbumForm')}
+            {console.log('Album data:', album)}
+            {console.log('Has images:', album.images?.length > 0)}
+            {console.log('Album ID:', album._id)}
+            {console.groupEnd()}
+            <AlbumForm 
+              key={album._id} // Force re-render when album changes
+              initialData={{
+                ...album,
+                // Ensure images is always an array
+                images: album.images || []
+              }} 
+              isEditing 
+            />
           </>
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-gray-600">No album data available</p>
+          </div>
         )}
       </div>
     </div>

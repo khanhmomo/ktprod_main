@@ -22,6 +22,7 @@ interface AlbumFormProps {
 }
 
 export default function AlbumForm({ initialData, isEditing = false, onSave, isNew = false }: AlbumFormProps) {
+  console.log('Rendering AlbumForm with initialData:', initialData);
   const router = useRouter();
   interface AlbumImage {
     url: string;
@@ -73,30 +74,49 @@ export default function AlbumForm({ initialData, isEditing = false, onSave, isNe
 
   // Update form data when initialData changes (for cases where it loads after initial render)
   useEffect(() => {
+    console.group('AlbumForm - initialData effect');
     console.log('Initial data received in effect:', initialData);
-    if (initialData) {
-      const newFormData = {
-        title: initialData.title || '',
-        description: initialData.description || '',
-        coverImage: initialData.coverImage || '',
-        images: (initialData.images || []).map(img => ({
-          url: img.url,
-          alt: img.alt || ''
-        })),
-        date: initialData.date ? new Date(initialData.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        location: initialData.location || '',
-        isPublished: initialData.isPublished || false,
-      };
-      console.log('Updating form data in effect:', newFormData);
-      setFormData(prev => ({
+    
+    if (!initialData) {
+      console.log('No initialData provided, using default form state');
+      console.groupEnd();
+      return;
+    }
+
+    // Create new form data object
+    const newFormData = {
+      title: initialData.title || '',
+      description: initialData.description || '',
+      coverImage: initialData.coverImage || '',
+      images: (initialData.images || []).map(img => ({
+        url: img.url,
+        alt: img.alt || ''
+      })),
+      date: initialData.date ? new Date(initialData.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      location: initialData.location || '',
+      isPublished: initialData.isPublished || false,
+    };
+
+    console.log('New form data to be set:', newFormData);
+    
+    setFormData(prev => {
+      const imagesEqual = JSON.stringify(prev.images) === JSON.stringify(newFormData.images);
+      console.log('Previous form data:', prev);
+      console.log('Images equal check:', imagesEqual);
+      
+      const updated = {
         ...prev,
         ...newFormData,
         // Only update images if they're different to prevent unnecessary re-renders
-        images: JSON.stringify(prev.images) === JSON.stringify(newFormData.images) 
-          ? prev.images 
-          : newFormData.images
-      }));
-    }
+        images: imagesEqual ? prev.images : newFormData.images
+      };
+      
+      console.log('Updated form data to be set:', updated);
+      return updated;
+    });
+    
+    console.groupEnd();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialData]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -266,7 +286,16 @@ export default function AlbumForm({ initialData, isEditing = false, onSave, isNe
     return url;
   };
 
+  console.group('AlbumForm - Render');
   console.log('Current form data:', formData);
+  console.log('Form fields state:', {
+    title: formData.title,
+    description: formData.description,
+    imagesCount: formData.images?.length || 0,
+    coverImage: formData.coverImage,
+    isPublished: formData.isPublished
+  });
+  console.groupEnd();
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
