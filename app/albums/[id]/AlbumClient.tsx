@@ -1,13 +1,13 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { AlbumPageClientProps } from './AlbumPageClient';
+import { AlbumPageClientProps } from './NewAlbumClient';
 
-interface AlbumClientProps extends Omit<AlbumPageClientProps, 'initialError'> {}
+interface AlbumClientProps extends AlbumPageClientProps {}
 
 // Client-side only component with dynamic import
 const AlbumPageClient = dynamic<AlbumClientProps>(
-  () => import('./AlbumPageClient').then(mod => mod.default as React.ComponentType<AlbumClientProps>),
+  () => import('./NewAlbumClient').then(mod => mod.default as React.ComponentType<AlbumClientProps>),
   { 
     loading: () => (
       <div className="min-h-screen flex items-center justify-center">
