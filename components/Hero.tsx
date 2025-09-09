@@ -56,10 +56,10 @@ export default function Hero() {
       clearInterval(slideshowInterval.current);
     }
     
-    // Set up new interval to change slides every 2 seconds
+    // Set up new interval to change slides every 2 seconds on all devices
     slideshowInterval.current = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % (albums.length || 1));
-    }, 2000); // Change slide every 2 seconds
+    }, 2000); // Change slide every 2 seconds for both mobile and desktop
   };
 
   // Handle manual slide change

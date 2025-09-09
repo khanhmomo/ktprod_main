@@ -21,7 +21,7 @@ const cormorant = Cormorant_Garamond({
 })
 
 export const metadata: Metadata = {
-  title: 'KTProd - Professional Photography',
+  title: 'The Wild Studio',
   description: 'Professional photography studio specializing in portraits, events, and commercial photography',
 }
 
