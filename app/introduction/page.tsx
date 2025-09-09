@@ -3,6 +3,20 @@
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+
+const Logo = () => (
+  <div className="relative w-96 h-24 mx-auto mb-8">
+    <Image
+      src="/thewildlogo_black.png"
+      alt="The Wild Photography"
+      width={384}
+      height={96}
+      className="object-contain w-full h-full"
+      priority
+    />
+  </div>
+);
 
 export default function Introduction() {
   return (
@@ -11,8 +25,7 @@ export default function Introduction() {
       <section className="pt-4 pb-20">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Our Story</h2>
-            <div className="w-20 h-1 bg-black mx-auto mb-6"></div>
+            <Logo />
             <p className="text-gray-600 text-lg leading-relaxed">
               Founded with a passion for storytelling through imagery, we've been capturing life's most precious moments for over a decade. 
               Our journey began with a simple camera and a dream to create timeless memories for our clients.
@@ -28,7 +41,7 @@ export default function Introduction() {
               className="relative h-96 rounded-xl overflow-hidden shadow-xl"
             >
               <Image
-                src="https://scontent-hou1-1.xx.fbcdn.net/v/t39.30808-6/471469351_122138681300450398_546435886968958175_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=127cfc&_nc_ohc=sIJ75Z_NcU8Q7kNvwG_AQYB&_nc_oc=AdmkEltzXNJcTRIuyuTCcBvnY4bRJMtDpJyem0gHKNO-ntagWgsSKxYtSuiCELKcWCUx60B6LJQQoZJs3Q_WU7Q7&_nc_zt=23&_nc_ht=scontent-hou1-1.xx&_nc_gid=Rt6lJjPYRTYP5gJv0xCs4Q&oh=00_AfZZlpuYB9tCDkKF2RHmBufudEdQu-RiayBN1IpKUa7ZYQ&oe=68C445D9"
+                src="https://scontent-hou1-1.xx.fbcdn.net/v/t39.30808-6/540087278_25374967925436750_7595366982701674223_n.jpg?stp=cp6_dst-jpg_tt6&_nc_cat=100&ccb=1-7&_nc_sid=833d8c&_nc_ohc=wZbiKxCLbeIQ7kNvwEKxkNd&_nc_oc=Adn2yTk8apH-8aysuqUpWItnsLBWoMsU5d2MPnY7VjlwHrX1wZf-KlYUlCckdxLsS0GNDZh4oVwbaltnSOC1aT9P&_nc_zt=23&_nc_ht=scontent-hou1-1.xx&_nc_gid=hIm3de923HFU1MChyJYUBQ&oh=00_AfbqiRPM9o1vh8KMv04o_x0F-qVB6isqO3bzvVS5MhsObA&oe=68C56113"
                 alt="Our Team"
                 fill
                 className="object-cover"
@@ -57,7 +70,7 @@ export default function Introduction() {
                 className="relative h-96 rounded-xl overflow-hidden shadow-xl"
               >
                 <Image
-                  src="https://images.unsplash.com/photo-1521791136064-7986c2920216"
+                  src="https://scontent-hou1-1.xx.fbcdn.net/v/t39.30808-6/543122746_1227873785810265_2857773337091645379_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=127cfc&_nc_ohc=SCLqoDTBl6QQ7kNvwFgfIrY&_nc_oc=AdkyzCh4Yr5lhsgXPoKai9HU366Y7ZuYRTZKexQB8NvkyyG58Z858HLHBpcQB9wT8okMwuLyMPH-NQhpjOlatzLQ&_nc_zt=23&_nc_ht=scontent-hou1-1.xx&_nc_gid=10Nxi6ZIGVEOVpbuGiXJBw&oh=00_AfY6SsSmMMcMJauoJip4ihV-x7lcVgkCAH8YY8XnwW1w0g&oe=68C58361"
                   alt="Our Approach"
                   fill
                   className="object-cover"

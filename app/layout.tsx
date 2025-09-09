@@ -1,10 +1,24 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Lato, Cormorant_Garamond } from 'next/font/google'
 import './globals.css'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 
-const inter = Inter({ subsets: ['latin'] })
+// Configure Lato as the default sans font
+const lato = Lato({ 
+  weight: ['300', '400', '700'],
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-lato'
+})
+
+// Configure Cormorant Garamond for display/headings
+const cormorant = Cormorant_Garamond({
+  weight: ['400', '500', '600', '700'],
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-cormorant'
+})
 
 export const metadata: Metadata = {
   title: 'KTProd - Professional Photography',
@@ -17,8 +31,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} bg-white text-gray-800`}>
+    <html lang="en" className={`${lato.variable} ${cormorant.variable} font-sans`}>
+      <body className="bg-white text-gray-800">
         <div className="min-h-screen flex flex-col">
           <Navbar />
           <main className="flex-grow bg-white">

@@ -329,7 +329,7 @@ export default function Services() {
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link 
               href="/contact" 
-              className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-lg font-semibold transition-colors"
+              className="bg-white  text-black px-8 py-4 rounded-lg font-semibold transition-colors"
             >
               Get in Touch
             </Link>

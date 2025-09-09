@@ -43,24 +43,27 @@ export default function Navbar() {
     >
       <div className="container mx-auto px-4 h-full">
         <div className="flex justify-between items-center h-full">
-          <Link href="/" className="flex items-center h-full">
-            <Image
-              src="/Trans_logo_white.png"
-              alt="KT Productions"
-              width={120}
-              height={45}
-              className={`h-full w-auto ${scrolled || !isHomePage ? 'hidden' : 'block'}`}
-              priority
-            />
-            <Image
-              src="/Trans_logo_white.png"
-              alt="KT Productions"
-              width={120}
-              height={45}
-              className={`h-full w-auto ${scrolled || !isHomePage ? 'block' : 'hidden'}`}
-              style={{ filter: 'brightness(0) invert(0)' }}
-              priority
-            />
+          <Link href="/" className="flex items-center h-20">
+            {/* White logo for hero section */}
+            <div className={`relative h-12 w-40 ${scrolled || !isHomePage ? 'hidden' : 'block'}`}>
+              <Image
+                src="/thewildlogo.png"
+                alt="The Wild Photography"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+            {/* Black logo for scrolled/non-home pages */}
+            <div className={`relative h-12 w-40 ${scrolled || !isHomePage ? 'block' : 'hidden'}`}>
+              <Image
+                src="/thewildlogo_black.png"
+                alt="The Wild Photography"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
           </Link>
           
           {/* Desktop Navigation */}
@@ -139,11 +142,11 @@ export default function Navbar() {
               About Us
             </Link>
             <Link 
-              href="/services" 
+              href="/pricing" 
               className="hover:opacity-80 transition-opacity py-2"
               onClick={() => setIsOpen(false)}
             >
-              Services
+              Pricing
             </Link>
             <Link 
               href="/albums" 

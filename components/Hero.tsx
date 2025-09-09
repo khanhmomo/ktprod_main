@@ -56,10 +56,10 @@ export default function Hero() {
       clearInterval(slideshowInterval.current);
     }
     
-    // Set up new interval with a longer duration to allow for the transition
+    // Set up new interval to change slides every 2 seconds
     slideshowInterval.current = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % (albums.length || 1));
-    }, 8000); // Change slide every 8 seconds
+    }, 2000); // Change slide every 2 seconds
   };
 
   // Handle manual slide change
@@ -152,12 +152,10 @@ export default function Hero() {
           transition={{ duration: 0.8 }}
           className="max-w-4xl mx-auto"
         >
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 sm:mb-6 px-4 text-center">
-            Capturing Life&apos;s Precious Moments
+          <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl font-bold mb-4 sm:mb-6 px-4 text-center">
+            Let us tell your story differently way
           </h1>
-          <p className="text-base sm:text-lg md:text-xl mb-6 sm:mb-8 text-gray-200 px-4 max-w-2xl mx-auto text-center">
-            Professional photography that tells your unique story through beautiful imagery
-          </p>
+          
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <motion.a
               whileHover={{ scale: 1.05 }}
@@ -165,13 +163,13 @@ export default function Hero() {
               href="#contact"
               className="bg-white text-black px-8 py-4 rounded-full font-semibold flex items-center justify-center border-2 border-white hover:bg-gray-100 transition-colors"
             >
-              Book a Session
+              Book now
             </motion.a>
             <motion.a
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               href="/albums"
-              className="bg-red-600 text-white px-8 py-4 rounded-full font-semibold flex items-center justify-center border-2 border-red-600 hover:bg-red-700 transition-colors"
+              className=" text-white px-8 py-4 rounded-full font-semibold flex items-center justify-center border-2 border-white  transition-colors"
             >
               View Our Work
             </motion.a>

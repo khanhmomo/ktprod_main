@@ -9,7 +9,7 @@ export default function Footer() {
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="md:col-span-2">
-            <h3 className="text-lg font-semibold mb-4">KTProd</h3>
+            <h3 className="text-lg font-semibold mb-4">The Wild Studio</h3>
             <p className="text-gray-400 mb-4">
               Capturing life&apos;s most precious moments with creativity and passion. 
               Professional photography services for all occasions.
@@ -40,15 +40,15 @@ export default function Footer() {
           <div>
             <h4 className="text-lg font-semibold mb-4">Contact Us</h4>
             <address className="not-italic text-gray-400 space-y-2">
-              <p>D5/20-21 KDC Long Thinh, Hung Phu, Can Tho</p>
-              <p>0817278182</p>
-              <p>khanhtranproduction@gmail.com</p>
+              <p>9710 South Kirkwood, Suite 500, Houston, Texas 77099</p>
+              <p>(832) 992-7879</p>
+              <p>thewildstudio.nt@gmail.com</p>
             </address>
           </div>
         </div>
         
         <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-500 text-sm">
-          <p className="text-sm text-gray-400">&copy; {currentYear} KTProd. All rights reserved.</p>
+          <p className="text-sm text-gray-400">&copy; {currentYear} TheWildStudio. All rights reserved.</p>
         </div>
       </div>
     </footer>

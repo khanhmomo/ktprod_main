@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 // Gmail SMTP configuration
 const transporter = nodemailer.createTransport({
@@ -42,15 +44,27 @@ export async function POST(request: Request) {
       `,
     });
 
+    // Read the logo file
+    const logoPath = path.join(process.cwd(), 'public', 'thewildlogo_black.png');
+    const logoBuffer = await fs.readFile(logoPath);
+    const logoBase64 = logoBuffer.toString('base64');
+
     // Send confirmation email to the user
     await transporter.sendMail({
-      from: `"KhanhTran Production" <${process.env.GMAIL_EMAIL}>`,
+      from: `"The Wild Studio | Customer Support" <${process.env.GMAIL_EMAIL}>`,
       to: email,
       subject: `[Case ${caseId}] We've Received Your Inquiry`,
+      attachments: [{
+        filename: 'thewildlogo_black.png',
+        path: logoPath,
+        cid: 'logo',
+        contentDisposition: 'inline',
+        contentTransferEncoding: 'base64'
+      }],
       text: `
         Dear ${name},
 
-        Thank you for reaching out to KT Production! We've received your inquiry and our team will get back to you as soon as possible.
+        Thank you for reaching out to The Wild Studio! We've received your inquiry and our team will get back to you as soon as possible.
 
         Your case ID is: ${caseId}
         ${subject ? `Subject: ${subject}` : ''}
@@ -65,17 +79,17 @@ export async function POST(request: Request) {
         If you need immediate assistance, please don't hesitate to contact us directly at:
         
         📞 Phone: (832) 992-7879
-        📧 Email: khanhtranproduction@gmail.com
-        📍 Location: D5/20-21 KDC Long Thinh, Hung Phu, Can Tho, Vietnam
+        📧 Email: thewildstudio.nt@gmail.com
+        📍 Location: 9710 South Kirkwood, Suite 500, Houston, Texas 77099
         
         We appreciate your patience and look forward to assisting you!
         
         Best regards,
-        KhanhTran Production Team
+        
       `,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Thank You for Contacting KT Production!</h2>
+          <h2>Thank You for Contacting The Wild Studio!</h2>
           
           <p>Dear ${name},</p>
           
@@ -94,19 +108,19 @@ export async function POST(request: Request) {
           <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 5px;">
             <h3 style="margin-top: 0;">Our Contact Information</h3>
             <p>📞 <strong>Phone:</strong> <a href="tel:8329927879">(832) 992-7879</a></p>
-            <p>📧 <strong>Email:</strong> <a href="mailto:thewildstudio.nt@gmail.com">khanhtranproduction@gmail.com</a></p>
-            <p>📍 <strong>Location:</strong> D5/20-21 KDC Long Thinh, Hung Phu, Can Tho, Vietnam</p>
+            <p>📧 <strong>Email:</strong> <a href="mailto:thewildstudio.nt@gmail.com">thewildstudio.nt@gmail.com</a></p>
+            <p>📍 <strong>Location:</strong> 9710 South Kirkwood, Suite 500, Houston, Texas 77099</p>
           </div>
           
           <p>We appreciate your patience and look forward to assisting you!</p>
           
-          <p>Best regards,<br>KT Production Team</p>
+          <p>Best regards,<br>The Wild Studio Team</p>
           
-          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #666;">
-            <p>This is an automated message. Please do not reply to this email.</p>
+          <div style="margin-top: 30px; text-align: center;">
+            <img src="cid:logo" alt="The Wild Studio Logo" style="max-width: 200px; height: auto;">
           </div>
         </div>
-      `
+      `,
     });
 
     return NextResponse.json({

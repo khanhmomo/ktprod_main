@@ -22,8 +22,12 @@ const Contact = () => {
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    // Prevent multiple submissions
+    if (isSubmitting) return;
+    
     setIsSubmitting(true);
     setSubmitStatus(null);
 
@@ -53,6 +57,12 @@ const Contact = () => {
         email: '',
         subject: '',
         message: ''
+      });
+      
+      // Scroll to show success message
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
       });
     } catch (error) {
       console.error('Error submitting form:', error);
@@ -179,7 +189,7 @@ const Contact = () => {
               </div>
               <div className="ml-4">
                 <h4 className="text-sm font-medium text-gray-500">Our Location</h4>
-                <p className="text-gray-900">D5/20-21 KDC Long Thinh, Hung Phu, Can Tho</p>
+                <p className="text-gray-900">9710 South Kirkwood, Suite 500, Houston, Texas 77099</p>
               </div>
             </div>
             <div className="flex items-start">
@@ -188,7 +198,7 @@ const Contact = () => {
               </div>
               <div className="ml-4">
                 <h4 className="text-sm font-medium text-gray-500">Phone Number</h4>
-                <p className="text-gray-900">0817278182</p>
+                <p className="text-gray-900">(832) 992-7879</p>
               </div>
             </div>
             <div className="flex items-start">
@@ -197,7 +207,7 @@ const Contact = () => {
               </div>
               <div className="ml-4">
                 <h4 className="text-sm font-medium text-gray-500">Email Address</h4>
-                <p className="text-gray-900">khanhtranproduction@gmail.com</p>
+                <p className="text-gray-900">thewildstudio.nt@gmail.com</p>
               </div>
             </div>
             <div className="flex items-start">

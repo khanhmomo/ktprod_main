@@ -171,13 +171,25 @@ export default function DashboardPage() {
         body: JSON.stringify({ isPublished: !currentStatus }),
       });
 
-      if (response.ok) {
-        // Refresh data after successful update
-        await fetchData();
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update album status');
+      if (!response.ok) {
+        let errorMessage = 'Failed to update album status';
+        try {
+          // Only try to parse JSON if there's content
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } else {
+            const text = await response.text();
+            errorMessage = text || errorMessage;
+          }
+        } catch (parseError) {
+          console.error('Error parsing error response:', parseError);
+        }
+        throw new Error(errorMessage);
       }
+      // Refresh data after successful update
+      await fetchData();
     } catch (error) {
       console.error('Error updating album status:', error);
       setError('Failed to update album status. Please try again.');

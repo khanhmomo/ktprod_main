@@ -18,7 +18,7 @@ export default function About() {
           >
             <div className="relative aspect-[4/3] w-full rounded-lg overflow-hidden shadow-xl">
               <Image
-                src="https://scontent.faus1-1.fna.fbcdn.net/v/t39.30808-6/471333544_122138681282450398_8999774020313144697_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=127cfc&_nc_ohc=WrWBSht0_2wQ7kNvwHXOgZw&_nc_oc=Admex4JouO-Nj0BRjv5rLgZnRbQ0IzHj6u4WiKDkoKmAnQl5lqWQvSZsXRxZBGvwYkQ&_nc_zt=23&_nc_ht=scontent.faus1-1.fna&_nc_gid=RH5YmYUnarwFr34TR_lpaw&oh=00_AfYn4PZkQNgCKfgwAap8O4tDMziVcFspa-LpVY8O8fQAGA&oe=68C17E36"
+                src="https://scontent-hou1-1.xx.fbcdn.net/v/t39.30808-6/520054045_1190265149571129_7737380372657143575_n.jpg?_nc_cat=110&ccb=1-7&_nc_sid=833d8c&_nc_ohc=xcXqeML2kSgQ7kNvwFj8k26&_nc_oc=Adnjokd5duOOAs_nmReM7Fg4WsO-AbasI9o9iuociQTXabOzuvUaHmFaTio2Rax-CfNddhSYfz4cFet8kv_YH4wy&_nc_zt=23&_nc_ht=scontent-hou1-1.xx&_nc_gid=EQLl0d_na9De4vNUp_yRxA&oh=00_AfbEYXbNs6TQcnh7w9dAOpXfxIC9q0Sp8eYUw-kPEUvvuA&oe=68C5949D"
                 alt="Our Story"
                 fill
                 className="object-cover"

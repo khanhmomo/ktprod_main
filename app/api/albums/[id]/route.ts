@@ -148,8 +148,116 @@ export async function GET(
   }
 }
 
-// Export other HTTP methods if needed
-// Uncomment and implement these when the corresponding route handlers are created
-// export { PUT } from './[id]/PUT';
-// export { PATCH } from './[id]/PATCH';
-// export { DELETE } from './[id]/DELETE';
+export async function PATCH(
+  request: NextRequest,
+  context: RouteParams
+) {
+  const { id } = context.params;
+  const requestId = Math.random().toString(36).substring(2, 9);
+  
+  console.log(`[${requestId}] Updating album with ID: ${id}`);
+  
+  try {
+    // Validate ID format
+    if (!id || typeof id !== 'string' || id.length !== 24) {
+      console.error(`[${requestId}] Invalid album ID format: ${id}`);
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Invalid album ID format',
+          requestId
+        },
+        { 
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Request-ID': requestId,
+            'Cache-Control': 'no-store, max-age=0'
+          }
+        }
+      );
+    }
+
+    await dbConnect();
+    
+    // Parse request body
+    const updateData = await request.json();
+    console.log(`[${requestId}] Update data:`, updateData);
+    
+    // Only allow specific fields to be updated
+    const allowedUpdates = ['isPublished', 'title', 'description', 'date', 'location'];
+    const updates = Object.keys(updateData)
+      .filter(key => allowedUpdates.includes(key))
+      .reduce((obj, key) => {
+        obj[key] = updateData[key];
+        return obj;
+      }, {} as Record<string, any>);
+    
+    // Add updatedAt timestamp
+    updates.updatedAt = new Date();
+    
+    const updatedAlbum = await Album.findByIdAndUpdate(
+      id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    );
+    
+    if (!updatedAlbum) {
+      console.error(`[${requestId}] Album not found with ID: ${id}`);
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Album not found',
+          requestId
+        },
+        { 
+          status: 404,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Request-ID': requestId,
+            'Cache-Control': 'no-store, max-age=0'
+          }
+        }
+      );
+    }
+    
+    console.log(`[${requestId}] Successfully updated album:`, updatedAlbum._id);
+    
+    return NextResponse.json(
+      { 
+        success: true,
+        data: updatedAlbum,
+        requestId 
+      },
+      { 
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Request-ID': requestId,
+          'Cache-Control': 'no-store, max-age=0'
+        }
+      }
+    );
+    
+  } catch (error) {
+    console.error(`[${requestId}] Error updating album:`, error);
+    return NextResponse.json(
+      { 
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to update album',
+        requestId
+      },
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Request-ID': requestId,
+          'Cache-Control': 'no-store, max-age=0'
+        }
+      }
+    );
+  }
+}
+
+// Export other HTTP methods
+export { DELETE } from './DELETE';
