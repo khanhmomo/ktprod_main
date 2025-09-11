@@ -334,7 +334,7 @@ export default function Services() {
               Get in Touch
             </Link>
             <Link 
-              href="/albums" 
+              href="/gallery" 
               className="bg-transparent hover:bg-white/10 text-white border border-white px-8 py-4 rounded-lg font-semibold transition-colors"
             >
               View Our Work

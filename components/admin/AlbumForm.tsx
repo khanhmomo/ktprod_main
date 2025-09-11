@@ -1,269 +1,156 @@
 'use client';
 
+import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import GoogleDriveImport from '@/components/GoogleDriveImport';
 
+const categories = [
+  { value: 'Wedding', label: 'Wedding' },
+  { value: 'Prewedding', label: 'Prewedding' },
+  { value: 'Event', label: 'Event' },
+  { value: 'Studio', label: 'Studio' }
+];
+
+interface AlbumImage {
+  url: string;
+  alt?: string;
+  originalUrl?: string;
+  source?: 'upload' | 'google-drive';
+}
+
+interface FormData {
+  title: string;
+  description: string;
+  coverImage: string;
+  images: AlbumImage[];
+  date: string;
+  location: string;
+  isPublished: boolean;
+  category: string;
+}
+
 interface AlbumFormProps {
-  initialData?: {
-    _id?: string;
-    title: string;
-    description: string;
-    coverImage: string;
-    images: { url: string; alt?: string }[];
-    date: string;
-    location: string;
-    isPublished: boolean;
-    featuredInHero?: boolean;
-  };
+  initialData?: FormData & { _id?: string; featuredInHero?: boolean };
   isEditing?: boolean;
   onSave?: () => void;
   isNew?: boolean;
 }
 
-export default function AlbumForm({ initialData, isEditing = false, onSave, isNew = false }: AlbumFormProps) {
-  console.log('Rendering AlbumForm with initialData:', initialData);
+export default function AlbumForm({ 
+  initialData, 
+  isEditing = false, 
+  onSave, 
+  isNew = false 
+}: AlbumFormProps) {
   const router = useRouter();
-  interface AlbumImage {
-    url: string;
-    alt?: string;
-    originalUrl?: string;
-    source?: 'upload' | 'google-drive';
-  }
-
-  // Initialize form with default values or data from initialData
-  const [formData, setFormData] = useState<{
-    title: string;
-    description: string;
-    coverImage: string;
-    images: AlbumImage[];
-    date: string;
-    location: string;
-    isPublished: boolean;
-  }>(() => {
-    // If initialData is provided, use it to initialize the form
-    if (initialData) {
-      return {
-        title: initialData.title || '',
-        description: initialData.description || '',
-        coverImage: initialData.coverImage || '',
-        images: (initialData.images || []).map(img => ({
-          url: img.url,
-          alt: img.alt || ''
-        })),
-        date: initialData.date ? new Date(initialData.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        location: initialData.location || '',
-        isPublished: initialData.isPublished || false,
-      };
-    }
-    // Default values if no initialData
-    return {
-      title: '',
-      description: '',
-      coverImage: '',
-      images: [],
-      date: new Date().toISOString().split('T')[0],
-      location: '',
-      isPublished: false,
-    };
-  });
   const [imageUrl, setImageUrl] = useState('');
+  const [coverImage, setCoverImage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
-  // Update form data when initialData changes (for cases where it loads after initial render)
+  const [formData, setFormData] = useState<FormData>({
+    title: '',
+    description: '',
+    coverImage: '',
+    images: [],
+    date: new Date().toISOString().split('T')[0],
+    location: '',
+    isPublished: false,
+    category: 'Event'
+  });
+
+  // Initialize form with initialData
   useEffect(() => {
-    console.group('AlbumForm - initialData effect');
-    console.log('Initial data received in effect:', initialData);
-    
-    if (!initialData) {
-      console.log('No initialData provided, using default form state');
-      console.groupEnd();
-      return;
+    if (initialData) {
+      setFormData({
+        title: initialData.title || '',
+        description: initialData.description || '',
+        coverImage: initialData.coverImage || '',
+        images: initialData.images || [],
+        date: initialData.date || new Date().toISOString().split('T')[0],
+        location: initialData.location || '',
+        isPublished: initialData.isPublished || false,
+        category: initialData.category || 'Event'
+      });
+      if (initialData.coverImage) {
+        setCoverImage(initialData.coverImage);
+      }
     }
-
-    // Create new form data object
-    const newFormData = {
-      title: initialData.title || '',
-      description: initialData.description || '',
-      coverImage: initialData.coverImage || '',
-      images: (initialData.images || []).map(img => ({
-        url: img.url,
-        alt: img.alt || ''
-      })),
-      date: initialData.date ? new Date(initialData.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-      location: initialData.location || '',
-      isPublished: initialData.isPublished || false,
-    };
-
-    console.log('New form data to be set:', newFormData);
-    
-    setFormData(prev => {
-      const imagesEqual = JSON.stringify(prev.images) === JSON.stringify(newFormData.images);
-      console.log('Previous form data:', prev);
-      console.log('Images equal check:', imagesEqual);
-      
-      const updated = {
-        ...prev,
-        ...newFormData,
-        // Only update images if they're different to prevent unnecessary re-renders
-        images: imagesEqual ? prev.images : newFormData.images
-      };
-      
-      console.log('Updated form data to be set:', updated);
-      return updated;
-    });
-    
-    console.groupEnd();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialData]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const target = e.target as HTMLInputElement;
-    const { name, value, type } = target;
-    const checked = target.checked;
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target as HTMLInputElement;
+    const checked = type === 'checkbox' ? (e.target as HTMLInputElement).checked : undefined;
     
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: checked !== undefined ? checked : value
     }));
   };
 
   const addImage = () => {
-    const trimmedUrl = imageUrl.trim();
-    if (trimmedUrl === '') return;
+    if (!imageUrl.trim()) return;
     
-    // Basic URL validation
-    try {
-      new URL(trimmedUrl); // This will throw for invalid URLs
-      
-      // Check for duplicate URLs
-      if (formData.images.some(img => img.url === trimmedUrl)) {
-        alert('This image URL has already been added.');
-        return;
-      }
-      
-      const newImage: AlbumImage = { 
-        url: trimmedUrl, 
-        alt: '',
-        originalUrl: trimmedUrl,
-        source: 'upload'
-      };
-      
+    const newImage = {
+      url: processImageUrl(imageUrl),
+      originalUrl: imageUrl,
+      source: 'upload' as const
+    };
+    
+    setFormData(prev => ({
+      ...prev,
+      images: [...prev.images, newImage]
+    }));
+    
+    if (!formData.coverImage) {
       setFormData(prev => ({
         ...prev,
-        images: [...prev.images, newImage],
-        // Set as cover image if it's the first image
-        coverImage: prev.images.length === 0 ? trimmedUrl : prev.coverImage
+        coverImage: newImage.url
       }));
-      setImageUrl('');
-    } catch (e) {
-      alert('Please enter a valid URL (e.g., https://example.com/image.jpg)');
+      setCoverImage(newImage.url);
     }
+    
+    setImageUrl('');
   };
-  
+
   const handleImportFromDrive = (images: Array<{ url: string; originalUrl: string; name: string }>) => {
-    const newImages: AlbumImage[] = images.map(img => ({
-      url: img.url,
-      alt: img.name,
+    const newImages = images.map(img => ({
+      url: processImageUrl(img.url),
       originalUrl: img.originalUrl,
-      source: 'google-drive'
+      alt: img.name,
+      source: 'google-drive' as const
     }));
     
     setFormData(prev => ({
       ...prev,
-      images: [...prev.images, ...newImages],
-      // Set cover image if it's not set yet
-      coverImage: prev.coverImage || (newImages[0]?.url || '')
+      images: [...prev.images, ...newImages]
     }));
+    
+    if (!formData.coverImage && newImages.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        coverImage: newImages[0].url
+      }));
+      setCoverImage(newImages[0].url);
+    }
     
     setIsImportModalOpen(false);
   };
 
   const removeImage = (index: number) => {
-    setFormData(prev => {
-      const newImages = [...prev.images];
-      newImages.splice(index, 1);
-      
-      // If we removed the cover image, set a new one if possible
-      let newCoverImage = prev.coverImage;
-      if (prev.coverImage === prev.images[index]?.url && newImages.length > 0) {
-        newCoverImage = newImages[0].url;
-      } else if (newImages.length === 0) {
-        newCoverImage = '';
-      }
-      
-      return {
-        ...prev,
-        images: newImages,
-        coverImage: newCoverImage
-      };
-    });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    // Basic validation
-    if (!formData.title.trim()) {
-      setError('Title is required');
-      setLoading(false);
-      return;
-    }
-
-    if (formData.images.length === 0) {
-      setError('Please add at least one image');
-      setLoading(false);
-      return;
-    }
-
-    if (!formData.coverImage) {
-      setError('Please select a cover image');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const url = isEditing && initialData?._id 
-        ? `/api/albums/${initialData._id}`
-        : '/api/albums';
-      
-      const method = isEditing ? 'PUT' : 'POST';
-      
-      console.log('Sending request to:', url);
-      console.log('Request method:', method);
-      console.log('Request body:', JSON.stringify(formData, null, 2));
-      
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      const responseData = await response.json().catch(() => ({}));
-      console.log('Response status:', response.status);
-      console.log('Response data:', responseData);
-
-      if (!response.ok) {
-        throw new Error(responseData.error || 'Failed to save album');
-      }
-
-      if (onSave) {
-        onSave();
-      }
-      
-      router.push('/admin/dashboard');
-      router.refresh(); // Refresh the page to show the updated data
-    } catch (error) {
-      console.error('Error saving album:', error);
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-      setError(`Failed to save album: ${errorMessage}`);
-      setLoading(false);
+    const newImages = [...formData.images];
+    const removedImage = newImages.splice(index, 1)[0];
+    
+    setFormData(prev => ({
+      ...prev,
+      images: newImages,
+      coverImage: prev.coverImage === removedImage.url ? '' : prev.coverImage
+    }));
+    
+    if (coverImage === removedImage.url) {
+      setCoverImage('');
     }
   };
 
@@ -271,242 +158,298 @@ export default function AlbumForm({ initialData, isEditing = false, onSave, isNe
   const processImageUrl = (url: string): string => {
     if (!url) return '';
     
-    // If it's a Google Drive URL, use the proxy API
+    // If it's a Google Drive URL, modify it for direct image access
     if (url.includes('drive.google.com')) {
-      // Extract file ID from Google Drive URL
-      let fileId = '';
-      const match = url.match(/[\w-]{25,}/);
-      if (match) fileId = match[0];
-      
+      const fileId = url.match(/[\w\-]{20,}/);
       if (fileId) {
-        return `/api/drive/image?id=${encodeURIComponent(fileId)}`;
+        return `https://drive.google.com/uc?export=view&id=${fileId[0]}`;
       }
     }
     
     return url;
   };
 
-  console.group('AlbumForm - Render');
-  console.log('Current form data:', formData);
-  console.log('Form fields state:', {
-    title: formData.title,
-    description: formData.description,
-    imagesCount: formData.images?.length || 0,
-    coverImage: formData.coverImage,
-    isPublished: formData.isPublished
-  });
-  console.groupEnd();
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      // Ensure category is included
+      if (!formData.category) {
+        throw new Error('Please select a category');
+      }
+      
+      const url = isEditing && initialData?._id 
+        ? `/api/albums/${initialData._id}`
+        : '/api/albums';
+      
+      const method = isEditing ? 'PATCH' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...formData,
+          // Ensure we don't send internal fields to the API
+          _id: undefined,
+          featuredInHero: undefined
+        }),
+      });
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Failed to save album');
+      }
+
+      // Call the onSave callback if provided
+      if (onSave) {
+        onSave();
+      }
+
+      // If this is a new album, redirect to the edit page
+      if (!isEditing && responseData._id) {
+        router.push(`/admin/albums/${responseData._id}`);
+      }
+
+      // Show success message
+      alert(`Album ${isEditing ? 'updated' : 'created'} successfully!`);
+    } catch (err) {
+      console.error('Error saving album:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred while saving the album');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6">{isEditing ? 'Edit Album' : 'Create New Album'}</h2>
-      
-      {error && (
-        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-          {error}
+      <form onSubmit={handleSave}>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold">
+            {isEditing ? 'Edit Album' : 'Create New Album'}
+          </h2>
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50"
+          >
+            {loading ? 'Saving...' : 'Save Album'}
+          </button>
         </div>
-      )}
-      
-      <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-              Title *
-            </label>
-            <input
-              type="text"
-              id="title"
-              name="title"
-              value={formData.title}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black"
-              required
-            />
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
+            {error}
           </div>
-          
-          <div>
-            <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
-              Location
-            </label>
-            <input
-              type="text"
-              id="location"
-              name="location"
-              value={formData.location}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black"
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
-              Date
-            </label>
-            <input
-              type="date"
-              id="date"
-              name="date"
-              value={formData.date}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black"
-            />
-          </div>
-          
-          <div className="space-y-4">
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                name="isPublished"
-                checked={formData.isPublished}
-                onChange={handleChange}
-                className="rounded border-gray-300 text-black focus:ring-black"
-              />
-              <span className="ml-2">Publish Album</span>
-            </div>
-          </div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+        )}
+
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Title
+          </label>
+          <input
+            type="text"
+            name="title"
+            value={formData.title}
+            onChange={handleInputChange}
+            className="w-full p-2 border rounded-md"
+            required
+          />
+        </div>
+
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Category
+          </label>
+          <select
+            name="category"
+            value={formData.category}
+            onChange={handleInputChange}
+            className="w-full p-2 border rounded-md"
+            required
+          >
+            <option value="">Select a category</option>
+            {categories.map(category => (
+              <option key={category.value} value={category.value}>
+                {category.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
             Description
           </label>
           <textarea
-            id="description"
             name="description"
-            rows={3}
             value={formData.description}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black"
+            onChange={handleInputChange}
+            rows={4}
+            className="w-full p-2 border rounded-md"
           />
         </div>
-        
-        <div className="mt-6">
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-sm font-medium text-gray-700">
-              Images *
+
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Date
+          </label>
+          <input
+            type="date"
+            name="date"
+            value={formData.date}
+            onChange={handleInputChange}
+            className="p-2 border rounded-md"
+          />
+        </div>
+
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Location
+          </label>
+          <input
+            type="text"
+            name="location"
+            value={formData.location}
+            onChange={handleInputChange}
+            className="w-full p-2 border rounded-md"
+          />
+        </div>
+
+        <div className="mb-6 flex items-center">
+          <input
+            type="checkbox"
+            id="isPublished"
+            name="isPublished"
+            checked={formData.isPublished}
+            onChange={handleInputChange}
+            className="h-4 w-4 text-blue-600 rounded"
+          />
+          <label htmlFor="isPublished" className="ml-2 text-sm text-gray-700">
+            Published
+          </label>
+        </div>
+
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Images
             </label>
-            <span className="text-sm text-gray-500">
-              {formData.images.length} {formData.images.length === 1 ? 'image' : 'images'} added
-            </span>
+            <button
+              type="button"
+              onClick={() => setIsImportModalOpen(true)}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Import from Google Drive
+            </button>
           </div>
-          
-          <div className="mb-4">
-            <div className="mt-1 flex rounded-md shadow-sm">
-              <input
-                type="text"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                className="block w-full rounded-l-md border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                placeholder="Image URL"
-              />
-              <button
-                type="button"
-                onClick={() => setIsImportModalOpen(true)}
-                className="inline-flex items-center rounded-r-md border border-l-0 border-gray-300 bg-gray-50 px-3 text-gray-500 hover:bg-gray-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
-              >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                </svg>
-                <span className="ml-1 hidden sm:inline">Import from Drive</span>
-              </button>
-              <button
-                type="button"
-                onClick={addImage}
-                disabled={!imageUrl.trim()}
-                className={`ml-2 px-4 py-2 rounded-md ${
-                  imageUrl.trim() 
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                Add
-              </button>
-            </div>
+
+          <div className="flex mb-4">
+            <input
+              type="text"
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="Paste image URL"
+              className="flex-1 p-2 border rounded-l-md"
+            />
+            <button
+              type="button"
+              onClick={addImage}
+              disabled={!imageUrl.trim()}
+              className="px-4 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 disabled:opacity-50"
+            >
+              Add
+            </button>
           </div>
-          
-          {formData.images && formData.images.length > 0 ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {formData.images.map((img, index) => (
-                  <div key={index} className="relative group">
-                    <img
-                      src={processImageUrl(img.url)}
-                      alt={img.alt || `Image ${index + 1}`}
-                      className={`w-full h-32 object-cover rounded-md ${
-                        formData.coverImage === img.url 
-                          ? 'ring-2 ring-blue-500 ring-offset-2' 
-                          : 'border border-gray-200'
-                      }`}
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = img.originalUrl || img.url; // Fallback to original URL if proxy fails
-                      }}
-                    />
-                    {formData.coverImage === img.url && (
-                      <div className="absolute top-1 left-1 bg-blue-600 text-white text-xs px-1 rounded">
-                        Cover
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-1">
-                      <button
-                        type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, coverImage: img.url }))}
-                        className={`p-1 rounded-full ${
-                          formData.coverImage === img.url
-                            ? 'bg-blue-700 text-white cursor-default'
-                            : 'bg-blue-600 text-white hover:bg-blue-700'
-                        }`}
-                        title="Set as cover"
-                        disabled={formData.coverImage === img.url}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeImage(index)}
-                        className="p-1 bg-red-600 rounded-full text-white hover:bg-red-700"
-                        title="Remove image"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
+
+          {formData.images.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {formData.images.map((image, index) => (
+                <div key={index} className="relative group">
+                  <img
+                    src={image.url}
+                    alt={image.alt || `Image ${index + 1}`}
+                    className={`w-full h-32 object-cover rounded-md ${
+                      coverImage === image.url ? 'ring-2 ring-blue-500' : ''
+                    }`}
+                    onClick={() => setCoverImage(image.url)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(index)}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    ×
+                  </button>
+                  {coverImage === image.url && (
+                    <div className="absolute top-1 left-1 bg-blue-500 text-white text-xs px-1 rounded">
+                      Cover
                     </div>
-                  </div>
-                ))}
-              </div>
-              
-              
+                  )}
+                </div>
+              ))}
             </div>
           ) : (
-            <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-md text-gray-500">
-              No images added yet. Add an image URL above.
+            <div className="border-2 border-dashed border-gray-300 rounded-md p-8 text-center">
+              <p className="text-gray-500">No images added yet</p>
             </div>
           )}
-          
-          {!formData.coverImage && formData.images.length > 0 && (
-            <p className="mt-2 text-sm text-red-600">Please select a cover image</p>
-          )}
         </div>
-        
-        <div className="mt-8 flex justify-end space-x-3">
+
+        <div className="flex justify-end space-x-4">
           <button
             type="button"
             onClick={() => router.back()}
-            className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-            disabled={loading}
+            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
           >
             Cancel
           </button>
           <button
             type="submit"
-            disabled={loading || formData.images.length === 0 || !formData.coverImage}
-            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading || formData.images.length === 0}
+            className={`px-4 py-2 rounded-md text-white ${
+              loading || formData.images.length === 0
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-blue-500 hover:bg-blue-600'
+            }`}
           >
-            {loading ? 'Saving...' : 'Save Album'}
+            {loading ? (
+              <span className="flex items-center">
+                <svg
+                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Saving...
+              </span>
+            ) : isEditing ? (
+              'Update Album'
+            ) : (
+              'Create Album'
+            )}
           </button>
         </div>
       </form>
-      
+
       <GoogleDriveImport
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}

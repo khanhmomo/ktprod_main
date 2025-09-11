@@ -14,6 +14,7 @@ interface AlbumData {
   date: string;
   location: string;
   isPublished: boolean;
+  category: string;
 }
 
 export default function EditAlbumPage() {
@@ -66,7 +67,8 @@ export default function EditAlbumPage() {
           images: albumData.images || [],
           date: albumData.date || new Date().toISOString(),
           location: albumData.location || '',
-          isPublished: albumData.isPublished || false
+          isPublished: albumData.isPublished || false,
+          category: albumData.category || 'Event' // Add this line
         });
       } catch (err) {
         console.error('Error fetching album:', err);

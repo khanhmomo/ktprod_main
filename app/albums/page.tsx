@@ -21,10 +21,17 @@ interface Album {
   description?: string;
   isPublished: boolean;
   createdAt?: string;
+  category: 'Wedding' | 'Prewedding' | 'Event' | 'Studio';
 }
+
+type Category = 'All' | 'Wedding' | 'Prewedding' | 'Event' | 'Studio';
+
+const categories: Category[] = ['All', 'Wedding', 'Prewedding', 'Event', 'Studio'];
 
 export default function AlbumsPage() {
   const [albums, setAlbums] = useState<Album[]>([]);
+  const [filteredAlbums, setFilteredAlbums] = useState<Album[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<Category>('All');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [imageAspectRatios, setImageAspectRatios] = useState<Record<string, string>>({});
@@ -47,6 +54,15 @@ export default function AlbumsPage() {
     });
   };
 
+  // Filter albums by selected category
+  useEffect(() => {
+    if (selectedCategory === 'All') {
+      setFilteredAlbums(albums);
+    } else {
+      setFilteredAlbums(albums.filter(album => album.category === selectedCategory));
+    }
+  }, [selectedCategory, albums]);
+
   // Load albums and calculate aspect ratios
   useEffect(() => {
     const fetchAlbums = async () => {
@@ -62,6 +78,7 @@ export default function AlbumsPage() {
         const data = await response.json();
         const albumsData = Array.isArray(data) ? data : [];
         setAlbums(albumsData);
+        setFilteredAlbums(albumsData); // Initialize filtered albums with all albums
 
         // Calculate aspect ratios for all album covers
         const aspectRatios: Record<string, string> = {};
@@ -129,22 +146,45 @@ export default function AlbumsPage() {
     );
   }
 
+  const CategoryButton = ({ category }: { category: Category }) => (
+    <button
+      onClick={() => setSelectedCategory(category)}
+      className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+        selectedCategory === category
+          ? 'bg-black text-white'
+          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+      }`}
+    >
+      {category}
+    </button>
+  );
+
   return (
     <div className="bg-white -mt-8">
-      <section className="pt-4 pb-12">
-        <div className="container mx-auto px-4">
-          <motion.div 
-            className="text-center mb-12"
+      <section className="relative pt-4 pb-16 bg-gray-50 overflow-hidden">
+        <div className="container mx-auto px-4 text-center relative z-10">
+          <motion.h1 
+            className="text-3xl md:text-4xl font-bold mb-4 mt-8 font-cormorant"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <h1 className="text-3xl md:text-4xl font-bold mb-4">Our Gallery</h1>
-            <div className="w-20 h-1 bg-black mx-auto mb-6"></div>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              Browse through our collection of photo albums from various sessions and events.
-            </p>
-          </motion.div>
+            Our Gallery
+          </motion.h1>
+          <div className="w-20 h-1 bg-black mx-auto mb-6"></div>
+          <p className="text-gray-600 max-w-2xl mx-auto mb-12">
+            Browse through our collection of photo albums from various categories.
+          </p>
+          
+          {/* Category Filter */}
+          <div className="flex flex-wrap justify-center gap-3 mb-12 px-4">
+            {categories.map((category) => (
+              <CategoryButton key={category} category={category} />
+            ))}
+          </div>
+        </div>
+      </section>
+      <div className="container mx-auto px-4 py-12">
 
         <Masonry
           breakpointCols={{
@@ -156,37 +196,62 @@ export default function AlbumsPage() {
           className="flex w-auto -ml-4"
           columnClassName="pl-4 bg-clip-padding"
         >
-          {albums.map((album, index) => {
+          {filteredAlbums.map((album, index) => {
             // Get the pre-calculated aspect ratio or use default
             const aspectClass = imageAspectRatios[album._id] || 'aspect-[4/3]';
 
             return (
-              <div key={album._id} className="mb-4 break-inside-avoid">
-                <Link href={`/albums/${album._id}`} className="block group">
-                  <div className="relative overflow-hidden rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
-                    <div className={`w-full ${aspectClass} bg-gray-100`}>
+              <div key={album._id} className="mb-4 break-inside-avoid w-full">
+                <Link href={`/albums/${album._id}`} className="block group h-full">
+                  <div className="relative overflow-hidden rounded-lg shadow-md hover:shadow-xl transition-all duration-300 h-full flex flex-col">
+                    <div className="w-full aspect-[4/3] bg-gray-100 flex-shrink-0">
                       <Image
                         src={album.coverImage}
                         alt={album.title || 'Album cover'}
                         fill
-                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         priority={index < 6}
                         placeholder="blur"
                         blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNlNWU1ZTUiLz48L3N2Zz4="
                       />
-                    </div>
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-                      <h2 className="text-lg font-bold text-white">{album.title}</h2>
-                      <div className="text-sm text-gray-200">
-                        {album.location && <p>{album.location}</p>}
-                        {album.date && <p>{formatDate(album.date)}</p>}
-                        {album.images && (
-                          <p className="mt-1">
-                            {album.images.length} {album.images.length === 1 ? 'photo' : 'photos'}
-                          </p>
-                        )}
+                      {/* Mobile: Always visible */}
+                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center p-6 text-center md:hidden">
+                        <div>
+                          <h2 className="text-xl font-medium text-white font-cormorant">{album.title}</h2>
+                          {album.date && (
+                            <p className="text-white/80 text-sm mt-1">
+                              {formatDate(album.date)}
+                            </p>
+                          )}
+                        </div>
                       </div>
+                      
+                      {/* Desktop: Visible on hover */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex items-end p-4 text-center transition-all duration-300 hidden md:flex opacity-0 group-hover:opacity-100">
+                        <div className="w-full">
+                          <h2 className="text-xl font-medium text-white font-cormorant">{album.title}</h2>
+                          {album.date && (
+                            <p className="text-white/80 text-sm">
+                              {formatDate(album.date)}
+                            </p>
+                          )}
+                          {album.location && (
+                            <p className="text-white/80 text-sm mt-1">
+                              {album.location}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    {/* Desktop: Always visible info */}
+                    <div className="p-4 hidden md:block flex-grow">
+                      <h3 className="font-medium text-gray-900 line-clamp-2">{album.title}</h3>
+                      {album.date && (
+                        <p className="text-gray-500 text-sm mt-1">
+                          {formatDate(album.date)}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </Link>
@@ -194,8 +259,7 @@ export default function AlbumsPage() {
             );
           })}
         </Masonry>
-        </div>
-      </section>
+      </div>
     </div>
   );
 }

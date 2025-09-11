@@ -168,7 +168,7 @@ export default function Hero() {
             <motion.a
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              href="/albums"
+              href="/gallery"
               className=" text-white px-8 py-4 rounded-full font-semibold flex items-center justify-center border-2 border-white  transition-colors"
             >
               View Our Work

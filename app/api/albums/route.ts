@@ -22,10 +22,20 @@ export async function GET(request: Request) {
     
     const { searchParams } = new URL(request.url);
     const all = searchParams.get('all') === 'true';
+    const category = searchParams.get('category');
     
-    // If all=true is specified, return all albums (for admin)
-    // Otherwise, only return published albums (for public access)
-    const query = all ? {} : { isPublished: true };
+    // Build the query based on parameters
+    const query: any = {};
+    
+    // If not requesting all albums (for admin), only show published ones
+    if (!all) {
+      query.isPublished = true;
+    }
+    
+    // Add category filter if specified
+    if (category) {
+      query.category = category.charAt(0).toUpperCase() + category.slice(1);
+    }
     
     console.log('Fetching albums with query:', JSON.stringify(query));
     

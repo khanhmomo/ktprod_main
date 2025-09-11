@@ -87,10 +87,10 @@ export default function Navbar() {
               Services
             </Link>
             <Link 
-              href="/albums" 
+              href="/gallery" 
               className={`hover:opacity-80 transition-opacity ${(scrolled || !isHomePage) ? 'text-black' : 'text-white'}`}
             >
-              Albums
+              Gallery
             </Link>
             <Link 
               href="/kind-words" 
@@ -149,11 +149,11 @@ export default function Navbar() {
               Services
             </Link>
             <Link 
-              href="/albums" 
+              href="/gallery" 
               className="hover:opacity-80 transition-opacity py-2"
               onClick={() => setIsOpen(false)}
             >
-              Albums
+              Gallery
             </Link>
             <Link 
               href="/kind-words" 
