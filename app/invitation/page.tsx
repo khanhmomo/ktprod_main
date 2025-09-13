@@ -1,31 +1,3 @@
-import type { Metadata } from 'next';
-
-// Metadata for the invitation page
-export const metadata: Metadata = {
-  title: 'The Wild - Grand Opening',
-  description: 'You\'re invited to the grand opening of The Wild Studio',
-  openGraph: {
-    title: 'The Wild - Grand Opening',
-    description: 'You\'re invited to the grand opening of The Wild Studio',
-    images: [
-      {
-        url: 'https://scontent-hou1-1.xx.fbcdn.net/v/t39.30808-6/540087278_25374967925436750_7595366982701674223_n.jpg',
-        width: 1200,
-        height: 630,
-        alt: 'The Wild Studio Grand Opening',
-      },
-    ],
-    siteName: 'The Wild Studio',
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'The Wild - Grand Opening',
-    description: 'You\'re invited to the grand opening of The Wild Studio',
-    images: ['https://scontent-hou1-1.xx.fbcdn.net/v/t39.30808-6/540087278_25374967925436750_7595366982701674223_n.jpg'],
-  },
-};
-
 'use client';
 
 import { motion } from 'framer-motion';
