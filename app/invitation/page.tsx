@@ -13,17 +13,17 @@ export default function InvitationPage() {
         
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://www.thewildstudio.org/invitation" />
+        <meta property="og:url" content="https://thewildstudio.org/invitation" />
         <meta property="og:title" content="The Wild - Grand Opening" />
         <meta property="og:description" content="You're invited to the grand opening of The Wild Studio" />
-        <meta property="og:image" content="https://www.thewildstudio.org/images/invitation-bg.jpg" />
+        <meta property="og:image" content="https://thewildstudio.org/images/invitation-bg.jpg" />
         
         {/* Twitter */}
         <meta property="twitter:card" content="summary_large_image" />
-        <meta property="twitter:url" content="https://www.thewildstudio.org/invitation" />
+        <meta property="twitter:url" content="https://thewildstudio.org/invitation" />
         <meta property="twitter:title" content="The Wild - Grand Opening" />
         <meta property="twitter:description" content="You're invited to the grand opening of The Wild Studio" />
-        <meta property="twitter:image" content="https://www.thewildstudio.org/images/invitation-bg.jpg" />
+        <meta property="twitter:image" content="https://thewildstudio.org/images/invitation-bg.jpg" />
       </Head>
       {/* Hero Section with Overlapping Nav */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
