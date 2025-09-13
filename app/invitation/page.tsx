@@ -1,11 +1,50 @@
+import type { Metadata } from 'next';
+
+// Metadata for the invitation page
+export const metadata: Metadata = {
+  title: 'The Wild - Grand Opening',
+  description: 'You\'re invited to the grand opening of The Wild Studio',
+  openGraph: {
+    title: 'The Wild - Grand Opening',
+    description: 'You\'re invited to the grand opening of The Wild Studio',
+    images: [
+      {
+        url: 'https://scontent-hou1-1.xx.fbcdn.net/v/t39.30808-6/540087278_25374967925436750_7595366982701674223_n.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'The Wild Studio Grand Opening',
+      },
+    ],
+    siteName: 'The Wild Studio',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'The Wild - Grand Opening',
+    description: 'You\'re invited to the grand opening of The Wild Studio',
+    images: ['https://scontent-hou1-1.xx.fbcdn.net/v/t39.30808-6/540087278_25374967925436750_7595366982701674223_n.jpg'],
+  },
+};
+
 'use client';
 
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import Head from 'next/head';
 
 export default function InvitationPage() {
   return (
     <div className="min-h-screen bg-white">
+      <Head>
+        <meta property="og:title" content="The Wild - Grand Opening" key="ogtitle" />
+        <meta property="og:description" content="You're invited to the grand opening of The Wild Studio" key="ogdesc" />
+        <meta property="og:image" content="https://scontent-hou1-1.xx.fbcdn.net/v/t39.30808-6/540087278_25374967925436750_7595366982701674223_n.jpg" key="ogimage" />
+        <meta property="og:url" content="https://www.thewildstudio.com/invitation" key="ogurl" />
+        <meta name="twitter:card" content="summary_large_image" key="twcard" />
+        <meta name="twitter:title" content="The Wild - Grand Opening" key="twtitle" />
+        <meta name="twitter:description" content="You're invited to the grand opening of The Wild Studio" key="twdesc" />
+        <meta name="twitter:image" content="https://scontent-hou1-1.xx.fbcdn.net/v/t39.30808-6/540087278_25374967925436750_7595366982701674223_n.jpg" key="twimage" />
+      </Head>
       {/* Hero Section with Overlapping Nav */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
         {/* Background Image with Overlay */}
