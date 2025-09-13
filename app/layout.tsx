@@ -4,6 +4,7 @@ import './globals.css'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import ClientLayout from './ClientLayout'
+import { JsonLd, websiteSchema } from '../components/StructuredData'
 
 // Configure Lato as the default sans font
 const lato = Lato({ 
@@ -21,9 +22,65 @@ const cormorant = Cormorant_Garamond({
   variable: '--font-cormorant'
 })
 
+const siteName = 'The Wild Studio';
+const siteUrl = 'https://thewildstudio.org';
+const description = 'Professional photography studio in Houston specializing in portraits, events, and commercial photography. Capturing your wildest moments with creativity and passion.';
+const keywords = 'photography, Houston photographer, portrait photography, event photography, commercial photography, The Wild Studio, The Wild Houston, professional photographer';
+
 export const metadata: Metadata = {
-  title: 'The Wild Studio',
-  description: 'Professional photography studio specializing in portraits, events, and commercial photography',
+  title: {
+    default: siteName,
+    template: `%s | ${siteName}`
+  },
+  description: description,
+  keywords: keywords,
+  metadataBase: new URL(siteUrl),
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: siteName,
+    description: description,
+    url: siteUrl,
+    siteName: siteName,
+    locale: 'en_US',
+    type: 'website',
+    images: [
+      {
+        url: `${siteUrl}/images/og-image.jpg`,
+        width: 1200,
+        height: 630,
+        alt: siteName,
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: siteName,
+    description: description,
+    images: [`${siteUrl}/images/og-image.jpg`],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  verification: {
+    // Add Google Search Console verification here
+    google: 'YOUR_GOOGLE_SEARCH_CONSOLE_VERIFICATION_CODE',
+    // Add other verification services as needed
+  },
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
+  manifest: '/site.webmanifest',
 }
 
 // This is a Server Component by default in Next.js 13+
@@ -34,8 +91,11 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${lato.variable} ${cormorant.variable} font-sans`}>
-      <body className="bg-white text-gray-800">
+    <html lang="en" className={`${lato.variable} ${cormorant.variable}`}>
+      <head>
+        <JsonLd data={websiteSchema} />
+      </head>
+      <body className="font-sans bg-white text-gray-900">
         <ClientLayout>
           {children}
         </ClientLayout>
