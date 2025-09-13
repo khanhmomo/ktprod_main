@@ -23,7 +23,7 @@ export default function InvitationPage() {
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0">
             <Image
-              src="https://scontent-hou1-1.xx.fbcdn.net/v/t39.30808-6/540087278_25374967925436750_7595366982701674223_n.jpg?stp=cp6_dst-jpg_tt6&_nc_cat=100&ccb=1-7&_nc_sid=833d8c&_nc_ohc=LcuY9J36OLsQ7kNvwEJ6Ud9&_nc_oc=Adn-9wr8SbPRFkfNHtcvfMTQOQuYE6avvey7xB9m2wcYIf8PzeLS1PuHonESh6mhN719JWZOjpTqX3MEEIP4aziN&_nc_zt=23&_nc_ht=scontent-hou1-1.xx&_nc_gid=f9Lppz6eB3hYAAe1iiTy5g&oh=00_AfY6ae8ck3t_RJrtx9FDPIGEXVOBZywPejQjiNu3ykQYKg&oe=68CAA713"
+              src="/images/background.jpg"
               alt="Elegant Wedding Studio"
               fill
               className="object-cover blur-sm scale-105 transform-gpu"
