@@ -8,14 +8,22 @@ export default function InvitationPage() {
   return (
     <div className="min-h-screen bg-white">
       <Head>
-        <meta property="og:title" content="The Wild - Grand Opening" key="ogtitle" />
-        <meta property="og:description" content="You're invited to the grand opening of The Wild Studio" key="ogdesc" />
-        <meta property="og:image" content="https://scontent-hou1-1.xx.fbcdn.net/v/t39.30808-6/540087278_25374967925436750_7595366982701674223_n.jpg" key="ogimage" />
-        <meta property="og:url" content="https://www.thewildstudio.com/invitation" key="ogurl" />
-        <meta name="twitter:card" content="summary_large_image" key="twcard" />
-        <meta name="twitter:title" content="The Wild - Grand Opening" key="twtitle" />
-        <meta name="twitter:description" content="You're invited to the grand opening of The Wild Studio" key="twdesc" />
-        <meta name="twitter:image" content="https://scontent-hou1-1.xx.fbcdn.net/v/t39.30808-6/540087278_25374967925436750_7595366982701674223_n.jpg" key="twimage" />
+        <title>The Wild - Grand Opening</title>
+        <meta name="description" content="You're invited to the grand opening of The Wild Studio" />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://www.thewildstudio.org/invitation" />
+        <meta property="og:title" content="The Wild - Grand Opening" />
+        <meta property="og:description" content="You're invited to the grand opening of The Wild Studio" />
+        <meta property="og:image" content="https://www.thewildstudio.org/images/invitation-bg.jpg" />
+        
+        {/* Twitter */}
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:url" content="https://www.thewildstudio.org/invitation" />
+        <meta property="twitter:title" content="The Wild - Grand Opening" />
+        <meta property="twitter:description" content="You're invited to the grand opening of The Wild Studio" />
+        <meta property="twitter:image" content="https://www.thewildstudio.org/images/invitation-bg.jpg" />
       </Head>
       {/* Hero Section with Overlapping Nav */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
@@ -23,7 +31,7 @@ export default function InvitationPage() {
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0">
             <Image
-              src="/images/background.jpg"
+              src="/images/invitation-bg.jpg"
               alt="Elegant Wedding Studio"
               fill
               className="object-cover blur-sm scale-105 transform-gpu"

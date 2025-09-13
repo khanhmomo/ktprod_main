@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     description: 'You\'re invited to the grand opening of The Wild Studio',
     images: [
       {
-        url: 'https://www.thewildstudio.com/images/background.jpg',
+        url: 'https://www.thewildstudio.org/images/invitation-bg.jpg',
         width: 1200,
         height: 800,
         alt: 'The Wild Studio Grand Opening',
@@ -17,13 +17,13 @@ export const metadata: Metadata = {
     ],
     siteName: 'The Wild Studio',
     type: 'website',
-    url: 'https://www.thewildstudio.com/invitation',
+    url: 'https://www.thewildstudio.org/invitation',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'The Wild - Grand Opening',
     description: 'You\'re invited to the grand opening of The Wild Studio',
-    images: ['https://www.thewildstudio.com/images/background.jpg'],
+    images: ['https://www.thewildstudio.org/images/invitation-bg.jpg'],
   },
   // Prevent any layout components from being rendered
   other: {
