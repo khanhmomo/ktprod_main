@@ -11,43 +11,63 @@ interface ImageObject {
 
 export async function GET(request: Request) {
   console.log('GET /api/albums called');
-  console.log('Environment:', process.env.NODE_ENV);
   
   try {
-    console.log('MongoDB URI:', process.env.MONGODB_URI ? 'Set' : 'Not set');
-    
-    console.log('Connecting to database...');
-    await dbConnect();
-    console.log('Database connected');
-    
     const { searchParams } = new URL(request.url);
     const all = searchParams.get('all') === 'true';
     const category = searchParams.get('category');
     
-    // Build the query based on parameters
-    const query: any = {};
-    
-    // If not requesting all albums (for admin), only show published ones
+    // For non-admin requests, don't require authentication
     if (!all) {
-      query.isPublished = true;
+      try {
+        await dbConnect();
+        const query: any = { isPublished: true };
+        
+        if (category) {
+          query.category = category.charAt(0).toUpperCase() + category.slice(1);
+        }
+        
+        const albums = await Album.find(query).sort({ createdAt: -1 });
+        return NextResponse.json(albums, {
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          }
+        });
+      } catch (error) {
+        console.error('Error fetching public albums:', error);
+        return NextResponse.json(
+          { error: 'Failed to fetch albums' },
+          { status: 500 }
+        );
+      }
     }
     
-    // Add category filter if specified
-    if (category) {
-      query.category = category.charAt(0).toUpperCase() + category.slice(1);
+    // For admin requests, require authentication
+    const authResponse = await fetch(`${new URL(request.url).origin}/api/auth/check`, {
+      headers: request.headers
+    });
+    
+    if (!authResponse.ok) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
     
-    console.log('Fetching albums with query:', JSON.stringify(query));
+    // Admin is authenticated, fetch all albums
+    await dbConnect();
+    const albums = await Album.find({}).sort({ createdAt: -1 });
     
-    try {
-      const albums = await Album.find(query).sort({ createdAt: -1 });
-      console.log(`Successfully fetched ${albums.length} albums`);
-      return NextResponse.json(albums);
-    } catch (queryError: unknown) {
-      const errorMessage = queryError instanceof Error ? queryError.message : 'Unknown database error';
-      console.error('Database query error:', errorMessage);
-      throw new Error(`Database query failed: ${errorMessage}`);
-    }
+    return NextResponse.json(albums, {
+      headers: {
+        'Access-Control-Allow-Origin': new URL(request.url).origin,
+        'Access-Control-Allow-Credentials': 'true',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      }
+    });
     
   } catch (error: unknown) {
     if (error instanceof Error) {
@@ -73,8 +93,40 @@ export async function GET(request: Request) {
   }
 }
 
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Credentials': 'true',
+    },
+  });
+}
+
 export async function POST(request: Request) {
   try {
+    // First verify the user is authenticated
+    const authResponse = await fetch(`${new URL(request.url).origin}/api/auth/check`, {
+      headers: request.headers
+    });
+    
+    if (!authResponse.ok) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { 
+          status: 401,
+          headers: {
+            'Access-Control-Allow-Origin': new URL(request.url).origin,
+            'Access-Control-Allow-Credentials': 'true',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          }
+        }
+      );
+    }
+    
     await dbConnect();
     const data = await request.json();
     
@@ -84,14 +136,30 @@ export async function POST(request: Request) {
     if (!data.title) {
       return NextResponse.json(
         { error: 'Title is required' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: {
+            'Access-Control-Allow-Origin': new URL(request.url).origin,
+            'Access-Control-Allow-Credentials': 'true',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          }
+        }
       );
     }
     
     if (!Array.isArray(data.images) || data.images.length === 0) {
       return NextResponse.json(
         { error: 'At least one image is required' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: {
+            'Access-Control-Allow-Origin': new URL(request.url).origin,
+            'Access-Control-Allow-Credentials': 'true',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          }
+        }
       );
     }
     
@@ -120,18 +188,37 @@ export async function POST(request: Request) {
       location: data.location || '',
       isPublished: Boolean(data.isPublished),
       featuredInHero: Boolean(data.featuredInHero),
+      category: data.category || 'Uncategorized',
+      createdAt: new Date(),
+      updatedAt: new Date()
     });
     
     const savedAlbum = await album.save();
     console.log('Album created successfully:', savedAlbum._id);
     
-    return NextResponse.json(savedAlbum, { status: 201 });
+    return NextResponse.json(savedAlbum, { 
+      status: 201,
+      headers: {
+        'Access-Control-Allow-Origin': new URL(request.url).origin,
+        'Access-Control-Allow-Credentials': 'true',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      }
+    });
   } catch (error) {
     console.error('Error creating album:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       { error: `Failed to create album: ${errorMessage}` },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Credentials': 'true',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        }
+      }
     );
   }
 }

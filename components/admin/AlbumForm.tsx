@@ -175,6 +175,17 @@ export default function AlbumForm({
     setError('');
 
     try {
+      // First, verify the user is still authenticated
+      const authCheck = await fetch('/api/auth/check', {
+        credentials: 'include'
+      });
+
+      if (!authCheck.ok) {
+        // If not authenticated, redirect to login
+        window.location.href = '/admin';
+        return;
+      }
+
       // Ensure category is included
       if (!formData.category) {
         throw new Error('Please select a category');
@@ -191,6 +202,7 @@ export default function AlbumForm({
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Important for sending cookies
         body: JSON.stringify({
           ...formData,
           // Ensure we don't send internal fields to the API
@@ -200,6 +212,12 @@ export default function AlbumForm({
       });
 
       const responseData = await response.json();
+
+      if (response.status === 401) {
+        // Session expired, redirect to login
+        window.location.href = '/admin';
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(responseData.message || 'Failed to save album');

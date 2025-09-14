@@ -42,14 +42,62 @@ export default function DashboardPage() {
   const [error, setError] = useState('');
   const [isClient, setIsClient] = useState(false);
 
+  // Check authentication status on component mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/auth/check', {
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          router.push('/admin');
+        } else {
+          setIsClient(true);
+          fetchAlbums();
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        router.push('/admin');
+      }
+    };
+    
+    checkAuth();
+  }, [router]);
+
+  const fetchAlbums = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/albums?all=true', {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          router.push('/admin');
+          return;
+        }
+        throw new Error('Failed to fetch albums');
+      }
+      
+      const data = await response.json();
+      setAlbums(data);
+    } catch (error) {
+      console.error('Error fetching albums:', error);
+      setError('Failed to load albums. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       const response = await fetch('/api/auth/logout', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'same-origin',
       });
 
       if (response.ok) {

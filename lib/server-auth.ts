@@ -12,7 +12,17 @@ export async function isAuthenticated(): Promise<boolean> {
   try {
     const cookieStore = await cookies();
     const authCookie = cookieStore.get('isAuthenticated');
-    return authCookie?.value === 'true';
+    
+    // For debugging - log the cookie we found
+    console.log('Auth cookie:', authCookie);
+    
+    // Check if the cookie exists and has the correct value
+    const isAuth = authCookie?.value === 'true';
+    
+    // Log the authentication status for debugging
+    console.log('Authentication status:', isAuth ? 'Authenticated' : 'Not authenticated');
+    
+    return isAuth;
   } catch (error) {
     console.error('Error reading cookies:', error);
     return false;

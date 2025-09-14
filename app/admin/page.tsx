@@ -22,7 +22,7 @@ export default function AdminLogin() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ username, password }),
-        credentials: 'same-origin',
+        credentials: 'include', // Important for sending/receiving cookies
       });
 
       const data = await response.json();
@@ -31,9 +31,21 @@ export default function AdminLogin() {
         throw new Error(data.error || 'Login failed');
       }
 
+      // Check if we're authenticated after login
+      const authCheck = await fetch('/api/auth/check', {
+        credentials: 'include'
+      });
+
+      if (!authCheck.ok) {
+        throw new Error('Failed to verify authentication status');
+      }
+
+      // Redirect to dashboard on successful login
       window.location.href = '/admin/dashboard';
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred during login');
+      console.error('Login error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred during login';
+      setError(errorMessage);
       setIsLoading(false);
     }
   };

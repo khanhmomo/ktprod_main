@@ -1,15 +1,75 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { isAuthenticated } from '@/lib/server-auth';
 
-export async function GET() {
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Credentials': 'true',
+    },
+  });
+}
+
+export async function GET(request: NextRequest) {
+  const origin = request.headers.get('origin') || '*';
+  
   try {
     const authenticated = await isAuthenticated();
-    return NextResponse.json({ authenticated });
-  } catch (error) {
+    
+    if (!authenticated) {
+      return NextResponse.json(
+        { 
+          authenticated: false, 
+          error: 'Not authenticated' 
+        },
+        { 
+          status: 401,
+          headers: {
+            'Access-Control-Allow-Origin': origin,
+            'Access-Control-Allow-Credentials': 'true',
+            'Access-Control-Allow-Methods': 'GET, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          }
+        }
+      );
+    }
+    
+    return NextResponse.json({ 
+      authenticated: true,
+      user: { 
+        name: 'Admin',
+        // Add more user info here if needed
+      }
+    }, {
+      headers: {
+        'Access-Control-Allow-Origin': origin,
+        'Access-Control-Allow-Credentials': 'true',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      }
+    });
+  } catch (error: unknown) {
     console.error('Auth check error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
     return NextResponse.json(
-      { authenticated: false, error: 'Error checking authentication status' },
-      { status: 500 }
+      { 
+        authenticated: false, 
+        error: 'Error checking authentication status',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      },
+      { 
+        status: 500,
+        headers: {
+          'Access-Control-Allow-Origin': origin,
+          'Access-Control-Allow-Credentials': 'true',
+          'Access-Control-Allow-Methods': 'GET, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        }
+      }
     );
   }
 }
