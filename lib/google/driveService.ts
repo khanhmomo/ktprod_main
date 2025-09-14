@@ -12,12 +12,18 @@ type DriveFile = {
 
 export class DriveService {
   private drive;
+  private auth: any;
   private static instance: DriveService;
 
   private constructor(credentials: any) {
-    console.log('Initializing DriveService with credentials:', {
+    if (!credentials || !credentials.client_email || !credentials.private_key) {
+      throw new Error('Missing required Google Drive API credentials');
+    }
+
+    // Log minimal credential info for security
+    console.log('Initializing DriveService with Google Drive API credentials', {
       client_email: credentials.client_email,
-      private_key_id: credentials.private_key_id,
+      has_private_key: !!credentials.private_key,
       scopes: [
         'https://www.googleapis.com/auth/drive',
         'https://www.googleapis.com/auth/drive.file',
@@ -26,10 +32,13 @@ export class DriveService {
       ]
     });
 
+    // Normalize private key format
+    const privateKey = credentials.private_key.replace(/\\n/g, '\n');
+    
     const auth = new google.auth.GoogleAuth({
       credentials: {
         ...credentials,
-        private_key: credentials.private_key.replace(/\\n/g, '\n')
+        private_key: privateKey
       },
       scopes: [
         'https://www.googleapis.com/auth/drive',
@@ -46,16 +55,68 @@ export class DriveService {
       validateStatus: () => true
     });
     
-    console.log('DriveService initialized successfully');
+    // Store auth instance for later use
+    this.auth = auth;
   }
 
-  public static getInstance(credentials?: any): DriveService {
-    if (!DriveService.instance && credentials) {
-      DriveService.instance = new DriveService(credentials);
+  /**
+   * Test authentication by making a simple API call
+   */
+  private async testAuthentication(): Promise<void> {
+    try {
+      // Get the authenticated user's email as a simple test
+      const authClient = await this.auth.getClient();
+      const tokenInfo = await authClient.getTokenInfo(authClient.credentials.access_token);
+      
+      console.log('Google Drive API authenticated as:', tokenInfo.email);
+      return;
+    } catch (error) {
+      console.error('Google Drive API authentication test failed:', error);
+      
+      // Try to get more detailed error information
+      if (error instanceof Error && 'response' in error) {
+        const err = error as any;
+        console.error('Google API Error Details:', {
+          status: err.response?.status,
+          statusText: err.response?.statusText,
+          data: err.response?.data,
+          config: {
+            url: err.config?.url,
+            method: err.config?.method,
+            headers: err.config?.headers
+          }
+        });
+      }
+      
+      throw new Error(`Failed to authenticate with Google Drive API: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  /**
+   * Get or create the singleton instance of DriveService
+   */
+  public static async getInstance(credentials?: any): Promise<DriveService> {
     if (!DriveService.instance) {
-      throw new Error('DriveService not initialized with credentials');
+      if (!credentials) {
+        throw new Error('DriveService requires credentials for initialization');
+      }
+      
+      // Create the instance
+      const instance = new DriveService(credentials);
+      
+      try {
+        // Test authentication
+        await instance.testAuthentication();
+        console.log('DriveService: Successfully authenticated with Google Drive API');
+        
+        // Only set the instance if authentication succeeds
+        DriveService.instance = instance;
+      } catch (error) {
+        console.error('Failed to initialize DriveService:', error);
+        throw new Error(`Failed to initialize Google Drive service: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
     }
+    
     return DriveService.instance;
   }
 
