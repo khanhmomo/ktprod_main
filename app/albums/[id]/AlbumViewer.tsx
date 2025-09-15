@@ -30,9 +30,16 @@ interface Album {
   description?: string;
   isPublished: boolean;
   coverImage?: string;
+  category?: string;
 }
 
-export default function AlbumViewer({ album, id }: { album: Album | null; id: string }) {
+interface AlbumViewerProps {
+  album: Album | null;
+  id: string;
+  category?: string; // Add category to props
+}
+
+export default function AlbumViewer({ album, id, category = 'gallery' }: AlbumViewerProps) {
   const [isLoading, setIsLoading] = useState(!album);
   const [error, setError] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -50,37 +57,55 @@ export default function AlbumViewer({ album, id }: { album: Album | null; id: st
     500: 1
   };
 
-  // Process image URL to handle Google Drive links
+  // Process image URL to handle various sources including Google Drive
   const processImageUrl = useCallback((url: string): string => {
     if (!url) return '';
     
-    // If it's already a Google Drive URL with the export view, return as is
-    if (url.includes('drive.google.com/uc?export=view')) {
+    // If it's already a processed URL or direct URL, return as is
+    if (url.startsWith('http') || url.startsWith('data:')) {
       return url;
     }
     
-    // If it's a Google Drive file ID, construct the URL
-    if (url.includes('drive.google.com/file/d/')) {
-      const fileId = url.split('/d/')[1]?.split('/')[0];
+    // Handle Google Drive URLs
+    if (url.includes('drive.google.com') || url.includes('googleusercontent.com')) {
+      // If it's already in the correct format
+      if (url.includes('uc?export=view')) {
+        return url;
+      }
+      
+      // Extract file ID from various Google Drive URL formats
+      let fileId = '';
+      
+      // Format: https://drive.google.com/file/d/FILE_ID/...
+      if (url.includes('/file/d/')) {
+        fileId = url.split('/file/d/')[1]?.split('/')[0];
+      }
+      // Format: https://drive.google.com/open?id=FILE_ID
+      else if (url.includes('open?id=')) {
+        fileId = new URL(url).searchParams.get('id') || '';
+      }
+      // Format: https://drive.google.com/uc?id=FILE_ID
+      else if (url.includes('uc?id=')) {
+        fileId = new URL(url).searchParams.get('id') || '';
+      }
+      // Try to match any Google Drive file ID in the URL
+      else {
+        const match = url.match(/[\w-]{25,}/);
+        if (match) fileId = match[0];
+      }
+      
       if (fileId) {
-        return `https://drive.google.com/uc?export=view&id=${fileId}`;
+        return `/api/drive/image?id=${encodeURIComponent(fileId)}`;
       }
     }
     
-    // If it's a Google Drive shareable link
-    if (url.includes('drive.google.com/open')) {
-      const fileId = new URL(url).searchParams.get('id');
-      if (fileId) {
-        return `https://drive.google.com/uc?export=view&id=${fileId}`;
-      }
-    }
-    
-    // If it's a relative URL, prepend the base URL
+    // For relative URLs, prepend the base URL
     if (url.startsWith('/')) {
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
       return `${baseUrl}${url}`;
     }
     
+    // For any other case, return as is
     return url;
   }, []);
 
@@ -223,25 +248,21 @@ export default function AlbumViewer({ album, id }: { album: Album | null; id: st
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-          <Link 
-            href="/albums"
-            className="inline-flex items-center text-gray-700 hover:text-gray-900"
-          >
-            <FiArrowLeft className="-ml-1 mr-2 h-5 w-5" />
-            <span className="text-lg font-medium text-gray-900">{album.title}</span>
-          </Link>
-        </div>
-      </header>
-
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
         {/* Album Info */}
         <div className="mb-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-left">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">{album.title}</h1>
+            <div className="flex items-center gap-4 mb-2">
+              <Link 
+                href={`/gallery/${album?.category?.toLowerCase() || category}`} 
+                className="text-gray-700 hover:text-gray-900 transition-colors duration-200 flex items-center"
+                aria-label={`Back to ${album?.category || 'gallery'}`}
+              >
+                <FiArrowLeft className="w-6 h-6 mr-2 mt-0.5" />
+                <h1 className="text-3xl font-bold text-gray-900">{album.title}</h1>
+              </Link>
+            </div>
             {album.location && (
               <p className="text-gray-600">{album.location} • {new Date(album.date).toLocaleDateString()}</p>
             )}

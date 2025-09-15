@@ -29,6 +29,7 @@ interface Album {
   location: string;
   description?: string;
   isPublished: boolean;
+  category?: string;
 }
 
 // Server Component that fetches the album data with optimizations

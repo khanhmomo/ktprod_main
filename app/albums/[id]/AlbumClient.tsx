@@ -15,5 +15,5 @@ const AlbumViewer = dynamic(() => import('./AlbumViewer'), {
 });
 
 export default function AlbumClient({ album, id }: AlbumClientProps) {
-  return <AlbumViewer album={album} id={id} />;
+  return <AlbumViewer album={album} id={id} category={album?.category} />;
 }

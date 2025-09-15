@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { FiPlus, FiEdit, FiTrash2, FiEye, FiEyeOff } from 'react-icons/fi';
 
 interface Album {
@@ -17,23 +18,44 @@ interface Album {
 }
 
 // Function to process image URLs for display
-function processImageUrl(url: string): string {
+const processImageUrl = (url: string) => {
   if (!url) return '';
   
-  // If it's a Google Drive URL, use the proxy API
-  if (url.includes('drive.google.com')) {
-    // Extract file ID from Google Drive URL
+  // If it's already using our proxy, return as is
+  if (url.startsWith('/api/')) {
+    return url;
+  }
+  
+  // Handle Google Drive URLs
+  if (url.includes('drive.google.com') || url.includes('googleusercontent.com')) {
     let fileId = '';
-    const match = url.match(/[\w-]{25,}/);
-    if (match) fileId = match[0];
+    
+    // Extract file ID from different Google Drive URL formats
+    if (url.includes('/file/d/')) {
+      fileId = url.split('/file/d/')[1]?.split('/')[0] || '';
+    } else if (url.includes('id=')) {
+      fileId = url.split('id=')[1]?.split('&')[0] || '';
+    } else if (url.includes('open?id=')) {
+      fileId = url.split('open?id=')[1]?.split('&')[0] || '';
+    } else {
+      const match = url.match(/[\w-]{25,}/);
+      if (match) fileId = match[0];
+    }
     
     if (fileId) {
       return `/api/drive/image?id=${encodeURIComponent(fileId)}`;
     }
   }
   
-  return url;
-}
+  // For direct HTTP/HTTPS URLs, use them as is
+  if (url.startsWith('http')) {
+    return url;
+  }
+  
+  // For relative URLs, prepend the base URL
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
+  return url.startsWith('/') ? `${baseUrl}${url}` : `${baseUrl}/${url}`;
+};
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -81,6 +103,21 @@ export default function DashboardPage() {
       }
       
       const data = await response.json();
+      console.log('Raw API response:', JSON.stringify(data, null, 2));
+      
+      // Log details about each album's cover image
+      if (Array.isArray(data)) {
+        data.forEach((album, index) => {
+          console.log(`Album ${index + 1}:`, {
+            title: album.title,
+            coverImage: album.coverImage,
+            processedUrl: processImageUrl(album.coverImage || ''),
+            hasImages: album.images?.length > 0,
+            firstImageUrl: album.images?.[0]?.url
+          });
+        });
+      }
+      
       setAlbums(data);
     } catch (error) {
       console.error('Error fetching albums:', error);
@@ -310,7 +347,7 @@ export default function DashboardPage() {
           {albums.length === 0 ? (
             <div className="bg-white shadow overflow-hidden rounded-lg p-6 text-center">
               <svg
-                className="mx-auto h-12 w-12 text-gray-400"
+                className="mx-auto h-12 w-12 text-gray-400 mb-4"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -319,173 +356,195 @@ export default function DashboardPage() {
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth={1}
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
                 />
               </svg>
-              <h3 className="mt-2 text-lg font-medium text-gray-900">No albums</h3>
-              <p className="mt-1 text-gray-500">Get started by creating a new album.</p>
-              <div className="mt-6">
-                <Link
-                  href="/admin/albums/new"
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
-                >
-                  <svg
-                    className="-ml-1 mr-2 h-5 w-5"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  New Album
-                </Link>
-              </div>
+              <p className="text-gray-500 mb-4">No albums found</p>
+              <Link
+                href="/admin/albums/new"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Create New Album
+              </Link>
             </div>
           ) : (
             <div className="bg-white shadow overflow-hidden rounded-lg">
               {/* Desktop Table */}
               <div className="hidden md:block">
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Album
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Details
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th scope="col" className="relative px-6 py-3">
-                        <span className="sr-only">Actions</span>
-                      </th>
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Album
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Photos
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th scope="col" className="relative px-6 py-3">
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {albums.map((album) => (
+                    <tr key={`desktop-${album._id}`} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-10 w-10">
+                            {album.coverImage ? (
+                              <div className="relative h-10 w-10 rounded-md overflow-hidden">
+                                <Image
+                                  src={processImageUrl(album.coverImage)}
+                                  alt={album.title}
+                                  fill
+                                  className="object-cover"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.onerror = null;
+                                    target.src = '/images/placeholder.jpg';
+                                  }}
+                                />
+                              </div>
+                            ) : (
+                              <div className="h-10 w-10 rounded-md bg-gray-200 flex items-center justify-center">
+                                <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900">{album.title}</div>
+                            <div className="text-sm text-gray-500">{album.location || 'No location'}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          album.isPublished ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {album.isPublished ? 'Published' : 'Draft'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {album.images?.length || 0} photos
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {album.date ? new Date(album.date).toLocaleDateString() : 'No date'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => togglePublish(album._id, album.isPublished)}
+                            className={`text-${album.isPublished ? 'yellow' : 'green'}-600 hover:text-${album.isPublished ? 'yellow' : 'green'}-900`}
+                          >
+                            {album.isPublished ? 'Unpublish' : 'Publish'}
+                          </button>
+                          <Link
+                            href={`/admin/albums/${album._id}`}
+                            className="text-indigo-600 hover:text-indigo-900"
+                          >
+                            Edit
+                          </Link>
+                          <button
+                            onClick={() => handleDelete(album._id)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {albums.map((album) => (
-                      <tr key={`desktop-${album._id}`} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-16 w-16">
-                              <img 
-                                className="h-16 w-16 object-cover rounded" 
-                                src={processImageUrl(album.coverImage)} 
-                                alt={album.title} 
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile List */}
+            <div className="md:hidden">
+              <div className="divide-y divide-gray-200">
+                {albums.map((album) => (
+                  <div key={`mobile-${album._id}`} className="p-4 hover:bg-gray-50">
+                    <div className="flex items-start">
+                      <div className="bg-white rounded-lg shadow-md overflow-hidden group w-full">
+                        <div className="relative h-48 bg-gray-100">
+                          {album.coverImage ? (
+                            <div className="relative w-full h-full">
+                              <Image
+                                src={processImageUrl(album.coverImage)}
+                                alt={album.title}
+                                fill
+                                sizes="(max-width: 768px) 100vw, 100%"
+                                className="object-cover transition-transform duration-300 group-hover:scale-105"
                                 onError={(e) => {
                                   const target = e.target as HTMLImageElement;
-                                  if (target.src !== album.coverImage) {
+                                  console.error('Error loading image:', {
+                                    originalUrl: album.coverImage,
+                                    processedUrl: processImageUrl(album.coverImage),
+                                    error: e
+                                  });
+                                  target.onerror = null;
+                                  if (target.src !== album.coverImage && album.coverImage) {
                                     target.src = album.coverImage;
+                                  } else {
+                                    target.src = '/images/placeholder.jpg';
                                   }
                                 }}
+                                onLoad={() => console.log('Image loaded successfully:', album.coverImage)}
+                                priority
+                                unoptimized
                               />
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">{album.title}</div>
-                              <div className="text-sm text-gray-500">
-                                {album.images.length} {album.images.length === 1 ? 'photo' : 'photos'}
+                              <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 truncate">
+                                {album.coverImage}
                               </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {album.location || 'No location set'}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {album.date ? new Date(album.date).toLocaleDateString() : 'No date set'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              album.isPublished
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-yellow-100 text-yellow-800'
-                            }`}
-                          >
-                            {album.isPublished ? 'Published' : 'Draft'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex space-x-2 justify-end">
-                            <button
-                              onClick={() => togglePublish(album._id, album.isPublished)}
-                              className={`px-3 py-1 rounded-md text-sm ${
-                                album.isPublished
-                                  ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                                  : 'bg-green-100 text-green-800 hover:bg-green-200'
-                              }`}
-                            >
-                              {album.isPublished ? 'Unpublish' : 'Publish'}
-                            </button>
-                            <Link
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                              <span className="text-gray-400">No cover image</span>
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Link 
                               href={`/admin/albums/${album._id}`}
-                              className="px-3 py-1 bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200 text-sm"
+                              className="bg-white text-gray-800 px-4 py-2 rounded-md font-medium hover:bg-gray-100 transition-colors"
                             >
-                              Edit
+                              Edit Album
                             </Link>
-                            <button
-                              onClick={() => handleDelete(album._id)}
-                              className="px-3 py-1 bg-red-100 text-red-800 rounded-md hover:bg-red-200 text-sm"
-                            >
-                              Delete
-                            </button>
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile List */}
-              <div className="md:hidden">
-                <div className="divide-y divide-gray-200">
-                  {albums.map((album) => (
-                    <div key={`mobile-${album._id}`} className="p-4 hover:bg-gray-50">
-                      <div className="flex items-start">
-                        <div className="flex-shrink-0 h-20 w-20">
-                          <img 
-                            className="h-20 w-20 object-cover rounded" 
-                            src={processImageUrl(album.coverImage)} 
-                            alt={album.title}
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              if (target.src !== album.coverImage) {
-                                target.src = album.coverImage;
-                              }
-                            }}
-                          />
                         </div>
-                        <div className="ml-4 flex-1">
-                          <div className="flex justify-between">
+                        <div className="p-4">
+                          <div className="flex justify-between items-center">
                             <h3 className="text-sm font-medium text-gray-900">{album.title}</h3>
                             <span
                               className={`ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                                 album.isPublished
                                   ? 'bg-green-100 text-green-800'
-                                  : 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-gray-100 text-gray-800'
                               }`}
                             >
                               {album.isPublished ? 'Published' : 'Draft'}
                             </span>
                           </div>
                           <div className="mt-1 text-sm text-gray-500">
-                            {album.images.length} {album.images.length === 1 ? 'photo' : 'photos'}
+                            {album.images?.length || 0} {album.images?.length === 1 ? 'photo' : 'photos'}
                           </div>
-                          <div className="mt-1 text-sm text-gray-500">
-                            {album.location || 'No location set'}
-                          </div>
-                          <div className="mt-1 text-sm text-gray-500">
-                            {album.date ? new Date(album.date).toLocaleDateString() : 'No date set'}
-                          </div>
+                          {album.location && (
+                            <div className="mt-1 text-sm text-gray-500">
+                              {album.location}
+                            </div>
+                          )}
+                          {album.date && (
+                            <div className="mt-1 text-sm text-gray-500">
+                              {new Date(album.date).toLocaleDateString()}
+                            </div>
+                          )}
                           <div className="mt-2 flex space-x-2">
                             <button
                               onClick={() => togglePublish(album._id, album.isPublished)}
@@ -513,13 +572,14 @@ export default function DashboardPage() {
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
             </div>
-          )}
-        </div>
-      </main>
-    </div>
-  );
+          </div>
+        )}
+      </div>
+    </main>
+  </div>
+);
 }

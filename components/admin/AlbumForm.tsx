@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import GoogleDriveImport from '@/components/GoogleDriveImport';
 
 const categories = [
@@ -80,6 +81,16 @@ export default function AlbumForm({
     }
   }, [initialData]);
 
+  useEffect(() => {
+    if (formData.images.length > 0 && !formData.coverImage) {
+      setCoverImage(formData.images[0].url);
+      setFormData(prev => ({
+        ...prev,
+        coverImage: formData.images[0].url
+      }));
+    }
+  }, [formData.images]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target as HTMLInputElement;
     const checked = type === 'checkbox' ? (e.target as HTMLInputElement).checked : undefined;
@@ -105,10 +116,17 @@ export default function AlbumForm({
     }));
     
     if (!formData.coverImage) {
-      setFormData(prev => ({
-        ...prev,
-        coverImage: newImage.url
-      }));
+      const setCoverImage = (url: string) => {
+        console.log('Setting cover image to:', url);
+        setFormData(prev => {
+          const updated = {
+            ...prev,
+            coverImage: url
+          };
+          console.log('Updated formData:', updated);
+          return updated;
+        });
+      };
       setCoverImage(newImage.url);
     }
     
@@ -155,24 +173,41 @@ export default function AlbumForm({
   };
 
   // Function to process image URLs for display
-  const processImageUrl = (url: string): string => {
+  const processImageUrl = (url: string) => {
     if (!url) return '';
     
-    // If it's a Google Drive URL, modify it for direct image access
-    if (url.includes('drive.google.com')) {
-      const fileId = url.match(/[\w\-]{20,}/);
+    // If it's already a processed URL, return as is
+    if (url.startsWith('/api/') || url.startsWith('http')) {
+      return url;
+    }
+    
+    // If it's a Google Drive URL, use the proxy API
+    if (url.includes('drive.google.com') || url.includes('googleusercontent.com')) {
+      // Extract file ID from Google Drive URL
+      let fileId = '';
+      const match = url.match(/[\w-]{25,}/);
+      if (match) fileId = match[0];
+      
       if (fileId) {
-        return `https://drive.google.com/uc?export=view&id=${fileId[0]}`;
+        return `/api/drive/image?id=${encodeURIComponent(fileId)}`;
       }
     }
     
-    return url;
+    // For relative URLs, prepend the base URL
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
+    return url.startsWith('/') ? `${baseUrl}${url}` : `${baseUrl}/${url}`;
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+
+    // Ensure cover image is set to the first image if not set
+    const formDataToSave = { ...formData };
+    if (formDataToSave.images.length > 0 && !formDataToSave.coverImage) {
+      formDataToSave.coverImage = formDataToSave.images[0].url;
+    }
 
     try {
       // First, verify the user is still authenticated
@@ -204,10 +239,12 @@ export default function AlbumForm({
         },
         credentials: 'include', // Important for sending cookies
         body: JSON.stringify({
-          ...formData,
+          ...formDataToSave,
           // Ensure we don't send internal fields to the API
           _id: undefined,
-          featuredInHero: undefined
+          featuredInHero: undefined,
+          // Make sure coverImage is included in the payload
+          coverImage: formDataToSave.coverImage
         }),
       });
 
@@ -388,23 +425,48 @@ export default function AlbumForm({
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {formData.images.map((image, index) => (
                 <div key={index} className="relative group">
-                  <img
-                    src={image.url}
-                    alt={image.alt || `Image ${index + 1}`}
-                    className={`w-full h-32 object-cover rounded-md ${
-                      coverImage === image.url ? 'ring-2 ring-blue-500' : ''
-                    }`}
-                    onClick={() => setCoverImage(image.url)}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(index)}
-                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    ×
-                  </button>
-                  {coverImage === image.url && (
-                    <div className="absolute top-1 left-1 bg-blue-500 text-white text-xs px-1 rounded">
+                  <div className="relative w-full h-32 overflow-hidden rounded-md">
+                    <div className="relative w-full h-full">
+                      <Image
+                        src={processImageUrl(image.url)}
+                        alt={image.alt || `Image ${index + 1}`}
+                        fill
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                        className={`object-cover ${
+                          formData.coverImage === image.url ? 'ring-2 ring-blue-500' : ''
+                        }`}
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.onerror = null;
+                          target.src = '/images/placeholder.jpg';
+                        }}
+                      />
+                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/50">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCoverImage(image.url);
+                        }}
+                        className="bg-white text-gray-800 px-2 py-1 rounded text-sm font-medium mr-2 hover:bg-gray-100"
+                      >
+                        {formData.coverImage === image.url ? '✓ Cover' : 'Set as Cover'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeImage(index);
+                        }}
+                        className="bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                  {formData.coverImage === image.url && (
+                    <div className="absolute top-1 left-1 bg-blue-500 text-white text-xs px-2 py-0.5 rounded">
                       Cover
                     </div>
                   )}
