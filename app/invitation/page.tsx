@@ -166,7 +166,7 @@ export default function InvitationPage() {
                   { time: '6:30 PM', event: 'Ribbon-Cutting Ceremony', icon: '✂️', description: 'Official grand opening with special guests' },
                   { time: '6:35 PM', event: 'Opening Remarks', icon: '🎤', description: 'Welcome speech by The Wild Studio team' },
                   { time: '7:00 PM', event: 'Bridal Fashion Show', icon: '👰', description: 'Exclusive preview of our latest collections' },
-                  { time: '7:30 PM', event: 'Gourmet Dinner', icon: '🍽️', description: 'Fine dining experience for all guests' },
+                  { time: '7:30 PM', event: 'Dinner', icon: '🍽️', description: 'Light standing party' },
                   { time: '7:45 PM', event: 'Lucky Draw', icon: '🎁', description: 'Exciting prizes and giveaways' },
                   { time: '8:00 PM', event: 'Live Music & Dancing', icon: '🎵', description: 'Evening entertainment and celebration' }
                 ].map((item, index) => (
