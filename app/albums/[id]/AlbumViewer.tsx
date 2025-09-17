@@ -59,54 +59,68 @@ export default function AlbumViewer({ album, id, category = 'gallery' }: AlbumVi
 
   // Process image URL to handle various sources including Google Drive
   const processImageUrl = useCallback((url: string): string => {
-    if (!url) return '';
-    
-    // If it's already a processed URL or direct URL, return as is
-    if (url.startsWith('http') || url.startsWith('data:')) {
-      return url;
-    }
-    
-    // Handle Google Drive URLs
-    if (url.includes('drive.google.com') || url.includes('googleusercontent.com')) {
-      // If it's already in the correct format
-      if (url.includes('uc?export=view')) {
+    try {
+      if (!url) {
+        console.warn('Empty image URL provided');
+        return '';
+      }
+      
+      // If it's already a processed URL or direct URL, return as is
+      if (url.startsWith('http') || url.startsWith('data:')) {
         return url;
       }
       
-      // Extract file ID from various Google Drive URL formats
-      let fileId = '';
+      // Handle Google Drive URLs
+      if (url.includes('drive.google.com') || url.includes('googleusercontent.com')) {
+        // If it's already in the correct format
+        if (url.includes('uc?export=view')) {
+          return url;
+        }
+        
+        // Extract file ID from various Google Drive URL formats
+        let fileId = '';
+        
+        try {
+          // Format: https://drive.google.com/file/d/FILE_ID/...
+          if (url.includes('/file/d/')) {
+            fileId = url.split('/file/d/')[1]?.split('/')[0];
+          }
+          // Format: https://drive.google.com/open?id=FILE_ID
+          else if (url.includes('open?id=')) {
+            fileId = new URL(url).searchParams.get('id') || '';
+          }
+          // Format: https://drive.google.com/uc?id=FILE_ID
+          else if (url.includes('uc?id=')) {
+            fileId = new URL(url).searchParams.get('id') || '';
+          }
+          // Try to match any Google Drive file ID in the URL
+          else {
+            const match = url.match(/[\w-]{25,}/);
+            if (match) fileId = match[0];
+          }
+          
+          if (fileId) {
+            const processedUrl = `/api/drive/image?id=${encodeURIComponent(fileId)}`;
+            console.log(`Processed Google Drive URL: ${url} -> ${processedUrl}`);
+            return processedUrl;
+          }
+        } catch (error) {
+          console.error('Error processing Google Drive URL:', { url, error });
+          return url; // Return original URL if processing fails
+        }
+      }
       
-      // Format: https://drive.google.com/file/d/FILE_ID/...
-      if (url.includes('/file/d/')) {
-        fileId = url.split('/file/d/')[1]?.split('/')[0];
-      }
-      // Format: https://drive.google.com/open?id=FILE_ID
-      else if (url.includes('open?id=')) {
-        fileId = new URL(url).searchParams.get('id') || '';
-      }
-      // Format: https://drive.google.com/uc?id=FILE_ID
-      else if (url.includes('uc?id=')) {
-        fileId = new URL(url).searchParams.get('id') || '';
-      }
-      // Try to match any Google Drive file ID in the URL
-      else {
-        const match = url.match(/[\w-]{25,}/);
-        if (match) fileId = match[0];
+      // For relative URLs, prepend the base URL
+      if (url.startsWith('/')) {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
+        return `${baseUrl}${url}`;
       }
       
-      if (fileId) {
-        return `/api/drive/image?id=${encodeURIComponent(fileId)}`;
-      }
+      return url;
+    } catch (error) {
+      console.error('Error in processImageUrl:', { url, error });
+      return url; // Return original URL if any error occurs
     }
-    
-    // For relative URLs, prepend the base URL
-    if (url.startsWith('/')) {
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
-      return `${baseUrl}${url}`;
-    }
-    
-    // For any other case, return as is
-    return url;
   }, []);
 
   // Handle keyboard navigation in the viewer
@@ -155,23 +169,45 @@ export default function AlbumViewer({ album, id, category = 'gallery' }: AlbumVi
   }, [isViewerOpen]);
 
   const handleImageLoad = (url: string) => {
-    setLoadedImages(prev => ({
+    // Only update state if it hasn't been loaded yet
+    setLoadedImages(prev => prev[url] ? prev : {
       ...prev,
       [url]: true
-    }));
+    });
     
     // Clear any previous error for this image
-    setImageLoadErrors(prev => ({
+    setImageLoadErrors(prev => prev[url] === false ? prev : {
       ...prev,
       [url]: false
-    }));
+    });
   };
 
-  const handleImageError = (url: string) => {
-    setImageLoadErrors(prev => ({
+  const handleImageError = (url: string, error?: any) => {
+    console.warn(`Failed to load image: ${url}`, error);
+    
+    // Only update state if there isn't already an error
+    setImageLoadErrors(prev => prev[url] === true ? prev : {
       ...prev,
       [url]: true
-    }));
+    });
+    
+    // If this is a Google Drive URL, try falling back to direct URL
+    if (url.includes('/api/drive/image')) {
+      const fileId = new URL(url, window.location.origin).searchParams.get('id');
+      if (fileId) {
+        const directUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+        console.log(`Trying fallback URL for ${fileId}: ${directUrl}`);
+        
+        // Update the image source directly for this instance
+        const imgElements = document.querySelectorAll(`img[src="${url}"]`);
+        imgElements.forEach(img => {
+          if (img.getAttribute('data-fallback-tried') !== 'true') {
+            img.setAttribute('data-fallback-tried', 'true');
+            img.setAttribute('src', directUrl);
+          }
+        });
+      }
+    }
   };
 
   const handleNext = () => {
@@ -292,10 +328,25 @@ export default function AlbumViewer({ album, id, category = 'gallery' }: AlbumVi
                   alt={image.alt || `Image ${index + 1}`}
                   width={800}
                   height={600}
-                  className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                  className={`w-full h-full object-cover transition-transform duration-300 hover:scale-105 ${
+                    imageLoadErrors[image.url] ? 'opacity-50' : ''
+                  }`}
                   onLoad={() => handleImageLoad(image.url)}
-                  onError={() => handleImageError(image.url)}
+                  onError={(e) => handleImageError(image.url, e)}
+                  unoptimized={image.url.includes('google.com')}
+                  priority={index < 3} // Preload first 3 images
+                  loading={index > 2 ? 'lazy' : undefined}
                 />
+                {imageLoadErrors[image.url] && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-200/50">
+                    <FiAlertCircle className="w-8 h-8 text-gray-400" />
+                  </div>
+                )}
+                {!loadedImages[image.url] && !imageLoadErrors[image.url] && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="animate-pulse w-full h-full bg-gray-200"></div>
+                  </div>
+                )}
               </div>
             </div>
           ))}

@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiPlus, FiEdit, FiTrash2, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiPlus, FiEdit, FiTrash2, FiEye, FiEyeOff, FiYoutube } from 'react-icons/fi';
 
 interface Album {
   _id: string;
@@ -15,6 +15,16 @@ interface Album {
   date?: string;
   location?: string;
   images: { url: string; alt?: string }[];
+}
+
+interface Film {
+  _id: string;
+  title: string;
+  description: string;
+  youtubeId: string;
+  thumbnail: string;
+  isPublished?: boolean;
+  createdAt: string;
 }
 
 // Function to process image URLs for display
@@ -60,9 +70,11 @@ const processImageUrl = (url: string) => {
 export default function DashboardPage() {
   const router = useRouter();
   const [albums, setAlbums] = useState<Album[]>([]);
+  const [films, setFilms] = useState<Film[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isClient, setIsClient] = useState(false);
+  const [activeTab, setActiveTab] = useState<'albums' | 'films'>('albums');
 
   // Check authentication status on component mount
   useEffect(() => {
@@ -87,37 +99,43 @@ export default function DashboardPage() {
     checkAuth();
   }, [router]);
 
-  const fetchAlbums = async () => {
+  const fetchFilms = async () => {
     try {
-      setLoading(true);
-      const response = await fetch('/api/albums?all=true', {
-        credentials: 'include'
+      const response = await fetch('/api/admin/films', {
+        credentials: 'include',
       });
       
       if (!response.ok) {
-        if (response.status === 401) {
+        throw new Error('Failed to fetch films');
+      }
+      
+      const data = await response.json();
+      setFilms(data);
+    } catch (error) {
+      console.error('Error fetching films:', error);
+      setError('Failed to load films');
+    }
+  };
+
+  const fetchAlbums = async () => {
+    try {
+      setLoading(true);
+      const [albumsResponse] = await Promise.all([
+        fetch('/api/albums?all=true', {
+          credentials: 'include'
+        }),
+        fetchFilms() // Fetch films in parallel
+      ]);
+      
+      if (!albumsResponse.ok) {
+        if (albumsResponse.status === 401) {
           router.push('/admin');
           return;
         }
         throw new Error('Failed to fetch albums');
       }
       
-      const data = await response.json();
-      console.log('Raw API response:', JSON.stringify(data, null, 2));
-      
-      // Log details about each album's cover image
-      if (Array.isArray(data)) {
-        data.forEach((album, index) => {
-          console.log(`Album ${index + 1}:`, {
-            title: album.title,
-            coverImage: album.coverImage,
-            processedUrl: processImageUrl(album.coverImage || ''),
-            hasImages: album.images?.length > 0,
-            firstImageUrl: album.images?.[0]?.url
-          });
-        });
-      }
-      
+      const data = await albumsResponse.json();
       setAlbums(data);
     } catch (error) {
       console.error('Error fetching albums:', error);
@@ -150,78 +168,29 @@ export default function DashboardPage() {
     }
   };
 
-  // Stats
-  const [stats, setStats] = useState({
-    totalAlbums: 0,
-    publishedAlbums: 0,
-    totalImages: 0
-  });
-
-  const fetchData = useCallback(async () => {
+  const toggleFilmPublishStatus = async (id: string, currentStatus: boolean | undefined) => {
     try {
-      setLoading(true);
+      const response = await fetch(`/api/admin/films/${id}/publish`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ isPublished: !(currentStatus === true) }),
+      });
 
-      // Fetch albums
-      const albumsRes = await fetch('/api/albums?all=true');
-      if (albumsRes.ok) {
-        const albumsData = await albumsRes.json();
-        const sortedAlbums = [...albumsData].sort((a: Album, b: Album) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        setAlbums(sortedAlbums);
-
-        // Calculate album stats
-        const publishedAlbums = albumsData.filter((a: Album) => a.isPublished).length;
-        const totalImages = albumsData.reduce((sum: number, album: Album) => sum + album.images.length, 0);
-
-        // Update stats
-        setStats({
-          totalAlbums: albumsData.length,
-          publishedAlbums,
-          totalImages
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      setError('Failed to load data. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const checkAuth = useCallback(async () => {
-    try {
-      const response = await fetch('/api/auth/check');
       if (!response.ok) {
-        router.push('/admin');
-        return false;
+        throw new Error('Failed to update film status');
       }
-      
-      const data = await response.json();
-      if (!data.authenticated) {
-        router.push('/admin');
-        return false;
-      }
-      
-      return true;
+
+      setFilms(films.map(film => 
+        film._id === id ? { ...film, isPublished: !(currentStatus === true) } : film
+      ));
     } catch (error) {
-      console.error('Auth check failed:', error);
-      router.push('/admin');
-      return false;
+      console.error('Error updating film status:', error);
+      setError('Failed to update film status');
     }
-  }, [router]);
-
-  useEffect(() => {
-    const verifyAuth = async () => {
-      const isAuthenticated = await checkAuth();
-      if (isAuthenticated) {
-        await fetchData();
-      }
-    };
-
-    setIsClient(true);
-    verifyAuth();
-  }, [checkAuth, fetchData]);
+  };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this album? This action cannot be undone.')) {
@@ -235,7 +204,7 @@ export default function DashboardPage() {
 
       if (response.ok) {
         // Refresh data after successful deletion
-        await fetchData();
+        await fetchAlbums();
       } else {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to delete album');
@@ -274,7 +243,7 @@ export default function DashboardPage() {
         throw new Error(errorMessage);
       }
       // Refresh data after successful update
-      await fetchData();
+      await fetchAlbums();
     } catch (error) {
       console.error('Error updating album status:', error);
       setError('Failed to update album status. Please try again.');
@@ -304,96 +273,131 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-black"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-          >
-            Logout
-          </button>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-semibold text-gray-900">Albums</h2>
-            <Link
-              href="/admin/albums/new"
-              className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black flex items-center"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
-              Add New Album
-            </Link>
+    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+            <p className="mt-1 text-sm text-gray-500">Manage your content</p>
           </div>
-
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700">
-              <p>{error}</p>
-            </div>
-          )}
-
-          {albums.length === 0 ? (
-            <div className="bg-white shadow overflow-hidden rounded-lg p-6 text-center">
-              <svg
-                className="mx-auto h-12 w-12 text-gray-400 mb-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              <p className="text-gray-500 mb-4">No albums found</p>
+          <div className="flex space-x-3">
+            {activeTab === 'albums' ? (
               <Link
                 href="/admin/albums/new"
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
               >
-                Create New Album
+                <FiPlus className="-ml-1 mr-2 h-5 w-5" />
+                New Album
               </Link>
+            ) : (
+              <Link
+                href="/admin/films/new"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
+              >
+                <FiPlus className="-ml-1 mr-2 h-5 w-5" />
+                New Film
+              </Link>
+            )}
+          </div>
+        </div>
+
+        <div className="mb-6 border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab('albums')}
+              className={`${activeTab === 'albums' 
+                ? 'border-black text-black' 
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} 
+                whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+            >
+              Albums
+            </button>
+            <button
+              onClick={() => setActiveTab('films')}
+              className={`${activeTab === 'films' 
+                ? 'border-black text-black' 
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} 
+                whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+            >
+              Films
+            </button>
+          </nav>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
             </div>
-          ) : (
-            <div className="bg-white shadow overflow-hidden rounded-lg">
-              {/* Desktop Table */}
-              <div className="hidden md:block">
-                <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Album
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Photos
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th scope="col" className="relative px-6 py-3">
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {albums.map((album) => (
+          </div>
+        )}
+
+        {loading ? (
+          <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+          </div>
+        ) : activeTab === 'albums' && albums.length === 0 ? (
+          <div className="bg-white shadow overflow-hidden rounded-lg p-6 text-center">
+            <svg
+              className="mx-auto h-12 w-12 text-gray-400 mb-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            <p className="text-gray-500 mb-4">No albums found</p>
+            <Link
+              href="/admin/albums/new"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Create New Album
+            </Link>
+          </div>
+        ) : (
+          <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    {activeTab === 'albums' ? 'Album' : 'Film'}
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    {activeTab === 'albums' ? 'Photos' : 'Type'}
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th scope="col" className="relative px-6 py-3">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {activeTab === 'albums' ? (
+                  albums.map((album) => (
                     <tr key={`desktop-${album._id}`} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -462,124 +466,79 @@ export default function DashboardPage() {
                         </div>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile List */}
-            <div className="md:hidden">
-              <div className="divide-y divide-gray-200">
-                {albums.map((album) => (
-                  <div key={`mobile-${album._id}`} className="p-4 hover:bg-gray-50">
-                    <div className="flex items-start">
-                      <div className="bg-white rounded-lg shadow-md overflow-hidden group w-full">
-                        <div className="relative h-48 bg-gray-100">
-                          {album.coverImage ? (
-                            <div className="relative w-full h-full">
-                              <Image
-                                src={processImageUrl(album.coverImage)}
-                                alt={album.title}
-                                fill
-                                sizes="(max-width: 768px) 100vw, 100%"
-                                className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  ))
+                ) : films.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                      No films found. Add your first film to get started.
+                    </td>
+                  </tr>
+                ) : (
+                  films.map((film) => (
+                      <tr key={film._id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-16 w-28 bg-gray-200 rounded-md overflow-hidden relative">
+                              <img
+                                className="h-full w-full object-cover"
+                                src={film.thumbnail || `https://img.youtube.com/vi/${film.youtubeId}/hqdefault.jpg`}
+                                alt={film.title}
                                 onError={(e) => {
                                   const target = e.target as HTMLImageElement;
-                                  console.error('Error loading image:', {
-                                    originalUrl: album.coverImage,
-                                    processedUrl: processImageUrl(album.coverImage),
-                                    error: e
-                                  });
-                                  target.onerror = null;
-                                  if (target.src !== album.coverImage && album.coverImage) {
-                                    target.src = album.coverImage;
-                                  } else {
-                                    target.src = '/images/placeholder.jpg';
-                                  }
+                                  target.src = '/images/placeholder.jpg';
                                 }}
-                                onLoad={() => console.log('Image loaded successfully:', album.coverImage)}
-                                priority
-                                unoptimized
                               />
-                              <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 truncate">
-                                {album.coverImage}
+                              <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+                                <FiYoutube className="h-6 w-6 text-white" />
                               </div>
                             </div>
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                              <span className="text-gray-400">No cover image</span>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">{film.title}</div>
+                              <div className="text-sm text-gray-500">{film.youtubeId}</div>
                             </div>
-                          )}
-                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <Link 
-                              href={`/admin/albums/${album._id}`}
-                              className="bg-white text-gray-800 px-4 py-2 rounded-md font-medium hover:bg-gray-100 transition-colors"
-                            >
-                              Edit Album
-                            </Link>
                           </div>
-                        </div>
-                        <div className="p-4">
-                          <div className="flex justify-between items-center">
-                            <h3 className="text-sm font-medium text-gray-900">{album.title}</h3>
-                            <span
-                              className={`ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                album.isPublished
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-gray-100 text-gray-800'
-                              }`}
-                            >
-                              {album.isPublished ? 'Published' : 'Draft'}
-                            </span>
-                          </div>
-                          <div className="mt-1 text-sm text-gray-500">
-                            {album.images?.length || 0} {album.images?.length === 1 ? 'photo' : 'photos'}
-                          </div>
-                          {album.location && (
-                            <div className="mt-1 text-sm text-gray-500">
-                              {album.location}
-                            </div>
-                          )}
-                          {album.date && (
-                            <div className="mt-1 text-sm text-gray-500">
-                              {new Date(album.date).toLocaleDateString()}
-                            </div>
-                          )}
-                          <div className="mt-2 flex space-x-2">
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${film.isPublished ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                            {film.isPublished ? 'Published' : 'Draft'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(film.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex items-center space-x-4">
                             <button
-                              onClick={() => togglePublish(album._id, album.isPublished)}
-                              className={`px-2 py-1 rounded text-xs ${
-                                album.isPublished
-                                  ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                                  : 'bg-green-100 text-green-800 hover:bg-green-200'
-                              }`}
+                              onClick={() => toggleFilmPublishStatus(film._id, film.isPublished)}
+                              className={`${film.isPublished ? 'text-yellow-600 hover:text-yellow-900' : 'text-green-600 hover:text-green-900'}`}
+                              title={film.isPublished ? 'Unpublish' : 'Publish'}
                             >
-                              {album.isPublished ? 'Unpublish' : 'Publish'}
+                              {film.isPublished ? <FiEyeOff className="h-5 w-5" /> : <FiEye className="h-5 w-5" />}
                             </button>
                             <Link
-                              href={`/admin/albums/${album._id}`}
-                              className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs hover:bg-blue-200"
+                              href={`/admin/films/${film._id}`}
+                              className="text-gray-400 hover:text-gray-600"
+                              title="Edit"
                             >
-                              Edit
+                              <FiEdit className="h-5 w-5" />
                             </Link>
                             <button
-                              onClick={() => handleDelete(album._id)}
-                              className="px-2 py-1 bg-red-100 text-red-800 rounded text-xs hover:bg-red-200"
+                              onClick={() => handleDelete(film._id)}
+                              className="text-gray-400 hover:text-red-600"
+                              title="Delete"
                             >
-                              Delete
+                              <FiTrash2 className="h-5 w-5" />
                             </button>
                           </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
-    </main>
-  </div>
-);
+    </div>
+  );
 }

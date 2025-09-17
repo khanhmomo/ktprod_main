@@ -20,14 +20,22 @@ if (!cached) {
 }
 
 async function dbConnect() {
+  console.log('Connecting to MongoDB...');
+  console.log('MongoDB URI:', MONGODB_URI ? '***' : 'Not set');
+  
   if (cached.conn) {
+    console.log('Using cached database connection');
     return cached.conn;
   }
 
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
+      serverSelectionTimeoutMS: 10000, // 10 seconds
+      socketTimeoutMS: 45000, // 45 seconds
     };
+    
+    console.log('Creating new database connection...');
 
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
       return mongoose;

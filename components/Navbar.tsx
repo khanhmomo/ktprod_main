@@ -93,11 +93,18 @@ export default function Navbar() {
               Gallery
             </Link>
             <Link 
+              href="/film" 
+              className={`hover:opacity-80 transition-opacity ${(scrolled || !isHomePage) ? 'text-black' : 'text-white'}`}
+            >
+              Film
+            </Link>
+            <Link 
               href="/kind-words" 
               className={`hover:opacity-80 transition-opacity ${(scrolled || !isHomePage) ? 'text-black' : 'text-white'}`}
             >
               Kind Words
             </Link>
+            
           </div>
 
           {/* Mobile menu button */}
@@ -156,12 +163,21 @@ export default function Navbar() {
               Gallery
             </Link>
             <Link 
+              href="/film" 
+              className="hover:opacity-80 transition-opacity py-2"
+              onClick={() => setIsOpen(false)}
+            >
+              Film
+            </Link>
+
+            <Link 
               href="/kind-words" 
               className="hover:opacity-80 transition-opacity py-2"
               onClick={() => setIsOpen(false)}
             >
               Kind Words
             </Link>
+            
           </div>
         </div>
       </div>
