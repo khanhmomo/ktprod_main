@@ -1,60 +1,11 @@
 import { NextResponse } from 'next/server';
-import { google } from 'googleapis';
-import { Readable } from 'stream';
 
-// Debug logging function
-const debug = (message: string, data?: any) => {
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`[DriveImageAPI] ${message}`, data || '');
-  }
-};
-
-// Handle OPTIONS method for CORS preflight
+// CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
-
-// Initialize Google Auth with environment variables
-const getAuth = () => {
-  try {
-    const client_email = process.env.GOOGLE_CLIENT_EMAIL;
-    const private_key = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\\\n/g, '\n');
-    
-    if (!client_email || !private_key) {
-      throw new Error('Missing required Google Drive API credentials');
-    }
-
-    debug('Initializing Google Auth with service account', { 
-      client_email,
-      has_private_key: !!private_key 
-    });
-
-    return new google.auth.GoogleAuth({
-      credentials: {
-        client_email,
-        private_key,
-      },
-      scopes: [
-        'https://www.googleapis.com/auth/drive.readonly',
-        'https://www.googleapis.com/auth/drive.metadata.readonly'
-      ],
-    });
-  } catch (error) {
-    console.error('Failed to initialize Google Auth:', error);
-    throw new Error('Failed to initialize Google Drive authentication');
-  }
-};
-
-const getDrive = () => {
-  const auth = getAuth();
-  return google.drive({ 
-    version: 'v3', 
-    auth,
-    // Enable more detailed error messages
-    validateStatus: () => true
-  });
+  'Cache-Control': 'public, max-age=31536000, immutable', // Cache for 1 year
 };
 
 // Handle OPTIONS method for CORS preflight
@@ -67,10 +18,10 @@ export async function OPTIONS() {
 
 export async function GET(request: Request) {
   const startTime = Date.now();
-  const requestId = Math.random().toString(36).substring(2, 8);
+  const requestId = Math.random().toString(36).substring(2, 9);
   
-  const logRequest = (message: string, data?: any) => {
-    debug(`[${requestId}] ${message}`, data);
+  const log = (message: string, data?: any) => {
+    console.log(`[${requestId}] ${message}`, data || '');
   };
 
   try {
@@ -78,148 +29,147 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const fileId = searchParams.get('id');
     
-    logRequest('Request received', { fileId });
-
+    log('Request received', { fileId });
+    
     if (!fileId) {
-      logRequest('Missing file ID');
-      return new NextResponse(JSON.stringify({ 
-        error: 'File ID is required',
-        requestId
-      }), { 
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-
-    const drive = getDrive();
-    
-    // Get file metadata to check if it's an image
-    logRequest('Fetching file metadata');
-    const fileResponse = await drive.files.get({
-      fileId,
-      fields: 'id,name,mimeType,webViewLink,webContentLink,thumbnailLink,imageMediaMetadata',
-    });
-    
-    const file = fileResponse.data;
-    logRequest('File metadata received', { 
-      mimeType: file.mimeType,
-      name: file.name,
-      hasThumbnail: !!file.thumbnailLink
-    });
-
-    if (!file.mimeType?.startsWith('image/')) {
-      logRequest('File is not an image', { mimeType: file.mimeType });
-      return new NextResponse(JSON.stringify({
-        error: 'File is not an image',
-        requestId,
-        mimeType: file.mimeType
-      }), { 
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-
-    // If we have a direct web content link, use it
-    if (file.webContentLink) {
-      logRequest('Using webContentLink', { 
-        webContentLink: file.webContentLink,
-        duration: Date.now() - startTime
-      });
+      const error = 'File ID is required';
+      log('Validation error', { error });
       
-      return new NextResponse(null, {
-        status: 302,
-        headers: {
-          'Location': file.webContentLink,
-          'Cache-Control': 'public, max-age=31536000, immutable',
-          ...corsHeaders
+      return new NextResponse(
+        JSON.stringify({ 
+          error,
+          requestId,
+          timestamp: new Date().toISOString()
+        }), 
+        { 
+          status: 400, 
+          headers: { 
+            'Content-Type': 'application/json',
+            ...corsHeaders
+          } 
         }
-      });
+      );
     }
     
-    // If we have a thumbnail, use it
-    if (file.thumbnailLink) {
-      logRequest('Using thumbnailLink', { 
-        thumbnailLink: file.thumbnailLink,
-        duration: Date.now() - startTime
-      });
-      
-      return new NextResponse(null, {
-        status: 302,
-        headers: {
-          'Location': file.thumbnailLink,
-          'Cache-Control': 'public, max-age=31536000, immutable',
-          ...corsHeaders
-        }
-      });
-    }
-
-    // As a last resort, download the file and serve it directly
-    logRequest('Downloading file content directly');
-    const { data } = await drive.files.get(
-      { 
-        fileId, 
-        alt: 'media',
-        supportsAllDrives: true,
-        supportsTeamDrives: true
-      },
-      { 
-        responseType: 'stream',
-        timeout: 30000 // 30 second timeout
-      }
-    );
-
-    const stream = data as unknown as Readable;
-    const responseStream = new ReadableStream({
-      start(controller) {
-        stream.on('data', (chunk) => {
-          controller.enqueue(chunk);
-        });
-        stream.on('end', () => {
-          controller.close();
-          logRequest('File stream completed', { 
-            duration: Date.now() - startTime 
-          });
-        });
-        stream.on('error', (error) => {
-          logRequest('Stream error', { error: error.message });
-          controller.error(error);
-        });
-      },
-    });
-
-    return new Response(responseStream, {
+    // Construct the direct Google Drive image URL
+    const imageUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+    log('Fetching image from Google Drive', { imageUrl });
+    
+    // Fetch the image from Google Drive
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
+    const response = await fetch(imageUrl, {
+      signal: controller.signal,
       headers: {
-        'Content-Type': file.mimeType,
-        'Cache-Control': 'public, max-age=31536000, immutable',
-        'X-Request-ID': requestId,
-        ...corsHeaders
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'image/*',
+        'Referer': 'https://drive.google.com/'
       },
+      redirect: 'follow'
+    }).finally(() => clearTimeout(timeoutId));
+    
+    log('Response received', {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries()),
+      redirected: response.redirected,
+      url: response.url,
+      type: response.type
     });
+    
+    if (!response.ok) {
+      const error = `Failed to fetch image: ${response.status} ${response.statusText}`;
+      log('Fetch error', { error });
+      
+      // Try alternative URL format if the first one fails
+      const alternativeUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+      log('Trying alternative URL', { alternativeUrl });
+      
+      const altResponse = await fetch(alternativeUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'image/*',
+          'Referer': 'https://drive.google.com/'
+        },
+        redirect: 'follow'
+      });
+      
+      if (!altResponse.ok) {
+        throw new Error(`Both URL formats failed: ${response.status} and ${altResponse.status}`);
+      }
+      
+      // If alternative URL worked, use that response
+      const arrayBuffer = await altResponse.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const contentType = altResponse.headers.get('content-type') || 'image/jpeg';
+      
+      log('Serving image from alternative URL', {
+        contentType,
+        size: buffer.length,
+        duration: Date.now() - startTime
+      });
+      
+      return new NextResponse(buffer, {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+          'X-Request-ID': requestId,
+          'X-Image-Source': 'alternative',
+          ...corsHeaders
+        }
+      });
+    }
+    
+    // Get the image data and content type
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    
+    log('Serving image', {
+      contentType,
+      size: buffer.length,
+      duration: Date.now() - startTime
+    });
+    
+    // Return the image with proper caching headers
+    return new NextResponse(buffer, {
+      status: 200,
+      headers: {
+        'Content-Type': contentType,
+        'X-Request-ID': requestId,
+        'X-Image-Source': 'primary',
+        ...corsHeaders
+      }
+    });
+    
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorDetails = error instanceof Error ? {
       name: error.name,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      stack: error.stack,
+      cause: error.cause
     } : {};
     
-    logRequest('Error processing request', { 
+    log('Error in image proxy', {
       error: errorMessage,
-      duration: Date.now() - startTime,
-      ...errorDetails
+      ...errorDetails,
+      duration: Date.now() - startTime
     });
     
     return new NextResponse(
-      JSON.stringify({
-        error: 'Failed to retrieve image from Google Drive',
+      JSON.stringify({ 
+        error: 'Failed to fetch image',
+        message: errorMessage,
         requestId,
-        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        timestamp: new Date().toISOString()
       }), 
       { 
-        status: 500,
+        status: 500, 
         headers: { 
           'Content-Type': 'application/json',
           ...corsHeaders
-        }
+        } 
       }
     );
   }

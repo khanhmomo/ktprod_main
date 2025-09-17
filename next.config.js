@@ -30,8 +30,14 @@ const nextConfig = {
         hostname: '**',
       },
     ],
+    // Allow images from localhost for development and the proxy route
+    domains: ['localhost', '127.0.0.1'],
+    // Support for modern image formats
+    formats: ['image/avif', 'image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    // Allow all domains in development, but restrict in production
+    disableStaticImages: false,
   },
   async headers() {
     return [

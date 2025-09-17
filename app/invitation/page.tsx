@@ -218,7 +218,7 @@ export default function InvitationPage() {
             <h3 className="text-2xl font-cormorant font-medium mb-6 text-gray-800">Location</h3>
             <div className="aspect-w-16 aspect-h-9 w-full overflow-hidden rounded-lg shadow-lg mb-8">
               <iframe 
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3465.09057432746!2d-95.5905428!3d29.6728603!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8640dd6220040151%3A0x48e78577c66002f9!2s9710%20S%20Kirkwood%20Rd%2C%20Houston%2C%20TX%2077099!5e0!3m2!1sen!2sus!4v1633024000000!5m2!1sen!2sus" 
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3465.09057432746!2d-95.5905428!3d29.6728603!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8640dd0060d7317f%3A0x1d0cedc230c648f1!2sThe%20Wild%20Studio!5e0!3m2!1sen!2sus!4v1633024000000!5m2!1sen!2sus"
                 width="100%" 
                 height="450" 
                 style={{ border: 0 }} 
@@ -229,7 +229,7 @@ export default function InvitationPage() {
               ></iframe>
             </div>
             <p className="text-center text-gray-600 mb-8">
-              9710 S Kirkwood Rd, Houston, TX 77099
+              Suite 500, 9710 S Kirkwood Rd, Houston, TX 77099
             </p>
             
             <div className="mt-12 pt-8 border-t border-gray-100">
