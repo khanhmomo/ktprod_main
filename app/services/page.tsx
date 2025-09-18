@@ -116,7 +116,7 @@ export default function Services() {
             transition={{ duration: 0.5, delay: 0.2 }}
           >
             <img 
-              src="https://scontent-hou1-1.xx.fbcdn.net/v/t39.30808-6/484163072_1096662742264704_6792318387629695355_n.jpg?_nc_cat=103&ccb=1-7&_nc_sid=cc71e4&_nc_ohc=YbHSANBGykoQ7kNvwEEcnTy&_nc_oc=AdltprB-3n7fHuat_6A7tJxSp8-2zU5ePPa7IyY0Ohp-FUFN86bSBEZ2f6n3ADQgDS0Qr7CPGtVXBB6RyY2ADBr_&_nc_zt=23&_nc_ht=scontent-hou1-1.xx&_nc_gid=CJ2SVchmAu9BsPKlKsNLZg&oh=00_AfaOTXUqEdnqcDOVg-aGIZyiqnk29xU1Kp_poBjK2Qeymg&oe=68CACA6C" 
+              src="https://scontent-hou1-1.xx.fbcdn.net/v/t39.30808-6/494737167_1135629205034724_2926229135502320159_n.jpg?_nc_cat=102&ccb=1-7&_nc_sid=127cfc&_nc_ohc=xwzJ14FSvgcQ7kNvwEVZ_5D&_nc_oc=AdlKZx7BJDGTprTKOTnzqgyPOZkstrZCntBz81a59wFqom9mU6uERFNWZPxKmpG3258&_nc_zt=23&_nc_ht=scontent-hou1-1.xx&_nc_gid=WjsNLW6uui5Bl07TLiW5pA&oh=00_Afbg4ZM_OBUpWB-F_3iRorQnXXB5hj1z3-blyIvOGgx00Q&oe=68D12EA6" 
               alt="Wedding photography"
               className="w-full h-auto object-cover"
               style={{ maxHeight: '500px' }}
