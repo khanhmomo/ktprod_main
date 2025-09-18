@@ -448,6 +448,10 @@ export default function AlbumForm({
                         onClick={(e) => {
                           e.stopPropagation();
                           setCoverImage(image.url);
+                          setFormData(prev => ({
+                            ...prev,
+                            coverImage: image.url
+                          }));
                         }}
                         className="bg-white text-gray-800 px-2 py-1 rounded text-sm font-medium mr-2 hover:bg-gray-100"
                       >

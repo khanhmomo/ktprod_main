@@ -186,7 +186,7 @@ export async function PATCH(
     console.log(`[${requestId}] Request headers:`, Object.fromEntries(request.headers.entries()));
     
     // Only allow specific fields to be updated
-    const allowedUpdates = ['isPublished', 'title', 'description', 'date', 'location', 'category'];
+    const allowedUpdates = ['isPublished', 'title', 'description', 'date', 'location', 'category', 'coverImage'];
     console.log(`[${requestId}] Raw update data:`, JSON.stringify(updateData, null, 2));
     
     // Log each field in the update data
