@@ -131,19 +131,29 @@ export class DriveService {
     try {
       const response = await this.drive.files.list({
         q: `'${folderId}' in parents and trashed = false`,
-        fields: 'files(id, name, mimeType, webViewLink, thumbnailLink, webContentLink)',
+        fields: 'files(id, name, mimeType, webViewLink, thumbnailLink, webContentLink, createdTime)',
         pageSize: 1000, // Maximum allowed by the API
+        orderBy: 'name' // Sort by name
       });
 
-      // Ensure we return an array of DriveFile with required fields
-      return (response.data.files || []).map(file => ({
-        id: file.id || null,
-        name: file.name || null,
-        mimeType: file.mimeType || null,
-        webViewLink: file.webViewLink || null,
-        thumbnailLink: file.thumbnailLink || null,
-        webContentLink: file.webContentLink || null
-      }));
+      // Natural sort function for better number handling
+      const naturalSort = (a: string | null, b: string | null) => {
+        if (a === null) return 1;
+        if (b === null) return -1;
+        return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+      };
+
+      // Ensure we return an array of DriveFile with required fields and sort them
+      return (response.data.files || [])
+        .map(file => ({
+          id: file.id || null,
+          name: file.name || null,
+          mimeType: file.mimeType || null,
+          webViewLink: file.webViewLink || null,
+          thumbnailLink: file.thumbnailLink || null,
+          webContentLink: file.webContentLink || null
+        }))
+        .sort((a, b) => naturalSort(a.name, b.name));
     } catch (error) {
       console.error('Error listing folder contents:', error);
       throw new Error('Failed to list folder contents');
