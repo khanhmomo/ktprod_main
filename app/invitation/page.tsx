@@ -160,7 +160,8 @@ export default function InvitationPage() {
 
               <div className="space-y-4 w-full max-w-2xl mx-auto">
                 {[
-                  { time: '5:00 PM', event: 'Guest Arrival', icon: '👋', description: 'Welcome drinks and light refreshments' },
+                  { time: '5:00 PM', event: 'Guest Arrival', icon: '👋', description: 'Warm welcome to our guests' },
+                  { time: '5:15 PM', event: 'Cocktail Hour', icon: '🥂', description: 'Welcome drinks and light refreshments' },
                   { time: '6:00 PM', event: 'Lion Dance Performance', icon: '🦁', description: 'Traditional performance for good fortune' },
                   { time: '6:15 PM', event: 'Firecrackers Display', icon: '🎆', description: 'Celebratory firecrackers ceremony' },
                   { time: '6:30 PM', event: 'Ribbon-Cutting Ceremony', icon: '✂️', description: 'Official grand opening with special guests' },
@@ -168,7 +169,8 @@ export default function InvitationPage() {
                   { time: '7:00 PM', event: 'Bridal Fashion Show', icon: '👰', description: 'Exclusive preview of our latest collections' },
                   { time: '7:30 PM', event: 'Dinner', icon: '🍽️', description: 'Light standing party' },
                   { time: '7:45 PM', event: 'Lucky Draw', icon: '🎁', description: 'Exciting prizes and giveaways' },
-                  { time: '8:00 PM', event: 'Live Music & Dancing', icon: '🎵', description: 'Evening entertainment and celebration' }
+                  { time: '8:00 PM', event: 'Mini game', icon: '🎮', description: 'Have fun with our games' },
+                  { time: '8:15 PM', event: 'Live Music & Dancing', icon: '🎵', description: 'Evening entertainment and celebration' }
                 ].map((item, index) => (
                   <motion.div
                     key={index}
