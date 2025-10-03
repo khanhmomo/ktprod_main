@@ -54,7 +54,7 @@ export default function ThankYouPage() {
             
             <p className="text-xl md:text-2xl tracking-widest mb-2" style={{ fontFamily: 'var(--font-lato)' }}>Thank You For</p>
             
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-light mb-6 leading-tight" style={{ fontFamily: 'var(--font-cormorant)' }}>
+            <h1 className="text-5xl md:text-7xl lg:text-8xl font-light mb-6 leading-tight whitespace-nowrap" style={{ fontFamily: 'var(--font-cormorant)' }}>
               Celebrating With Us
             </h1>
             <div className="w-24 h-px bg-white/50 mx-auto my-8"></div>
