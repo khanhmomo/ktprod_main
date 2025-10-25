@@ -22,8 +22,9 @@ export default function CategoryPage({
   params: { category: string };
 }) {
   // Validate category
-  const validCategories = ['wedding', 'prewedding', 'event', 'studio'];
-  if (!validCategories.includes(params.category.toLowerCase())) {
+  const validCategories = ['wedding-day', 'tea-ceremony', 'prewedding', 'fashion', 'family', 'event'];
+  const normalizedCategory = params.category.toLowerCase();
+  if (!validCategories.includes(normalizedCategory)) {
     notFound();
   }
 

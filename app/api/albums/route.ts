@@ -24,7 +24,13 @@ export async function GET(request: Request) {
         const query: any = { isPublished: true };
         
         if (category) {
-          query.category = category.charAt(0).toUpperCase() + category.slice(1);
+          // Convert URL-friendly category to the format stored in the database
+          const formattedCategory = category
+            .split('-') // Split by hyphens
+            .map(word => word.toUpperCase()) // Convert each word to uppercase
+            .join(' '); // Join with spaces
+          
+          query.category = formattedCategory;
         }
         
         const albums = await Album.find(query).sort({ createdAt: -1 });
@@ -58,7 +64,7 @@ export async function GET(request: Request) {
     
     // Admin is authenticated, fetch all albums
     await dbConnect();
-    const albums = await Album.find({}).sort({ createdAt: -1 });
+    const albums = await Album.find({}, 'title coverImage isPublished createdAt images category').sort({ createdAt: -1 });
     
     return NextResponse.json(albums, {
       headers: {
@@ -178,17 +184,32 @@ export async function POST(request: Request) {
       source: img.originalUrl?.includes('drive.google.com') ? 'google-drive' : 'upload'
     }));
 
+    // Validate category
+    const validCategories = ['WEDDING DAY', 'TEA CEREMONY', 'PREWEDDING', 'FASHION', 'FAMILY', 'EVENT'];
+    const category = data.category && validCategories.includes(data.category) 
+      ? data.category 
+      : 'EVENT';
+
+    // Ensure cover image is set
+    const coverImage = data.coverImage || (processedImages[0]?.url || '');
+    if (!coverImage) {
+      return NextResponse.json(
+        { error: 'Cover image is required' },
+        { status: 400 }
+      );
+    }
+
     const album = new Album({
       title: data.title,
       slug,
       description: data.description || '',
-      coverImage: data.coverImage || (processedImages[0]?.url || ''),
+      coverImage,
       images: processedImages,
       date: data.date || new Date(),
       location: data.location || '',
       isPublished: Boolean(data.isPublished),
       featuredInHero: Boolean(data.featuredInHero),
-      category: data.category || 'Uncategorized',
+      category,
       createdAt: new Date(),
       updatedAt: new Date()
     });
@@ -205,11 +226,82 @@ export async function POST(request: Request) {
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       }
     });
-  } catch (error) {
-    console.error('Error creating album:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+  } catch (err: unknown) {
+    // Type guard for MongoDB/Mongoose errors
+    const isMongoError = (error: unknown): error is { code?: number; keyPattern?: Record<string, any>; keyValue?: Record<string, any> } => {
+      return typeof error === 'object' && error !== null;
+    };
+
+    // Type guard for validation errors
+    const isValidationError = (error: unknown): error is { name: string; errors?: Record<string, { message: string }>; message: string } => {
+      return typeof error === 'object' && error !== null && 'name' in error;
+    };
+
+    // Type guard for Error objects
+    const isError = (error: unknown): error is Error => {
+      return error instanceof Error;
+    };
+
+    // Log error details
+    console.error('Error creating album:');
+    if (isMongoError(err)) {
+      console.error('MongoDB Error:', {
+        code: err.code,
+        keyPattern: err.keyPattern,
+        keyValue: err.keyValue
+      });
+    }
+    if (isError(err)) {
+      console.error('Error details:', {
+        name: err.name,
+        message: err.message,
+        stack: err.stack
+      });
+    }
+    
+    // Handle duplicate key errors
+    if (isMongoError(err) && err.code === 11000) {
+      const field = err.keyPattern ? Object.keys(err.keyPattern)[0] : 'unknown';
+      const value = err.keyValue ? Object.values(err.keyValue)[0] : '';
+      
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'An album with this title already exists',
+          field,
+          value
+        },
+        { status: 400 }
+      );
+    }
+    
+    // Handle validation errors
+    if (isValidationError(err) && err.name === 'ValidationError') {
+      const details = err.errors 
+        ? Object.values(err.errors).map(e => e.message) 
+        : [err.message];
+      
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Validation error',
+          details
+        },
+        { status: 400 }
+      );
+    }
+    
+    // Generic error response
+    const errorMessage = isError(err) ? err.message : 'Unknown error';
+    const errorStack = isError(err) ? err.stack : undefined;
+    
     return NextResponse.json(
-      { error: `Failed to create album: ${errorMessage}` },
+      { 
+        success: false,
+        error: 'Failed to create album',
+        message: errorMessage,
+        ...(process.env.NODE_ENV === 'development' && errorStack && { stack: errorStack })
+      },
       { 
         status: 500,
         headers: {

@@ -13,31 +13,45 @@ type Category = {
 const categories: Category[] = [
   {
     id: '1',
-    name: 'Wedding',
-    slug: 'wedding',
-    coverImage: '/images/wedding-cover.jpg',
+    name: 'WEDDING DAY',
+    slug: 'wedding-day',
+    coverImage: '/images/weddingday-cover.jpeg',
     count: 24,
   },
   {
     id: '2',
-    name: 'Prewedding',
-    slug: 'prewedding',
-    coverImage: '/images/prewedding-cover.jpg',
+    name: 'TEA CEREMONY',
+    slug: 'tea-ceremony',
+    coverImage: '/images/teaceramony-cover.jpg',
     count: 18,
   },
   {
     id: '3',
-    name: 'Event',
-    slug: 'event',
-    coverImage: '/images/event-cover.jpg',
-    count: 32,
+    name: 'PREWEDDING',
+    slug: 'prewedding',
+    coverImage: '/images/prewedding-cover.jpg',
+    count: 22,
   },
   {
     id: '4',
-    name: 'Studio',
-    slug: 'studio',
-    coverImage: '/images/studio-cover.jpg',
+    name: 'FASHION',
+    slug: 'fashion',
+    coverImage: '/images/fashion-cover.jpeg',
     count: 15,
+  },
+  {
+    id: '5',
+    name: 'FAMILY',
+    slug: 'family',
+    coverImage: '/images/family-cover.jpg',
+    count: 20,
+  },
+  {
+    id: '6',
+    name: 'EVENT',
+    slug: 'event',
+    coverImage: '/images/event-cover.jpeg',
+    count: 30,
   },
 ];
 
@@ -58,45 +72,35 @@ export default function GalleryPage() {
           </p>
         </div>
       </section>
+      
       <div className="container mx-auto px-4 py-12">
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
           {categories.map((category) => (
-            <Link 
-              key={category.id} 
+            <Link
+              key={category.id}
               href={`/gallery/${category.slug}`}
-              className="group block h-full"
+              className="group relative block h-[500px] overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all duration-500"
             >
-              <div className="relative overflow-hidden rounded-lg shadow-md hover:shadow-xl transition-all duration-300 h-full flex flex-col">
-                <div className="w-full aspect-[4/3] bg-gray-100 flex-shrink-0">
-                  <Image
-                    src={category.coverImage}
-                    alt={`${category.name} category`}
-                    fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                    priority
-                  />
-                  {/* Mobile: Always visible */}
-                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center p-6 text-center md:hidden">
-                    <span className="text-xl font-medium text-white font-cormorant">
-                      {category.name}
-                    </span>
-                  </div>
-                  
-                  {/* Desktop: Visible on hover */}
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-4 transition-all duration-300 hidden md:flex opacity-0 group-hover:opacity-100">
-                    <div className="text-center">
-                      <h2 className="text-2xl font-medium text-white font-cormorant">{category.name}</h2>
-                      <p className="text-white/80 text-sm mt-2">
-                        View Collection
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                {/* Desktop: Always visible info */}
-                <div className="p-4 hidden md:block flex-grow">
-                  <h3 className="font-medium text-gray-900 line-clamp-2 text-center">{category.name}</h3>
+              <div className="absolute inset-0">
+                <Image
+                  src={category.coverImage}
+                  alt={category.name}
+                  fill
+                  className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  priority={parseInt(category.id) <= 4}
+                />
+                <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors duration-300" />
+              </div>
+              <div className="relative h-full flex flex-col items-center justify-center p-4 text-center">
+                <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 text-center">{category.name}</h2>
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <span className="inline-flex items-center text-white text-sm font-medium border-b border-transparent hover:border-white transition-colors">
+                    VIEW GALLERY
+                    <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </span>
                 </div>
               </div>
             </Link>

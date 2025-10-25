@@ -8,13 +8,17 @@ interface AlbumImage {
 }
 
 interface AlbumDocument {
-  _id: string;
+  _id: string | any; // Allow both string and ObjectId
   title: string;
   images: AlbumImage[];
-  date: string;
+  date: string | Date;
   location: string;
   description?: string;
   isPublished: boolean;
+  category: string;
+  coverImage: string;
+  updatedAt: Date;
+  createdAt: Date;
   __v: number;
 }
 
@@ -191,7 +195,8 @@ export async function PATCH(
     
     // Log each field in the update data
     console.log(`[${requestId}] Fields in update data:`, Object.keys(updateData));
-    console.log(`[${requestId}] Category in update data:`, updateData.category);
+    console.log(`[${requestId}] Category in update data (raw):`, updateData.category);
+    console.log(`[${requestId}] Category type:`, typeof updateData.category);
     
     const updates = Object.keys(updateData)
       .filter(key => {
@@ -219,20 +224,29 @@ export async function PATCH(
     // Log the final update object
     console.log(`[${requestId}] Final update object:`, JSON.stringify(updates, null, 2));
     
-    // Validate category if it's being updated
+    // Validate and normalize category if it's being updated
     if (updates.category) {
-      const validCategories = ['Wedding', 'Prewedding', 'Event', 'Studio'];
+      console.log(`[${requestId}] Validating category:`, updates.category);
+      
+      // Convert to uppercase and trim whitespace
+      updates.category = String(updates.category).toUpperCase().trim();
+      
+      const validCategories = ['WEDDING DAY', 'TEA CEREMONY', 'PREWEDDING', 'FASHION', 'FAMILY', 'EVENT'];
+      
       if (!validCategories.includes(updates.category)) {
         console.error(`[${requestId}] Invalid category: ${updates.category}`);
+        console.error(`[${requestId}] Valid categories are:`, validCategories);
         return NextResponse.json(
           { 
             success: false,
-            error: `Invalid category. Must be one of: ${validCategories.join(', ')}`,
+            error: `Invalid category: "${updates.category}". Must be one of: ${validCategories.join(', ')}`,
+            validCategories,
             requestId
           },
           { status: 400 }
         );
       }
+      console.log(`[${requestId}] Category validated:`, updates.category);
     }
     
     // Log the update operation with detailed information
@@ -297,25 +311,49 @@ export async function PATCH(
         console.log(`[${requestId}] No fields changed (values are the same as current)`);
       }
       
-      // Perform the update
+      // Perform the update using findOneAndUpdate for better atomicity
       console.log(`[${requestId}] Executing database update...`);
       
-      // Update the album with the new data
-      Object.assign(existingAlbum, updates);
-      const updatedAlbum = await existingAlbum.save();
+      // Log the final update object
+      console.log(`[${requestId}] Executing update with:`, {
+        filter: { _id: id },
+        update: { $set: updates },
+        options: { new: true, runValidators: true }
+      });
+      
+      // Use findOneAndUpdate to ensure atomic updates
+      const updatedAlbum = await Album.findOneAndUpdate(
+        { _id: id },
+        { $set: updates },
+        { new: true, runValidators: true }
+      ).lean();
+      
+      if (!updatedAlbum) {
+        console.error(`[${requestId}] Album not found with ID: ${id}`);
+        throw new Error('Failed to update album: Album not found');
+      }
+      
+      // Type assertion for the updated album
+      const albumData = updatedAlbum as unknown as AlbumDocument;
       
       console.log(`[${requestId}] Album updated successfully`);
       console.log(`[${requestId}] Updated album data:`, {
-        title: updatedAlbum.title,
-        category: updatedAlbum.category,
-        updatedAt: updatedAlbum.updatedAt
+        title: albumData.title,
+        category: albumData.category,
+        updatedAt: albumData.updatedAt
       });
+      
+      // Convert _id to string for the response
+      const responseAlbum = {
+        ...albumData,
+        _id: albumData._id.toString(),
+      };
       
       // Return the updated album
       return NextResponse.json(
         { 
           success: true,
-          data: updatedAlbum,
+          data: responseAlbum,
           requestId
         },
         { 

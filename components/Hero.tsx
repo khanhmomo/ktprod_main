@@ -153,7 +153,7 @@ export default function Hero() {
           className="max-w-4xl mx-auto"
         >
           <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl font-bold mb-4 sm:mb-6 px-4 text-center">
-            Let us tell your story differently way
+            Let us tell your story in a different way
           </h1>
           
           <div className="flex flex-col sm:flex-row justify-center gap-4">

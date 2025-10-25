@@ -39,9 +39,9 @@ const albumSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['Wedding', 'Prewedding', 'Event', 'Studio'],
+    enum: ['WEDDING DAY', 'TEA CEREMONY', 'PREWEDDING', 'FASHION', 'FAMILY', 'EVENT'],
     required: true,
-    default: 'Event'
+    default: 'EVENT'
   },
   createdAt: {
     type: Date,

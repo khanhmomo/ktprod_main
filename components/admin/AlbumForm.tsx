@@ -7,10 +7,12 @@ import Image from 'next/image';
 import GoogleDriveImport from '@/components/GoogleDriveImport';
 
 const categories = [
-  { value: 'Wedding', label: 'Wedding' },
-  { value: 'Prewedding', label: 'Prewedding' },
-  { value: 'Event', label: 'Event' },
-  { value: 'Studio', label: 'Studio' }
+  { value: 'WEDDING DAY', label: 'WEDDING DAY' },
+  { value: 'TEA CEREMONY', label: 'TEA CEREMONY' },
+  { value: 'PREWEDDING', label: 'PREWEDDING' },
+  { value: 'FASHION', label: 'FASHION' },
+  { value: 'FAMILY', label: 'FAMILY' },
+  { value: 'EVENT', label: 'EVENT' }
 ];
 
 interface AlbumImage {
@@ -59,7 +61,7 @@ export default function AlbumForm({
     date: new Date().toISOString().split('T')[0],
     location: '',
     isPublished: false,
-    category: 'Event'
+    category: 'EVENT'
   });
 
   // Initialize form with initialData
@@ -95,9 +97,12 @@ export default function AlbumForm({
     const { name, value, type } = e.target as HTMLInputElement;
     const checked = type === 'checkbox' ? (e.target as HTMLInputElement).checked : undefined;
     
+    // Preserve line breaks in textarea
+    const processedValue = type === 'textarea' ? value.replace(/\n/g, '\n') : value;
+    
     setFormData(prev => ({
       ...prev,
-      [name]: checked !== undefined ? checked : value
+      [name]: type === 'checkbox' ? checked : processedValue
     }));
   };
 
@@ -345,7 +350,8 @@ export default function AlbumForm({
             value={formData.description}
             onChange={handleInputChange}
             rows={4}
-            className="w-full p-2 border rounded-md"
+            className="w-full p-2 border rounded-md whitespace-pre-wrap"
+            placeholder="Enter description with line breaks as needed..."
           />
         </div>
 

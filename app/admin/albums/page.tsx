@@ -12,6 +12,7 @@ interface Album {
   isPublished: boolean;
   createdAt: string;
   images: { url: string; alt?: string }[];
+  category: string;
 }
 
 export default function AlbumsPage() {
@@ -141,6 +142,9 @@ export default function AlbumsPage() {
                       Images
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Category
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
                     <th scope="col" className="relative px-6 py-3">
@@ -166,6 +170,11 @@ export default function AlbumsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">{album.images.length} images</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                          {album.category || 'Uncategorized'}
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${

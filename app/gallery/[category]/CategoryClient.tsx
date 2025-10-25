@@ -16,15 +16,16 @@ export default function CategoryClient() {
   const categoryName = category.charAt(0).toUpperCase() + category.slice(1);
   
   // Validate category
-  const validCategories = ['wedding', 'prewedding', 'event', 'studio'];
-  if (!validCategories.includes(category.toLowerCase())) {
+  const validCategories = ['wedding-day', 'tea-ceremony', 'prewedding', 'fashion', 'family', 'event'];
+  const normalizedCategory = category.toLowerCase();
+  if (!validCategories.includes(normalizedCategory)) {
     notFound();
   }
 
   useEffect(() => {
     const fetchAlbums = async () => {
       try {
-        const res = await fetch(`/api/albums?category=${category.toLowerCase()}`);
+        const res = await fetch(`/api/albums?category=${encodeURIComponent(normalizedCategory)}`);
         if (!res.ok) {
           throw new Error(`Failed to fetch albums: ${res.statusText}`);
         }

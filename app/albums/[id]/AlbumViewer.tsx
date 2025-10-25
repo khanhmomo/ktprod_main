@@ -39,17 +39,44 @@ interface AlbumViewerProps {
   category?: string;
 }
 
-type ImageLoadState = Record<string, boolean | number>;
+interface ImageLoadState {
+  error: boolean;
+  retryCount: number;
+  loading: boolean;
+}
+
+// Extend the Window interface to include our custom property
+declare global {
+  interface Window {
+    imageTimeouts?: Record<string, number>;
+  }
+}
 
 const MAX_RETRIES = 3;
 
+// Clean up timeouts on unmount
+const useTimeoutCleanup = () => {
+  useEffect(() => {
+    return () => {
+      // Clean up any remaining timeouts when component unmounts
+      if (typeof window !== 'undefined' && window.imageTimeouts) {
+        Object.values(window.imageTimeouts).forEach((timeoutId) => {
+          clearTimeout(timeoutId);
+        });
+      }
+    };
+  }, []);
+};
+
 export default function AlbumViewer({ album, id, category = 'gallery' }: AlbumViewerProps) {
+  useTimeoutCleanup();
   const [isLoading, setIsLoading] = useState(!album);
   const [error, setError] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
-  const [imageLoadErrors, setImageLoadErrors] = useState<Record<string, boolean | number>>({});
+  const [imageLoadState, setImageLoadState] = useState<Record<string, ImageLoadState>>({});
+  const imageTimeoutsRef = useRef<Record<string, number>>({});
   const viewerRef = useRef<HTMLDivElement>(null);
   
   const breakpointColumnsObj = {
@@ -106,21 +133,33 @@ export default function AlbumViewer({ album, id, category = 'gallery' }: AlbumVi
 
   const handleImageLoad = useCallback((url: string, index: number) => {
     console.log(`Image ${index} loaded successfully:`, url);
+    
+    // Clear any existing timeout for this image
+    if (imageTimeoutsRef.current[url]) {
+      clearTimeout(imageTimeoutsRef.current[url]);
+      delete imageTimeoutsRef.current[url];
+    }
+    
     setLoadedImages(prev => ({
       ...prev,
       [url]: true
     }));
     
-    setImageLoadErrors(prev => ({
+    setImageLoadState((prev: Record<string, ImageLoadState>) => ({
       ...prev,
-      [url]: false
+      [url]: { 
+        ...(prev[url] || { error: false, retryCount: 0, loading: false }),
+        error: false,
+        loading: false
+      }
     }));
   }, []);
 
   const handleImageError = useCallback((event: React.SyntheticEvent<HTMLImageElement, Event>, url: string, index: number) => {
     console.error(`Error loading image ${index}:`, { url, event });
     
-    const currentRetryCount = (imageLoadErrors[`${url}_retry`] as number) || 0;
+    const currentState = imageLoadState[url] || { error: false, retryCount: 0, loading: false };
+    const currentRetryCount = currentState.retryCount;
     
     if (currentRetryCount >= MAX_RETRIES) {
       console.warn(`Giving up on image after ${currentRetryCount} attempts:`, url);
@@ -173,11 +212,17 @@ export default function AlbumViewer({ album, id, category = 'gallery' }: AlbumVi
         
         const newUrl = formats[Math.min(retryCount - 1, formats.length - 1)];
         
-        setImageLoadErrors(prev => ({
+        setImageLoadState((prev: Record<string, ImageLoadState>) => ({
           ...prev,
-          [url]: true,
-          [newUrl]: false,
-          [`${url}_retry`]: retryCount
+          [url]: {
+            ...(prev[url] || { error: false, retryCount: 0, loading: false }),
+            error: true,
+            retryCount: retryCount
+          },
+          [newUrl]: {
+            ...(prev[newUrl] || { error: false, retryCount: 0, loading: false }),
+            error: false
+          }
         }));
         
         // Update the image source with the new URL
@@ -198,11 +243,19 @@ export default function AlbumViewer({ album, id, category = 'gallery' }: AlbumVi
     // For non-Google Drive URLs or if file ID extraction failed
     const newUrl = processImageUrl(url, true);
     
-    setImageLoadErrors(prev => ({
+    setImageLoadState((prev: Record<string, ImageLoadState>) => ({
       ...prev,
-      [url]: true,
-      [newUrl]: false,
-      [`${url}_retry`]: retryCount
+      [url]: { 
+        ...(prev[url] || { error: false, retryCount: 0, loading: false }),
+        error: true,
+        retryCount,
+        loading: false
+      },
+      [newUrl]: { 
+        ...(prev[newUrl] || { error: false, retryCount: 0, loading: false }),
+        error: false,
+        loading: false
+      }
     }));
     
     // Update the image source with the new URL
@@ -215,7 +268,7 @@ export default function AlbumViewer({ album, id, category = 'gallery' }: AlbumVi
         }
       });
     }, 300 * retryCount);
-  }, [imageLoadErrors, processImageUrl]);
+  }, [imageLoadState, processImageUrl]);
 
   const handleNext = useCallback(() => {
     if (!album?.images?.length) return;
@@ -354,9 +407,13 @@ export default function AlbumViewer({ album, id, category = 'gallery' }: AlbumVi
             </p>
           )}
           {album.description && (
-            <p className="mt-4 text-gray-700 text-justify">
-              {album.description}
-            </p>
+            <div className="mt-4 text-gray-700">
+              {album.description.split('\n').map((paragraph, index) => (
+                <p key={index} className="mb-4 last:mb-0">
+                  {paragraph || <br />}
+                </p>
+              ))}
+            </div>
           )}
         </div>
 
@@ -369,7 +426,7 @@ export default function AlbumViewer({ album, id, category = 'gallery' }: AlbumVi
             {album.images.map((image, index) => {
               const imageUrl = processImageUrl(image.url);
               const isLoaded = !!loadedImages[imageUrl];
-              const hasError = !!imageLoadErrors[imageUrl];
+              const hasError = imageLoadState[imageUrl]?.error || false;
               
               return (
                 <div 
@@ -378,29 +435,58 @@ export default function AlbumViewer({ album, id, category = 'gallery' }: AlbumVi
                   onClick={() => handleThumbnailClick(index)}
                 >
                   <div className="relative overflow-hidden rounded-lg bg-gray-100 aspect-w-1 aspect-h-1">
-                    {!isLoaded && !hasError && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="animate-pulse w-full h-full bg-gray-200"></div>
-                      </div>
-                    )}
-                    {hasError && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                        <div className="text-center p-4">
-                          <FiAlertCircle className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                          <p className="text-sm text-gray-500">Couldn't load image</p>
+                    <div className="relative w-full h-full">
+                      {!isLoaded && !hasError && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="animate-pulse w-full h-full bg-gray-200"></div>
                         </div>
-                      </div>
-                    )}
-                    <Image
-                      key={`${image._id || index}-${imageLoadErrors[`${imageUrl}_retry`] || 0}`}
-                      src={imageUrl}
-                      alt={image.alt || `Image ${index + 1}`}
-                      width={400}
-                      height={400}
-                      className="w-full h-auto object-cover"
-                      onLoad={() => setLoadedImages(prev => ({ ...prev, [imageUrl]: true }))}
-                      onError={(e) => handleImageError(e, imageUrl, index)}
-                    />
+                      )}
+                      {hasError ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                          <div className="text-center p-4">
+                            <FiAlertCircle className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                            <p className="text-sm text-gray-500">Couldn't load image</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <Image
+                          key={`${image._id || index}-${imageLoadState[imageUrl]?.retryCount || 0}`}
+                          src={imageUrl}
+                          alt={image.alt || `Image ${index + 1}`}
+                          width={400}
+                          height={400}
+                          className={`w-full h-auto object-cover transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                          onLoad={() => handleImageLoad(imageUrl, index)}
+                          onError={(e) => handleImageError(e, imageUrl, index)}
+                          loading="lazy"
+                          unoptimized={imageUrl.includes('google.com')}
+                        />
+                      )}
+                      {!isLoaded && !hasError && (
+                        <script
+                          dangerouslySetInnerHTML={{
+                            __html: `
+                              (function() {
+                                const url = '${imageUrl}';
+                                const timeoutId = setTimeout(() => {
+                                  const event = new Event('error');
+                                  const img = document.querySelector('img[src="' + url + '"]');
+                                  if (img && !img.complete) {
+                                    img.dispatchEvent(event);
+                                  }
+                                }, 10000); // 10 second timeout
+                                
+                                // Store the timeout ID so we can clear it if the component unmounts
+                                if (!window.imageTimeouts) {
+                                  window.imageTimeouts = {};
+                                }
+                                window.imageTimeouts[url] = timeoutId;
+                              })();
+                            `
+                          }}
+                        />
+                      )}
+                    </div>
                     <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
                       <div className="bg-black bg-opacity-50 text-white rounded-full p-2">
                         <FiChevronRight className="w-6 h-6" />
