@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Placeholder Image</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        .content {
+            padding: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="content">
+        <h1>HERO BACKGROUND IMAGE</h1>
+        <p>Please replace this file with an actual image at:<br>public/images/academy/hero-bg.jpg</p>
+    </div>
+</body>
+</html>

@@ -10,11 +10,11 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
-  const isHomePage = pathname === '/';
+  const isTransparentPage = pathname === '/' || pathname.startsWith('/academy');
 
   useEffect(() => {
     const handleScroll = () => {
-      if (isHomePage) {
+      if (isTransparentPage) {
         const isScrolled = window.scrollY > 10;
         if (isScrolled !== scrolled) {
           setScrolled(isScrolled);
@@ -25,18 +25,18 @@ export default function Navbar() {
     };
 
     // Set initial state based on current page
-    if (!isHomePage) {
+    if (!isTransparentPage) {
       setScrolled(true);
     }
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [scrolled, isHomePage]);
+  }, [scrolled, isTransparentPage]);
 
   return (
     <nav 
       className={`fixed w-full z-50 transition-all duration-300 ${
-        scrolled || !isHomePage
+        scrolled || !isTransparentPage
           ? 'bg-white text-black shadow-md h-16' 
           : 'bg-transparent text-white h-20'
       }`}
@@ -45,7 +45,9 @@ export default function Navbar() {
         <div className="flex justify-between items-center h-full">
           <Link href="/" className="flex items-center h-20">
             {/* White logo for hero section */}
-            <div className={`relative h-12 w-40 ${scrolled || !isHomePage ? 'hidden' : 'block'}`}>
+            <div 
+              className={`relative h-10 w-32 ${!scrolled && isTransparentPage ? 'block' : 'hidden'}`}
+            >
               <Image
                 src="/thewildlogo.png"
                 alt="The Wild Photography"
@@ -55,7 +57,7 @@ export default function Navbar() {
               />
             </div>
             {/* Black logo for scrolled/non-home pages */}
-            <div className={`relative h-12 w-40 ${scrolled || !isHomePage ? 'block' : 'hidden'}`}>
+            <div className={`relative h-12 w-40 ${scrolled || !isTransparentPage ? 'block' : 'hidden'}`}>
               <Image
                 src="/thewildlogo_black.png"
                 alt="The Wild Photography"
@@ -70,37 +72,37 @@ export default function Navbar() {
           <div className="hidden md:flex space-x-8">
             <Link 
               href="/" 
-              className={`hover:opacity-80 transition-opacity ${(scrolled || !isHomePage) ? 'text-black' : 'text-white'}`}
+              className={`hover:opacity-80 transition-opacity ${(scrolled || !isTransparentPage) ? 'text-black' : 'text-white'}`}
             >
               Home
             </Link>
             <Link 
               href="/introduction" 
-              className={`hover:opacity-80 transition-opacity ${(scrolled || !isHomePage) ? 'text-black' : 'text-white'}`}
+              className={`hover:opacity-80 transition-opacity ${(scrolled || !isTransparentPage) ? 'text-black' : 'text-white'}`}
             >
               About Us
             </Link>
             <Link 
               href="/services" 
-              className={`hover:opacity-80 transition-opacity ${(scrolled || !isHomePage) ? 'text-black' : 'text-white'}`}
+              className={`hover:opacity-80 transition-opacity ${(scrolled || !isTransparentPage) ? 'text-black' : 'text-white'}`}
             >
               Services
             </Link>
             <Link 
               href="/gallery" 
-              className={`hover:opacity-80 transition-opacity ${(scrolled || !isHomePage) ? 'text-black' : 'text-white'}`}
+              className={`hover:opacity-80 transition-opacity ${(scrolled || !isTransparentPage) ? 'text-black' : 'text-white'}`}
             >
               Gallery
             </Link>
             <Link 
               href="/film" 
-              className={`hover:opacity-80 transition-opacity ${(scrolled || !isHomePage) ? 'text-black' : 'text-white'}`}
+              className={`hover:opacity-80 transition-opacity ${(scrolled || !isTransparentPage) ? 'text-black' : 'text-white'}`}
             >
               Film
             </Link>
             <Link 
               href="/kind-words" 
-              className={`hover:opacity-80 transition-opacity ${(scrolled || !isHomePage) ? 'text-black' : 'text-white'}`}
+              className={`hover:opacity-80 transition-opacity ${(scrolled || !isTransparentPage) ? 'text-black' : 'text-white'}`}
             >
               Kind Words
             </Link>
@@ -114,9 +116,9 @@ export default function Navbar() {
             aria-label="Toggle menu"
           >
             {isOpen ? (
-              <FiX className={(scrolled || !isHomePage) ? 'text-black' : 'text-white'} />
+              <FiX className={(scrolled || !isTransparentPage) ? 'text-black' : 'text-white'} />
             ) : (
-              <FiMenu className={(scrolled || !isHomePage) ? 'text-black' : 'text-white'} />
+              <FiMenu className={(scrolled || !isTransparentPage) ? 'text-black' : 'text-white'} />
             )}
           </button>
         </div>
@@ -126,7 +128,7 @@ export default function Navbar() {
           className={`md:hidden absolute left-0 right-0 transition-all duration-300 ${
             isOpen ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0 pointer-events-none'
           } ${
-            (scrolled || !isHomePage) ? 'bg-white text-black' : 'bg-black/90 text-white'
+            (scrolled || !isTransparentPage) ? 'bg-white text-black' : 'bg-black/90 text-white'
           }`}
           style={{
             top: 'calc(100% + 1px)', // +1px to prevent gap
@@ -169,7 +171,6 @@ export default function Navbar() {
             >
               Film
             </Link>
-
             <Link 
               href="/kind-words" 
               className="hover:opacity-80 transition-opacity py-2"

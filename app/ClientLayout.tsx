@@ -12,6 +12,7 @@ export default function ClientLayout({
 }) {
   const pathname = usePathname();
   const isInvitation = pathname === '/invitation';
+  const isAcademyPage = pathname?.startsWith('/academy');
 
   useEffect(() => {
     // Remove any existing nav and footer for invitation page
@@ -27,7 +28,7 @@ export default function ClientLayout({
   return (
     <div className="min-h-screen flex flex-col">
       {!isInvitation && <Navbar />}
-      <main className={`flex-grow bg-white ${!isInvitation ? 'pt-24' : ''}`}>
+      <main className={`flex-grow bg-white ${(!isInvitation && !isAcademyPage) ? 'pt-24' : ''}`}>
         {children}
       </main>
       {!isInvitation && <Footer />}
