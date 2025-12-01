@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FiHome, FiImage, FiFolder, FiSettings, FiLogOut, FiMenu, FiX } from 'react-icons/fi';
+import { FiHome, FiImage, FiFolder, FiFileText, FiLogOut, FiMenu, FiX } from 'react-icons/fi';
 
 type AuthState = {
   isAuthenticated: boolean;
@@ -28,8 +28,27 @@ export default function AdminLayoutClient({
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/auth/check');
+        const response = await fetch('/api/auth/check', {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          credentials: 'include'
+        });
+
+        // First check if the response is JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await response.text();
+          console.error('Expected JSON, got:', text);
+          throw new Error('Invalid response format');
+        }
+
         const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || 'Authentication check failed');
+        }
         
         if (!data.authenticated && !window.location.pathname.endsWith('/admin')) {
           // If not authenticated and not on login page, redirect to login
@@ -143,13 +162,20 @@ export default function AdminLayoutClient({
                   Albums
                 </Link>
                 <Link
-                  href="/admin/settings"
+                  href="/admin/blog"
                   className="group flex items-center px-2 py-2 text-sm font-medium rounded-md hover:bg-gray-100 hover:text-gray-900"
                 >
-                  <FiSettings className="mr-3 h-6 w-6 text-gray-400 group-hover:text-gray-500" />
-                  Settings
+                  <FiFileText className="mr-3 h-6 w-6 text-gray-400 group-hover:text-gray-500" />
+                  Blog
                 </Link>
-              </nav>
+                <Link
+                  href="/admin/categories"
+                  className="group flex items-center px-2 py-2 text-sm font-medium rounded-md hover:bg-gray-100 hover:text-gray-900"
+                >
+                  <FiFolder className="mr-3 h-6 w-6 text-gray-400 group-hover:text-gray-500" />
+                  Categories
+                </Link>
+                              </nav>
             </div>
             <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
               <button
@@ -206,26 +232,18 @@ export default function AdminLayoutClient({
                   className="group flex items-center px-2 py-2 text-base font-medium rounded-md hover:bg-gray-100 hover:text-gray-900"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <FiImage className="mr-4 h-6 w-6 text-gray-400 group-hover:text-gray-500" />
+                  <FiFolder className="mr-4 h-6 w-6 text-gray-400 group-hover:text-gray-500" />
                   Albums
                 </Link>
                 <Link
-                  href="/admin/galleries"
-                  className="group flex items-center px-2 py-2 text-base font-medium rounded-md bg-gray-100 text-gray-900"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <FiImage className="mr-4 h-6 w-6 text-gray-500" />
-                  Galleries
-                </Link>
-                <Link
-                  href="/admin/settings"
+                  href="/admin/blog"
                   className="group flex items-center px-2 py-2 text-base font-medium rounded-md hover:bg-gray-100 hover:text-gray-900"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  <FiSettings className="mr-4 h-6 w-6 text-gray-400 group-hover:text-gray-500" />
-                  Settings
+                  <FiFileText className="mr-4 h-6 w-6 text-gray-400 group-hover:text-gray-500" />
+                  Blog
                 </Link>
-              </nav>
+                              </nav>
             </div>
             <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
               <button

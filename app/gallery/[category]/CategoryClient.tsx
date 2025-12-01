@@ -1,31 +1,35 @@
 'use client';
 
-import { notFound, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Masonry from 'react-masonry-css';
 import { Album } from '@/types';
 
-export default function CategoryClient() {
-  const params = useParams();
+interface Category {
+  _id: string;
+  name: string;
+  slug: string;
+  coverImage: string;
+  description?: string;
+  isActive: boolean;
+}
+
+interface CategoryClientProps {
+  category: Category;
+}
+
+export default function CategoryClient({ category }: CategoryClientProps) {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  const category = params.category as string;
-  const categoryName = category.charAt(0).toUpperCase() + category.slice(1);
-  
-  // Validate category
-  const validCategories = ['wedding-day', 'tea-ceremony', 'prewedding', 'fashion', 'family', 'event'];
-  const normalizedCategory = category.toLowerCase();
-  if (!validCategories.includes(normalizedCategory)) {
-    notFound();
-  }
+  const categoryName = category.name;
 
   useEffect(() => {
     const fetchAlbums = async () => {
       try {
-        const res = await fetch(`/api/albums?category=${encodeURIComponent(normalizedCategory)}`);
+        // Use both slug and name to find albums
+        const res = await fetch(`/api/albums?category=${encodeURIComponent(category.slug)}`);
         if (!res.ok) {
           throw new Error(`Failed to fetch albums: ${res.statusText}`);
         }
@@ -40,7 +44,7 @@ export default function CategoryClient() {
     };
 
     fetchAlbums();
-  }, [category]);
+  }, [category.slug]);
 
   if (isLoading) {
     return (
@@ -65,7 +69,7 @@ export default function CategoryClient() {
           <h1 className="text-3xl md:text-4xl font-bold mb-4 mt-8 font-cormorant">{categoryName}</h1>
           <div className="w-20 h-1 bg-black mx-auto mb-6"></div>
           <p className="text-gray-600 max-w-2xl mx-auto mb-12">
-            Explore our collection of {categoryName.toLowerCase()} photography.
+            {category.description || `Explore our collection of ${categoryName.toLowerCase()} photography.`}
           </p>
         </div>
       </section>

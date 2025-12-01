@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import { promises as fs } from 'fs';
 import path from 'path';
+import dbConnect from '@/lib/db';
+import Inquiry from '@/models/Inquiry';
+// @ts-ignore
+const { emitToAdmins } = require('@/lib/socket-instance.js');
 
 // Gmail SMTP configuration
 const transporter = nodemailer.createTransport({
@@ -25,17 +29,67 @@ export async function POST(request: Request) {
     }
 
     // Generate a 6-digit case ID
-    const caseId = Math.floor(100000 + Math.random() * 900000);
+    const caseId = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Save inquiry to database
+    await dbConnect();
+    
+    // Check for duplicate case ID (very unlikely but possible)
+    let uniqueCaseId = caseId;
+    let attempts = 0;
+    while (await Inquiry.findOne({ caseId: uniqueCaseId }) && attempts < 10) {
+      uniqueCaseId = Math.floor(100000 + Math.random() * 900000).toString();
+      attempts++;
+    }
+
+    const inquiry = await Inquiry.create({
+      caseId: uniqueCaseId,
+      name,
+      email,
+      subject,
+      message,
+      status: 'unread'
+    });
+
+    // Emit real-time notification to admin panel
+    try {
+      const eventData = {
+        inquiry: {
+          _id: inquiry._id,
+          caseId: inquiry.caseId,
+          name: inquiry.name,
+          email: inquiry.email,
+          subject: inquiry.subject,
+          message: inquiry.message.substring(0, 100) + '...', // Truncate for preview
+          status: inquiry.status,
+          createdAt: inquiry.createdAt,
+          updatedAt: inquiry.updatedAt
+        },
+        stats: {
+          total: await Inquiry.countDocuments(),
+          unread: await Inquiry.countDocuments({ status: 'unread' }),
+          read: await Inquiry.countDocuments({ status: 'read' }),
+          replied: await Inquiry.countDocuments({ status: 'replied' })
+        }
+      };
+      
+      console.log('📡 Emitting new-inquiry event to admin-room:', eventData);
+      emitToAdmins('new-inquiry', eventData);
+      console.log('✅ Real-time notification sent for new inquiry:', inquiry.caseId);
+    } catch (socketError) {
+      console.error('🚫 Error sending real-time notification:', socketError);
+      // Don't fail the request if socket notification fails
+    }
     
     // Send notification email to admin
     await transporter.sendMail({
       from: `"${name}" <${process.env.GMAIL_EMAIL}>`,
       to: process.env.CONTACT_FORM_RECIPIENT || 'thewildstudio.nt@gmail.com',
       replyTo: email,
-      subject: subject ? `[${caseId}] ${name} - ${subject}` : `[${caseId}] New Inquiry from ${name}`,
+      subject: subject ? `[${uniqueCaseId}] ${name} - ${subject}` : `[${uniqueCaseId}] New Inquiry from ${name}`,
       text: message,
       html: `
-        <h2>Case: ${caseId}</h2>
+        <h2>Case: ${uniqueCaseId}</h2>
         <p><strong>Name:</strong> ${name}</p>
         <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
         ${subject ? `<p><strong>Subject:</strong> ${subject}</p>` : ''}
@@ -53,7 +107,7 @@ export async function POST(request: Request) {
     await transporter.sendMail({
       from: `"The Wild Studio | Customer Support" <${process.env.GMAIL_EMAIL}>`,
       to: email,
-      subject: `[Case ${caseId}] We've Received Your Inquiry`,
+      subject: `[Case ${uniqueCaseId}] We've Received Your Inquiry`,
       attachments: [{
         filename: 'thewildlogo_black.png',
         path: logoPath,
@@ -66,7 +120,7 @@ export async function POST(request: Request) {
 
         Thank you for reaching out to The Wild Studio! We've received your inquiry and our team will get back to you as soon as possible.
 
-        Your case ID is: ${caseId}
+        Your case ID is: ${uniqueCaseId}
         ${subject ? `Subject: ${subject}` : ''}
         
         ---
@@ -96,7 +150,7 @@ export async function POST(request: Request) {
           <p>We've received your inquiry and our team will get back to you as soon as possible.</p>
           
           <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-            <p><strong>Case ID:</strong> ${caseId}</p>
+            <p><strong>Case ID:</strong> ${uniqueCaseId}</p>
             ${subject ? `<p><strong>Subject:</strong> ${subject}</p>` : ''}
           </div>
           

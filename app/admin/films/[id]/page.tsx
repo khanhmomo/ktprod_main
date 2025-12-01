@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { FaArrowLeft, FaSave, FaYoutube } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
@@ -14,7 +14,8 @@ interface Film {
   thumbnail: string;
 }
 
-export default function EditFilmPage({ params }: { params: { id: string } }) {
+export default function EditFilmPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -29,7 +30,7 @@ export default function EditFilmPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     const fetchFilm = async () => {
       try {
-        const response = await fetch(`/api/admin/films/${params.id}`);
+        const response = await fetch(`/api/admin/films/${id}`);
         if (!response.ok) {
           throw new Error('Failed to fetch film');
         }
@@ -43,10 +44,10 @@ export default function EditFilmPage({ params }: { params: { id: string } }) {
       }
     };
 
-    if (params.id) {
+    if (id) {
       fetchFilm();
     }
-  }, [params.id]);
+  }, [id]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -61,7 +62,7 @@ export default function EditFilmPage({ params }: { params: { id: string } }) {
     setSaving(true);
     
     try {
-      const response = await fetch(`/api/admin/films/${params.id}`, {
+      const response = await fetch(`/api/admin/films/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

@@ -6,7 +6,7 @@ import Film from '@/models/Film';
 // GET /api/admin/films/[id] - Get a single film
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check if user is authenticated
@@ -18,8 +18,9 @@ export async function GET(
       );
     }
 
+    const { id } = await params;
     await dbConnect();
-    const film = await Film.findById(params.id).lean();
+    const film = await Film.findById(id).lean();
 
     if (!film) {
       return NextResponse.json(
@@ -41,7 +42,7 @@ export async function GET(
 // PATCH /api/admin/films/[id] - Update a film
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check if user is authenticated
@@ -53,13 +54,14 @@ export async function PATCH(
       );
     }
 
+    const { id } = await params;
     const { title, description, youtubeId, thumbnail } = await request.json();
 
     await dbConnect();
     
     // Find and update the film
     const film = await Film.findByIdAndUpdate(
-      params.id,
+      id,
       {
         ...(title && { title }),
         ...(description !== undefined && { description }),
@@ -93,7 +95,7 @@ export async function PATCH(
 // DELETE /api/admin/films/[id] - Delete a film
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check if user is authenticated
@@ -105,10 +107,11 @@ export async function DELETE(
       );
     }
 
+    const { id } = await params;
     await dbConnect();
     
     // Find and delete the film
-    const film = await Film.findByIdAndDelete(params.id);
+    const film = await Film.findByIdAndDelete(id);
 
     if (!film) {
       return NextResponse.json(

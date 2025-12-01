@@ -1,6 +1,8 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import CategoryClient from './CategoryClient';
+import dbConnect from '@/lib/db';
+import { Category } from '@/models/Category';
 
 // Generate static metadata
 export async function generateMetadata({ 
@@ -8,25 +10,54 @@ export async function generateMetadata({
 }: { 
   params: { category: string } 
 }): Promise<Metadata> {
-  const categoryName = params.category.charAt(0).toUpperCase() + params.category.slice(1);
+  await dbConnect();
+  
+  // Find the category by slug
+  const category = await Category.findOne({ 
+    slug: params.category.toLowerCase(),
+    isActive: true 
+  });
+  
+  if (!category) {
+    return {
+      title: 'Category Not Found | The Wild Studio',
+      description: 'This category does not exist or is not active.',
+    };
+  }
+  
   return {
-    title: `${categoryName} Gallery | The Wild Studio`,
-    description: `Browse our collection of ${categoryName.toLowerCase()} photography.`,
+    title: `${category.name} Gallery | The Wild Studio`,
+    description: category.description || `Browse our collection of ${category.name.toLowerCase()} photography.`,
   };
 }
 
 // This is a Server Component
-export default function CategoryPage({
+export default async function CategoryPage({
   params,
 }: {
   params: { category: string };
 }) {
-  // Validate category
-  const validCategories = ['wedding-day', 'tea-ceremony', 'prewedding', 'fashion', 'family', 'event'];
-  const normalizedCategory = params.category.toLowerCase();
-  if (!validCategories.includes(normalizedCategory)) {
+  await dbConnect();
+  
+  // Validate category exists and is active
+  const category = await Category.findOne({ 
+    slug: params.category.toLowerCase(),
+    isActive: true 
+  });
+  
+  if (!category) {
     notFound();
   }
 
-  return <CategoryClient />;
+  // Convert Mongoose document to plain object
+  const plainCategory = {
+    _id: category._id.toString(),
+    name: category.name,
+    slug: category.slug,
+    coverImage: category.coverImage,
+    description: category.description,
+    isActive: category.isActive
+  };
+
+  return <CategoryClient category={plainCategory} />;
 }

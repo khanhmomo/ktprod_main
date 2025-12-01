@@ -11,6 +11,11 @@ type AuthResponse = {
 export async function isAuthenticated(): Promise<boolean> {
   try {
     const cookieStore = await cookies();
+    const allCookies = cookieStore.getAll();
+    
+    // Log all cookies for debugging
+    console.log('All cookies:', JSON.stringify(allCookies, null, 2));
+    
     const authCookie = cookieStore.get('isAuthenticated');
     
     // For debugging - log the cookie we found

@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/db/connect';
-import Album from '@/models/Album';
+import mongoose from 'mongoose';
+
+// Delete the cached model to force schema reload
+if (mongoose.models.Album) {
+  delete mongoose.models.Album;
+}
+
+// Import fresh Album model
+const Album = require('@/models/Album').default || mongoose.model('Album');
 
 interface AlbumImage {
   url: string;
@@ -64,9 +72,9 @@ export async function GET(
     console.log(`[${requestId}] Querying album with ID: ${id}`);
     const album = await Album.findOne({ _id: id, isPublished: true })
       .select('-__v')
-      .lean<AlbumDocument>()
+      .lean()
       .maxTimeMS(5000) // 5 second timeout for the query
-      .exec();
+      .exec() as AlbumDocument | null;
     
     if (!album) {
       console.log(`[${requestId}] Album with ID ${id} not found or not published`);
@@ -96,7 +104,7 @@ export async function GET(
     console.log(`[${requestId}] Using base URL: ${baseUrl}`);
     const formattedAlbum = {
       ...album,
-      images: (album.images || []).map(img => ({
+      images: (album.images || []).map((img: any) => ({
         ...img,
         url: img.url?.startsWith('http') 
           ? img.url 
@@ -224,29 +232,26 @@ export async function PATCH(
     // Log the final update object
     console.log(`[${requestId}] Final update object:`, JSON.stringify(updates, null, 2));
     
-    // Validate and normalize category if it's being updated
+    // Validate category if it's being updated - accept any category name since categories are now dynamic
     if (updates.category) {
-      console.log(`[${requestId}] Validating category:`, updates.category);
+      console.log(`[${requestId}] Processing category:`, updates.category);
       
-      // Convert to uppercase and trim whitespace
-      updates.category = String(updates.category).toUpperCase().trim();
+      // Trim whitespace but don't force uppercase - keep the original format
+      updates.category = String(updates.category).trim();
       
-      const validCategories = ['WEDDING DAY', 'TEA CEREMONY', 'PREWEDDING', 'FASHION', 'FAMILY', 'EVENT'];
-      
-      if (!validCategories.includes(updates.category)) {
-        console.error(`[${requestId}] Invalid category: ${updates.category}`);
-        console.error(`[${requestId}] Valid categories are:`, validCategories);
+      // Basic validation - ensure it's not empty and is a string
+      if (!updates.category || updates.category.length === 0) {
         return NextResponse.json(
           { 
             success: false,
-            error: `Invalid category: "${updates.category}". Must be one of: ${validCategories.join(', ')}`,
-            validCategories,
+            error: 'Category cannot be empty',
             requestId
           },
           { status: 400 }
         );
       }
-      console.log(`[${requestId}] Category validated:`, updates.category);
+      
+      console.log(`[${requestId}] Category processed:`, updates.category);
     }
     
     // Log the update operation with detailed information
@@ -318,14 +323,14 @@ export async function PATCH(
       console.log(`[${requestId}] Executing update with:`, {
         filter: { _id: id },
         update: { $set: updates },
-        options: { new: true, runValidators: true }
+        options: { new: true, runValidators: false }
       });
       
       // Use findOneAndUpdate to ensure atomic updates
       const updatedAlbum = await Album.findOneAndUpdate(
         { _id: id },
         { $set: updates },
-        { new: true, runValidators: true }
+        { new: true, runValidators: false }
       ).lean();
       
       if (!updatedAlbum) {

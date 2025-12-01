@@ -193,12 +193,13 @@ function renderErrorDetail(label: string, value: unknown): ReactNode {
   );
 }
 
-export default async function AlbumPage({ params }: { params: { id: string } }) {
-  console.log('[Server] Rendering album page with ID:', params.id);
+export default async function AlbumPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  console.log('[Server] Rendering album page with ID:', id);
   
   try {
-    const album = await getAlbum(params.id);
-    return <AlbumClient album={album} id={params.id} />;
+    const album = await getAlbum(id);
+    return <AlbumClient album={album} id={id} />;
   } catch (error: unknown) {
     console.error('[Server] Error in AlbumPage:', error);
     

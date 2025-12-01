@@ -6,14 +6,14 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import GoogleDriveImport from '@/components/GoogleDriveImport';
 
-const categories = [
-  { value: 'WEDDING DAY', label: 'WEDDING DAY' },
-  { value: 'TEA CEREMONY', label: 'TEA CEREMONY' },
-  { value: 'PREWEDDING', label: 'PREWEDDING' },
-  { value: 'FASHION', label: 'FASHION' },
-  { value: 'FAMILY', label: 'FAMILY' },
-  { value: 'EVENT', label: 'EVENT' }
-];
+interface Category {
+  _id: string;
+  name: string;
+  slug: string;
+  coverImage: string;
+  description?: string;
+  isActive: boolean;
+}
 
 interface AlbumImage {
   url: string;
@@ -52,6 +52,8 @@ export default function AlbumForm({
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
 
   const [formData, setFormData] = useState<FormData>({
     title: '',
@@ -82,6 +84,27 @@ export default function AlbumForm({
       }
     }
   }, [initialData]);
+
+  // Fetch categories from database
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/categories');
+        if (response.ok) {
+          const data = await response.json();
+          setCategories(Array.isArray(data) ? data : []);
+        } else {
+          console.error('Failed to fetch categories');
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   useEffect(() => {
     if (formData.images.length > 0 && !formData.coverImage) {
@@ -231,6 +254,14 @@ export default function AlbumForm({
         throw new Error('Please select a category');
       }
       
+      // Debug: Log the form data being sent
+      console.log('🔍 Album form data being sent:', {
+        category: formData.category,
+        title: formData.title,
+        coverImage: formData.coverImage,
+        imagesCount: formData.images.length
+      });
+      
       const url = isEditing && initialData?._id 
         ? `/api/albums/${initialData._id}`
         : '/api/albums';
@@ -262,7 +293,12 @@ export default function AlbumForm({
       }
 
       if (!response.ok) {
-        throw new Error(responseData.message || 'Failed to save album');
+        console.error('❌ API Error Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          data: responseData
+        });
+        throw new Error(responseData.message || responseData.error || 'Failed to save album');
       }
 
       // Call the onSave callback if provided
@@ -331,14 +367,22 @@ export default function AlbumForm({
             onChange={handleInputChange}
             className="w-full p-2 border rounded-md"
             required
+            disabled={categoriesLoading}
           >
-            <option value="">Select a category</option>
+            <option value="">
+              {categoriesLoading ? 'Loading categories...' : 'Select a category'}
+            </option>
             {categories.map(category => (
-              <option key={category.value} value={category.value}>
-                {category.label}
+              <option key={category._id} value={category.name}>
+                {category.name}
               </option>
             ))}
           </select>
+          {categories.length === 0 && !categoriesLoading && (
+            <p className="text-xs text-yellow-600 mt-1">
+              No active categories found. <a href="/admin/categories/new" className="text-blue-600 hover:underline">Create a category first</a>
+            </p>
+          )}
         </div>
 
         <div className="mb-6">

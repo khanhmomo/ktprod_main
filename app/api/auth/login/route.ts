@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { authenticate } from '@/lib/server-auth';
 
 export async function OPTIONS() {
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
       // Set the secure flag in production
       const isProduction = process.env.NODE_ENV === 'production';
       
-      // Set the cookie with proper attributes
+      // Set the cookie with proper attributes in the response
       response.cookies.set({
         name: 'isAuthenticated',
         value: 'true',

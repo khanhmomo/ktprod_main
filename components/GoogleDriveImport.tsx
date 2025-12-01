@@ -16,7 +16,7 @@ interface DriveImage {
 interface GoogleDriveImportProps {
   isOpen: boolean;
   onClose: () => void;
-  onImport: (images: Array<{ url: string; originalUrl: string; name: string; thumbnailUrl?: string }>) => void;
+  onImport: (images: Array<{ url: string; originalUrl: string; name: string; thumbnailUrl?: string; id: string }>) => void;
 }
 
 export default function GoogleDriveImport({ isOpen, onClose, onImport }: GoogleDriveImportProps) {
@@ -38,10 +38,11 @@ export default function GoogleDriveImport({ isOpen, onClose, onImport }: GoogleD
     }
   }, [isOpen]);
 
-  const extractFolderId = (url: string): string | null => {
+  const extractDriveId = (url: string): string | null => {
     const patterns = [
-      /[&?]id=([\w-]+)/, // ?id= or &id=
-      /\/folders\/([\w-]+)/, // /folders/
+      /[&?]id=([\w-]+)/, // ?id= or &id= (works for both files and folders)
+      /\/file\/d\/([\w-]+)/, // /file/d/ (for individual files)
+      /\/folders\/([\w-]+)/, // /folders/ (for folders)
       /^([\w-]{25,})$/ // Just the ID
     ];
 
@@ -54,17 +55,58 @@ export default function GoogleDriveImport({ isOpen, onClose, onImport }: GoogleD
     return null;
   };
 
+  const isFileUrl = (url: string): boolean => {
+    return url.includes('/file/d/') || url.includes('drive.google.com/file/d/');
+  };
+
   const handleLoadFolder = async (e?: React.FormEvent) => {
     e?.preventDefault();
     
     if (!folderUrl.trim()) {
-      setError('Please enter a Google Drive folder URL');
+      setError('Please enter a Google Drive folder URL or file URL');
       return;
     }
 
-    const folderId = extractFolderId(folderUrl);
-    if (!folderId) {
-      setError('Please enter a valid Google Drive folder URL or ID');
+    const driveId = extractDriveId(folderUrl);
+    if (!driveId) {
+      setError('Please enter a valid Google Drive folder URL, file URL, or ID');
+      return;
+    }
+
+    // Check if it's a file URL
+    if (isFileUrl(folderUrl)) {
+      // Handle individual file
+      try {
+        setIsLoading(true);
+        setError('');
+        
+        const response = await fetch(`/api/drive/file-info?id=${encodeURIComponent(driveId)}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch file information');
+        }
+        
+        const fileInfo = await response.json();
+        
+        // Create a single image entry for the file
+        const singleImage: DriveImage = {
+          id: fileInfo.id,
+          url: `/api/drive/image?id=${encodeURIComponent(fileInfo.id)}`,
+          originalUrl: fileInfo.webViewLink,
+          name: fileInfo.name,
+          mimeType: fileInfo.mimeType,
+          thumbnailUrl: `/api/drive/image?id=${encodeURIComponent(fileInfo.id)}`
+        };
+        
+        setImages([singleImage]);
+        setFolderInfo({ name: 'Single File', imageCount: 1 });
+        setSelectedImages(new Set([fileInfo.id]));
+        
+      } catch (error) {
+        console.error('Error loading file:', error);
+        setError('Failed to load file. Please check the URL and permissions.');
+      } finally {
+        setIsLoading(false);
+      }
       return;
     }
 
@@ -75,7 +117,7 @@ export default function GoogleDriveImport({ isOpen, onClose, onImport }: GoogleD
       const response = await fetch('/api/drive/folder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folderUrl, folderId }),
+        body: JSON.stringify({ folderUrl, folderId: driveId }),
       });
 
       const data = await response.json();
@@ -173,7 +215,7 @@ export default function GoogleDriveImport({ isOpen, onClose, onImport }: GoogleD
 
                 <div className="mt-4">
                   <label htmlFor="folder-url" className="block text-sm font-medium text-gray-700">
-                    Google Drive Folder URL
+                    Google Drive Folder URL or File URL
                   </label>
                   <div className="mt-1 flex rounded-md shadow-sm">
                     <div className="relative flex-grow focus-within:z-10">
@@ -185,7 +227,7 @@ export default function GoogleDriveImport({ isOpen, onClose, onImport }: GoogleD
                         name="folder-url"
                         id="folder-url"
                         className="focus:ring-indigo-500 focus:border-indigo-500 block w-full rounded-l-md border-gray-300 pl-10 sm:text-sm"
-                        placeholder="https://drive.google.com/drive/folders/FOLDER_ID"
+                        placeholder="https://drive.google.com/drive/folders/FOLDER_ID or https://drive.google.com/file/d/FILE_ID"
                         value={folderUrl}
                         onChange={(e) => setFolderUrl(e.target.value)}
                         disabled={isLoading}
@@ -209,6 +251,16 @@ export default function GoogleDriveImport({ isOpen, onClose, onImport }: GoogleD
                       ) : 'Load Folder'}
                     </button>
                   </div>
+                </div>
+
+                <div className="mt-2 text-xs text-gray-500">
+                  <p className="font-medium mb-1">Accepted URLs:</p>
+                  <ul className="space-y-1 ml-4">
+                    <li>• Folder: https://drive.google.com/drive/folders/FOLDER_ID</li>
+                    <li>• File: https://drive.google.com/file/d/FILE_ID</li>
+                  </ul>
+                  <p className="mt-2 text-yellow-600">For folders: Make sure they're shared with "Anyone with the link"</p>
+                  <p className="mt-1 text-yellow-600">For files: Ensure they're publicly accessible or shared with the service account</p>
                 </div>
 
                 {error && (

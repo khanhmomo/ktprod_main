@@ -28,6 +28,13 @@ interface Film {
   createdAt: string;
 }
 
+interface Category {
+  _id: string;
+  name: string;
+  slug: string;
+  isActive: boolean;
+}
+
 // Function to process image URLs for display
 const processImageUrl = (url: string) => {
   if (!url) return '';
@@ -72,7 +79,10 @@ export default function DashboardPage() {
   const router = useRouter();
   const [albums, setAlbums] = useState<Album[]>([]);
   const [films, setFilms] = useState<Film[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [error, setError] = useState('');
   const [isClient, setIsClient] = useState(false);
   const [activeTab, setActiveTab] = useState<'albums' | 'films'>('albums');
@@ -89,6 +99,7 @@ export default function DashboardPage() {
           router.push('/admin');
         } else {
           setIsClient(true);
+          fetchCategories();
           fetchAlbums();
         }
       } catch (error) {
@@ -99,6 +110,30 @@ export default function DashboardPage() {
     
     checkAuth();
   }, [router]);
+
+  useEffect(() => {
+    if (isClient) {
+      fetchAlbums();
+    }
+  }, [selectedCategory, isClient]);
+
+  const fetchCategories = async () => {
+    try {
+      setCategoriesLoading(true);
+      const response = await fetch('/api/categories');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch categories');
+      }
+      
+      const data = await response.json();
+      setCategories(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
 
   const fetchFilms = async () => {
     try {
@@ -121,8 +156,18 @@ export default function DashboardPage() {
   const fetchAlbums = async () => {
     try {
       setLoading(true);
+      let url = '/api/albums?all=true';
+      
+      // Add category filter if selected
+      if (selectedCategory) {
+        url += `&category=${encodeURIComponent(selectedCategory)}`;
+      }
+      
+      console.log('🔍 Dashboard fetching albums from:', url);
+      console.log('🔍 Selected category:', selectedCategory);
+      
       const [albumsResponse] = await Promise.all([
-        fetch('/api/albums?all=true', {
+        fetch(url, {
           credentials: 'include'
         }),
         fetchFilms() // Fetch films in parallel
@@ -137,6 +182,7 @@ export default function DashboardPage() {
       }
       
       const data = await albumsResponse.json();
+      console.log('🔍 Dashboard albums received:', data.length, 'albums');
       setAlbums(data);
     } catch (error) {
       console.error('Error fetching albums:', error);
@@ -341,6 +387,39 @@ export default function DashboardPage() {
               </div>
               <div className="ml-3">
                 <p className="text-sm text-red-700">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Category Filter - Only show for albums tab */}
+        {activeTab === 'albums' && (
+          <div className="mb-6 bg-white p-4 rounded-lg shadow">
+            <div className="flex items-center space-x-4">
+              <div className="flex-1">
+                <label htmlFor="category-filter" className="block text-sm font-medium text-gray-700 mb-1">
+                  Filter by Category
+                </label>
+                <select
+                  id="category-filter"
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black sm:text-sm"
+                  disabled={categoriesLoading}
+                >
+                  <option value="">All Categories</option>
+                  {categories.map(category => (
+                    <option key={category._id} value={category.name}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-end">
+                <span className="text-sm text-gray-500">
+                  {albums.length} {albums.length === 1 ? 'album' : 'albums'} 
+                  {selectedCategory && ` in "${selectedCategory}"`}
+                </span>
               </div>
             </div>
           </div>

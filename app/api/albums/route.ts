@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db/connect';
-import Album from '@/models/Album';
+import mongoose from 'mongoose';
+
+// Delete the cached model to force schema reload
+if (mongoose.models.Album) {
+  delete mongoose.models.Album;
+}
+
+// Import fresh Album model
+const Album = require('@/models/Album').default || mongoose.model('Album');
 
 interface ImageObject {
   url: string;
@@ -24,13 +32,26 @@ export async function GET(request: Request) {
         const query: any = { isPublished: true };
         
         if (category) {
-          // Convert URL-friendly category to the format stored in the database
+          // Try multiple formats for category matching
           const formattedCategory = category
             .split('-') // Split by hyphens
             .map(word => word.toUpperCase()) // Convert each word to uppercase
             .join(' '); // Join with spaces
           
-          query.category = formattedCategory;
+          const titleCaseCategory = category
+            .split('-')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+          
+          const lowerCaseCategory = category.toLowerCase();
+          
+          // Check multiple possible formats
+          query.$or = [
+            { category: formattedCategory }, // BABY
+            { category: titleCaseCategory }, // Baby
+            { category: lowerCaseCategory }, // baby
+            { category: category }, // baby (as is)
+          ];
         }
         
         const albums = await Album.find(query).sort({ createdAt: -1 });
@@ -62,9 +83,45 @@ export async function GET(request: Request) {
       );
     }
     
-    // Admin is authenticated, fetch all albums
+    // Admin is authenticated, fetch albums with optional category filter
     await dbConnect();
-    const albums = await Album.find({}, 'title coverImage isPublished createdAt images category').sort({ createdAt: -1 });
+    
+    console.log('🔍 Admin API - Category parameter:', category);
+    
+    let query = {};
+    
+    // Apply category filter if provided
+    if (category) {
+      console.log('🔍 Admin API - Applying category filter for:', category);
+      // Try multiple formats for category matching
+      const formattedCategory = category
+        .split('-') // Split by hyphens
+        .map(word => word.toUpperCase()) // Convert each word to uppercase
+        .join(' '); // Join with spaces
+      
+      const titleCaseCategory = category
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+      
+      const lowerCaseCategory = category.toLowerCase();
+      
+      // Check multiple possible formats
+      query = {
+        $or: [
+          { category: formattedCategory }, // BABY
+          { category: titleCaseCategory }, // Baby
+          { category: lowerCaseCategory }, // baby
+          { category: category }, // baby (as is)
+        ]
+      };
+    }
+    
+    console.log('🔍 Admin API - Final query:', JSON.stringify(query, null, 2));
+    
+    const albums = await Album.find(query, 'title coverImage isPublished createdAt images category').sort({ createdAt: -1 });
+    
+    console.log('🔍 Admin API - Albums found:', albums.length);
     
     return NextResponse.json(albums, {
       headers: {
@@ -184,11 +241,8 @@ export async function POST(request: Request) {
       source: img.originalUrl?.includes('drive.google.com') ? 'google-drive' : 'upload'
     }));
 
-    // Validate category
-    const validCategories = ['WEDDING DAY', 'TEA CEREMONY', 'PREWEDDING', 'FASHION', 'FAMILY', 'EVENT'];
-    const category = data.category && validCategories.includes(data.category) 
-      ? data.category 
-      : 'EVENT';
+    // Validate category - accept any category name since categories are now dynamic
+    const category = data.category || 'EVENT';
 
     // Ensure cover image is set
     const coverImage = data.coverImage || (processedImages[0]?.url || '');

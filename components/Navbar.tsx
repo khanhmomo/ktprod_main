@@ -101,6 +101,12 @@ export default function Navbar() {
               Film
             </Link>
             <Link 
+              href="/blog" 
+              className={`hover:opacity-80 transition-opacity ${(scrolled || !isTransparentPage) ? 'text-black' : 'text-white'}`}
+            >
+              Blog
+            </Link>
+            <Link 
               href="/kind-words" 
               className={`hover:opacity-80 transition-opacity ${(scrolled || !isTransparentPage) ? 'text-black' : 'text-white'}`}
             >
@@ -170,6 +176,13 @@ export default function Navbar() {
               onClick={() => setIsOpen(false)}
             >
               Film
+            </Link>
+            <Link 
+              href="/blog" 
+              className="hover:opacity-80 transition-opacity py-2"
+              onClick={() => setIsOpen(false)}
+            >
+              Blog
             </Link>
             <Link 
               href="/kind-words" 

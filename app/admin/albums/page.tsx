@@ -15,16 +15,51 @@ interface Album {
   category: string;
 }
 
+interface Category {
+  _id: string;
+  name: string;
+  slug: string;
+  isActive: boolean;
+}
+
 export default function AlbumsPage() {
   const router = useRouter();
   const [albums, setAlbums] = useState<Album[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const fetchCategories = async () => {
+    try {
+      setCategoriesLoading(true);
+      const response = await fetch('/api/categories');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch categories');
+      }
+      
+      const data = await response.json();
+      setCategories(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
 
   const fetchAlbums = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/albums?all=true', {
+      let url = '/api/albums?all=true';
+      
+      // Add category filter if selected
+      if (selectedCategory) {
+        url += `&category=${encodeURIComponent(selectedCategory)}`;
+      }
+      
+      const response = await fetch(url, {
         credentials: 'include',
       });
       
@@ -44,8 +79,13 @@ export default function AlbumsPage() {
   };
 
   useEffect(() => {
+    fetchCategories();
     fetchAlbums();
   }, []);
+
+  useEffect(() => {
+    fetchAlbums();
+  }, [selectedCategory]);
 
   const togglePublishStatus = async (id: string, currentStatus: boolean) => {
     try {
@@ -123,6 +163,37 @@ export default function AlbumsPage() {
               <p>{error}</p>
             </div>
           )}
+
+          {/* Category Filter */}
+          <div className="mb-6 bg-white p-4 rounded-lg shadow">
+            <div className="flex items-center space-x-4">
+              <div className="flex-1">
+                <label htmlFor="category-filter" className="block text-sm font-medium text-gray-700 mb-1">
+                  Filter by Category
+                </label>
+                <select
+                  id="category-filter"
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black sm:text-sm"
+                  disabled={categoriesLoading}
+                >
+                  <option value="">All Categories</option>
+                  {categories.map(category => (
+                    <option key={category._id} value={category.name}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-end">
+                <span className="text-sm text-gray-500">
+                  {albums.length} {albums.length === 1 ? 'album' : 'albums'} 
+                  {selectedCategory && ` in "${selectedCategory}"`}
+                </span>
+              </div>
+            </div>
+          </div>
 
           {albums.length === 0 ? (
             <div className="bg-white shadow overflow-hidden sm:rounded-lg p-6 text-center">
