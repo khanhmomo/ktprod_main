@@ -42,6 +42,11 @@ const albumSchema = new mongoose.Schema({
     required: true,
     default: 'EVENT'
   },
+  order: {
+    type: Number,
+    required: true,
+    default: 0
+  },
   createdAt: {
     type: Date,
     default: Date.now

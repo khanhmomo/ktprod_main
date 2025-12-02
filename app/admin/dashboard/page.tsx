@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiPlus, FiEdit, FiTrash2, FiEye, FiEyeOff, FiYoutube } from 'react-icons/fi';
+import { FiPlus, FiEdit, FiTrash2, FiEye, FiEyeOff, FiYoutube, FiChevronUp, FiChevronDown } from 'react-icons/fi';
 
 interface Album {
   _id: string;
@@ -86,6 +86,9 @@ export default function DashboardPage() {
   const [error, setError] = useState('');
   const [isClient, setIsClient] = useState(false);
   const [activeTab, setActiveTab] = useState<'albums' | 'films'>('albums');
+  const [reordering, setReordering] = useState(false);
+  const [draggedAlbum, setDraggedAlbum] = useState<number | null>(null);
+  const [dragOverAlbum, setDragOverAlbum] = useState<number | null>(null);
 
   // Check authentication status on component mount
   useEffect(() => {
@@ -297,6 +300,145 @@ export default function DashboardPage() {
     }
   };
 
+  const moveAlbumUp = async (index: number) => {
+    if (index === 0) return; // Can't move up the first item
+    
+    try {
+      const newAlbums = [...albums];
+      [newAlbums[index - 1], newAlbums[index]] = [newAlbums[index], newAlbums[index - 1]];
+      setAlbums(newAlbums);
+      
+      // Update order in database
+      const albumsToReorder = newAlbums.map((album, idx) => ({
+        id: album._id,
+        order: idx
+      }));
+
+      const response = await fetch('/api/albums/reorder', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ albums: albumsToReorder }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reorder albums');
+      }
+    } catch (error) {
+      console.error('Error moving album up:', error);
+      setError('Failed to reorder albums. Please try again.');
+      // Revert to original order on error
+      await fetchAlbums();
+    }
+  };
+
+  const moveAlbumDown = async (index: number) => {
+    if (index === albums.length - 1) return; // Can't move down the last item
+    
+    try {
+      const newAlbums = [...albums];
+      [newAlbums[index], newAlbums[index + 1]] = [newAlbums[index + 1], newAlbums[index]];
+      setAlbums(newAlbums);
+      
+      // Update order in database
+      const albumsToReorder = newAlbums.map((album, idx) => ({
+        id: album._id,
+        order: idx
+      }));
+
+      const response = await fetch('/api/albums/reorder', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ albums: albumsToReorder }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reorder albums');
+      }
+    } catch (error) {
+      console.error('Error moving album down:', error);
+      setError('Failed to reorder albums. Please try again.');
+      // Revert to original order on error
+      await fetchAlbums();
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedAlbum(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverAlbum(index);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverAlbum(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    setDragOverAlbum(null);
+    
+    if (draggedAlbum === null || draggedAlbum === dropIndex) return;
+    
+    try {
+      const newAlbums = [...albums];
+      const draggedItem = newAlbums[draggedAlbum];
+      
+      // Remove the dragged item
+      newAlbums.splice(draggedAlbum, 1);
+      
+      // Insert at new position
+      newAlbums.splice(dropIndex, 0, draggedItem);
+      
+      setAlbums(newAlbums);
+      
+      // Update order in database
+      const albumsToReorder = newAlbums.map((album, idx) => ({
+        id: album._id,
+        order: idx
+      }));
+
+      const response = await fetch('/api/albums/reorder', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ albums: albumsToReorder }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reorder albums');
+      }
+    } catch (error) {
+      console.error('Error reordering albums:', error);
+      setError('Failed to reorder albums. Please try again.');
+      // Revert to original order on error
+      await fetchAlbums();
+    } finally {
+      setDraggedAlbum(null);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedAlbum(null);
+    setDragOverAlbum(null);
+  };
+
+  const handleReorderAlbums = async () => {
+    // This function is now handled by drag and drop
+    console.log('Use drag and drop to reorder albums');
+  };
+
   if (!isClient) {
     return (
       <div className="min-h-screen bg-gray-50 p-8">
@@ -335,13 +477,25 @@ export default function DashboardPage() {
           </div>
           <div className="flex space-x-3">
             {activeTab === 'albums' ? (
-              <Link
-                href="/admin/albums/new"
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
-              >
-                <FiPlus className="-ml-1 mr-2 h-5 w-5" />
-                New Album
-              </Link>
+              <>
+                <button
+                  onClick={handleReorderAlbums}
+                  disabled={reordering || albums.length === 0 || !selectedCategory}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <svg className="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                  {reordering ? 'Reordering...' : (!selectedCategory ? 'Select a category to reorder' : 'Drag to reorder albums')}
+                </button>
+                <Link
+                  href="/admin/albums/new"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
+                >
+                  <FiPlus className="-ml-1 mr-2 h-5 w-5" />
+                  New Album
+                </Link>
+              </>
             ) : (
               <Link
                 href="/admin/films/new"
@@ -458,6 +612,11 @@ export default function DashboardPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  {activeTab === 'albums' && (
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Order
+                    </th>
+                  )}
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {activeTab === 'albums' ? 'Album' : 'Film'}
                   </th>
@@ -480,8 +639,35 @@ export default function DashboardPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {activeTab === 'albums' ? (
-                  albums.map((album) => (
-                    <tr key={`desktop-${album._id}`} className="hover:bg-gray-50">
+                  albums.map((album, index) => (
+                    <tr 
+                      key={`desktop-${album._id}`} 
+                      className={`hover:bg-gray-50 ${
+                        selectedCategory ? 'cursor-move' : 'cursor-not-allowed'
+                      } ${
+                        draggedAlbum === index ? 'opacity-50' : ''
+                      } ${
+                        dragOverAlbum === index ? 'bg-blue-50 border-t-2 border-blue-400' : ''
+                      }`}
+                      draggable={activeTab === 'albums' && !!selectedCategory}
+                      onDragStart={selectedCategory ? (e) => handleDragStart(e, index) : undefined}
+                      onDragOver={selectedCategory ? (e) => handleDragOver(e, index) : undefined}
+                      onDragLeave={selectedCategory ? handleDragLeave : undefined}
+                      onDrop={selectedCategory ? (e) => handleDrop(e, index) : undefined}
+                      onDragEnd={selectedCategory ? handleDragEnd : undefined}
+                    >
+                      {activeTab === 'albums' && (
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center space-x-2">
+                            <div className={`${selectedCategory ? 'cursor-move' : 'cursor-not-allowed opacity-30'} text-gray-400`}>
+                              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                              </svg>
+                            </div>
+                            <span className="text-sm text-gray-500">#{index + 1}</span>
+                          </div>
+                        </td>
+                      )}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10">

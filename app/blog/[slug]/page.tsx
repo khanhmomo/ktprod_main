@@ -98,7 +98,7 @@ export default async function BlogPostPage({ params }: { params: { slug: string 
 
           {/* Blog Content */}
           <div 
-            className="prose prose-lg max-w-none"
+            className="prose prose-lg max-w-none [&_img]:rounded-2xl"
             dangerouslySetInnerHTML={{ __html: post.content }}
           />
 

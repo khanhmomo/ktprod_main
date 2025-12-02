@@ -54,7 +54,7 @@ export async function GET(request: Request) {
           ];
         }
         
-        const albums = await Album.find(query).sort({ createdAt: -1 });
+        const albums = await Album.find(query).sort({ order: 1, createdAt: -1 });
         return NextResponse.json(albums, {
           headers: {
             'Access-Control-Allow-Origin': '*',
@@ -119,7 +119,7 @@ export async function GET(request: Request) {
     
     console.log('🔍 Admin API - Final query:', JSON.stringify(query, null, 2));
     
-    const albums = await Album.find(query, 'title coverImage isPublished createdAt images category').sort({ createdAt: -1 });
+    const albums = await Album.find(query, 'title coverImage isPublished createdAt images category order').sort({ order: 1, createdAt: -1 });
     
     console.log('🔍 Admin API - Albums found:', albums.length);
     
