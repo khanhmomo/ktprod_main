@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { FiArrowLeft, FiAlertCircle, FiRefreshCw } from 'react-icons/fi';
 import { env } from '@/app/config/env';
 import { ReactNode } from 'react';
+import { Metadata } from 'next';
 import AlbumClient from './AlbumClient';
 
 // Define the Album type for the client component
@@ -191,6 +192,69 @@ function renderErrorDetail(label: string, value: unknown): ReactNode {
       </pre>
     </div>
   );
+}
+
+// Generate metadata for the album page
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  
+  try {
+    const album = await getAlbum(id);
+    
+    if (!album) {
+      return {
+        title: 'Album Not Found | The Wild Studio',
+        description: 'The requested album could not be found.',
+      };
+    }
+
+    const siteUrl = 'https://thewildstudio.org';
+    const title = `${album.title.toUpperCase()} | THE WILD STUDIO`;
+    const description = album.description || `View ${album.title} photo gallery at The Wild Studio. ${album.location ? `Located in ${album.location}.` : ''}`;
+    
+    return {
+      title,
+      description,
+      alternates: {
+        canonical: `/albums/${id}`,
+      },
+      openGraph: {
+        title,
+        description,
+        url: `${siteUrl}/albums/${id}`,
+        siteName: 'The Wild Studio',
+        locale: 'en_US',
+        type: 'website',
+        images: album.coverImage ? [
+          {
+            url: album.coverImage,
+            width: 1200,
+            height: 630,
+            alt: album.title,
+          },
+        ] : [
+          {
+            url: `${siteUrl}/images/og-image.jpg`,
+            width: 1200,
+            height: 630,
+            alt: 'The Wild Studio',
+          },
+        ],
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title,
+        description,
+        images: album.coverImage ? [album.coverImage] : [`${siteUrl}/images/og-image.jpg`],
+      },
+    };
+  } catch (error) {
+    console.error('Error generating album metadata:', error);
+    return {
+      title: 'Album | The Wild Studio',
+      description: 'View our photo galleries at The Wild Studio.',
+    };
+  }
 }
 
 export default async function AlbumPage({ params }: { params: Promise<{ id: string }> }) {

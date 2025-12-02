@@ -25,9 +25,38 @@ export async function generateMetadata({
     };
   }
   
+  const siteUrl = 'https://thewildstudio.org';
+  const title = `${category.name.toUpperCase()} | THE WILD STUDIO`;
+  const description = category.description || `Browse our collection of ${category.name.toLowerCase()} photography.`;
+  
   return {
-    title: `${category.name} Gallery | The Wild Studio`,
-    description: category.description || `Browse our collection of ${category.name.toLowerCase()} photography.`,
+    title,
+    description,
+    alternates: {
+      canonical: `/gallery/${params.category}`,
+    },
+    openGraph: {
+      title,
+      description,
+      url: `${siteUrl}/gallery/${params.category}`,
+      siteName: 'The Wild Studio',
+      locale: 'en_US',
+      type: 'website',
+      images: [
+        {
+          url: `${siteUrl}/images/og-image.jpg`,
+          width: 1200,
+          height: 630,
+          alt: `${category.name} Gallery - The Wild Studio`,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [`${siteUrl}/images/og-image.jpg`],
+    },
   };
 }
 

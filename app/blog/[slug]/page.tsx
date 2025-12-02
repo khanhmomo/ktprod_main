@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { format } from 'date-fns';
+import { Metadata } from 'next';
 import dbConnect from '@/lib/db';
 import BlogPost from '@/models/BlogPost';
 
@@ -41,6 +42,62 @@ const calculateReadTime = (content: string) => {
   const minutes = Math.ceil(wordCount / wordsPerMinute);
   return `${minutes} min read`;
 };
+
+// Generate metadata for the blog post
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const post = await getBlogPost(params.slug);
+  
+  if (!post) {
+    return {
+      title: 'Blog Post Not Found',
+      description: 'The requested blog post could not be found.',
+    };
+  }
+
+  const siteUrl = 'https://thewildstudio.org';
+  const title = `BLOG | ${post.title.toUpperCase()}`;
+  const description = post.excerpt || post.content.substring(0, 160).replace(/<[^>]*>/g, '');
+  
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: `/blog/${params.slug}`,
+    },
+    openGraph: {
+      title,
+      description,
+      url: `${siteUrl}/blog/${params.slug}`,
+      siteName: 'The Wild Studio',
+      locale: 'en_US',
+      type: 'article',
+      publishedTime: post.publishedAt,
+      modifiedTime: post.updatedAt,
+      authors: ['The Wild Studio'],
+      images: post.featuredImage ? [
+        {
+          url: post.featuredImage,
+          width: 1200,
+          height: 630,
+          alt: post.title,
+        },
+      ] : [
+        {
+          url: `${siteUrl}/images/og-image.jpg`,
+          width: 1200,
+          height: 630,
+          alt: 'The Wild Studio',
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: post.featuredImage ? [post.featuredImage] : [`${siteUrl}/images/og-image.jpg`],
+    },
+  };
+}
 
 export default async function BlogPostPage({ params }: { params: { slug: string } }) {
   const post = await getBlogPost(params.slug);
