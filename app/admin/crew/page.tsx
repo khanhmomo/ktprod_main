@@ -63,10 +63,16 @@ export default function CrewManagement() {
     e.preventDefault();
     
     console.log('Submitting crew member:', formData);
+    console.log('Editing member:', editingMember);
     
     try {
-      const response = await fetch('/api/admin/crew', {
-        method: 'POST',
+      const url = editingMember ? `/api/admin/crew/${editingMember._id}` : '/api/admin/crew';
+      const method = editingMember ? 'PUT' : 'POST';
+      
+      console.log('Using URL:', url, 'with method:', method);
+      
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -75,8 +81,20 @@ export default function CrewManagement() {
       });
 
       if (response.ok) {
-        const newMember = await response.json();
-        setCrew([...crew, newMember]);
+        const updatedMember = await response.json();
+        
+        if (editingMember) {
+          // Update existing crew member
+          setCrew(crew.map(member => 
+            member._id === editingMember._id ? updatedMember : member
+          ));
+          console.log('Crew member updated successfully');
+        } else {
+          // Add new crew member
+          setCrew([...crew, updatedMember]);
+          console.log('New crew member created successfully');
+        }
+        
         setShowModal(false);
         setFormData({
           name: '',
@@ -88,11 +106,11 @@ export default function CrewManagement() {
         setEditingMember(null);
       } else {
         const error = await response.json();
-        alert(`Error: ${error.error || 'Failed to create crew member'}`);
+        alert(`Error: ${error.error || 'Failed to save crew member'}`);
       }
     } catch (error) {
-      console.error('Error creating crew member:', error);
-      alert('Error creating crew member. Please try again.');
+      console.error('Error saving crew member:', error);
+      alert('Error saving crew member. Please try again.');
     }
   };
 
