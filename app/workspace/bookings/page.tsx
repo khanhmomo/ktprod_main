@@ -162,7 +162,7 @@ export default function BookingsPage() {
   const handleCalendarDownload = async (bookingId: string) => {
     try {
       // Get booking details for calendar
-      const response = await fetch(`/api/workspace/bookings/${bookingId}/calendar`);
+      const response = await fetch(`/api/workspace/bookings/${bookingId}/calendar?t=${Date.now()}`);
       
       if (response.ok) {
         const bookingData = await response.json();
@@ -195,7 +195,7 @@ Salary: $${bookingData.salary || '0'}
           console.log('Calendar event processed for device');
         } else {
           // Fallback to download .ics file
-          const icsResponse = await fetch(`/api/workspace/bookings/${bookingId}/calendar/download`);
+          const icsResponse = await fetch(`/api/workspace/bookings/${bookingId}/calendar/download?t=${Date.now()}`);
           const blob = await icsResponse.blob();
           const url = window.URL.createObjectURL(blob);
           const link = document.createElement('a');
