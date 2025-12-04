@@ -7,7 +7,7 @@ interface CrewMember {
   _id: string;
   name: string;
   email: string;
-  role: 'super_admin' | 'crew';
+  role: 'super_admin' | 'manager' | 'crew';
   permissions: string[];
   phone?: string;
   specialties?: string[];
@@ -20,17 +20,37 @@ export default function CrewManagement() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingMember, setEditingMember] = useState<CrewMember | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    role: 'crew' as 'super_admin' | 'crew',
+    role: 'crew' as 'super_admin' | 'manager' | 'crew',
     phone: '',
     specialties: [] as string[]
   });
 
   useEffect(() => {
     fetchCrew();
+    fetchCurrentUser();
   }, []);
+
+  const fetchCurrentUser = async () => {
+    try {
+      const response = await fetch('/api/auth/me', {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const userData = await response.json();
+        setCurrentUser(userData);
+      }
+    } catch (error) {
+      console.error('Failed to fetch current user:', error);
+    }
+  };
+
+  const canEdit = () => {
+    return currentUser && (currentUser.role === 'super_admin');
+  };
 
   const fetchCrew = async () => {
     try {
@@ -165,6 +185,7 @@ export default function CrewManagement() {
                 {crew.length} {crew.length === 1 ? 'member' : 'members'}
               </p>
             </div>
+            {canEdit() && (
             <button
               onClick={() => {
                 setEditingMember(null);
@@ -182,6 +203,7 @@ export default function CrewManagement() {
               <FiPlus className="mr-2" />
               Add Crew Member
             </button>
+          )}
           </div>
 
           {/* Crew List */}
@@ -251,9 +273,11 @@ export default function CrewManagement() {
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                             member.role === 'super_admin' 
                               ? 'bg-purple-100 text-purple-800' 
+                              : member.role === 'manager'
+                              ? 'bg-green-100 text-green-800'
                               : 'bg-blue-100 text-blue-800'
                           }`}>
-                            {member.role === 'super_admin' ? 'Super Admin' : 'Crew'}
+                            {member.role === 'super_admin' ? 'Super Admin' : member.role === 'manager' ? 'Manager' : 'Crew'}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -284,20 +308,24 @@ export default function CrewManagement() {
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex justify-end space-x-2">
-                            <button
-                              onClick={() => handleEdit(member)}
-                              className="text-blue-600 hover:text-blue-900"
-                            >
-                              <FiEdit2 />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(member._id)}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              <FiTrash2 />
-                            </button>
-                          </div>
+                          {canEdit() ? (
+                            <div className="flex justify-end space-x-2">
+                              <button
+                                onClick={() => handleEdit(member)}
+                                className="text-blue-600 hover:text-blue-900"
+                              >
+                                <FiEdit2 />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(member._id)}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                <FiTrash2 />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-xs">Read-only</span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -350,10 +378,11 @@ export default function CrewManagement() {
                 </label>
                 <select
                   value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as 'super_admin' | 'crew' })}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value as 'super_admin' | 'manager' | 'crew' })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
                 >
                   <option value="crew">Crew</option>
+                  <option value="manager">Manager</option>
                   <option value="super_admin">Super Admin</option>
                 </select>
               </div>

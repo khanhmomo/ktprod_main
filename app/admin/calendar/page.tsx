@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiCalendar, FiClock, FiUser, FiMapPin, FiEdit, FiTrash2, FiPlus } from 'react-icons/fi';
+import { FiCalendar, FiClock, FiUser, FiMapPin, FiEdit, FiTrash2, FiPlus, FiEye } from 'react-icons/fi';
 
 interface Inquiry {
   _id: string;
@@ -132,6 +132,7 @@ export default function CalendarPage() {
     email: '',
     phone: ''
   });
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -169,7 +170,8 @@ export default function CalendarPage() {
       await Promise.all([
         fetchEvents(),
         fetchInquiries(),
-        fetchCrew()
+        fetchCrew(),
+        fetchCurrentUser()
       ]);
     } catch (error) {
       console.error('Calendar initialization error:', error);
@@ -289,6 +291,29 @@ export default function CalendarPage() {
     const available = crewMembers.filter(crew => !assignedCrewIds.includes(crew._id));
     console.log('Available crew:', available);
     setAvailableCrew(available);
+  };
+
+  const fetchCurrentUser = async () => {
+    try {
+      const response = await fetch('/api/auth/me', {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const userData = await response.json();
+        setCurrentUser(userData);
+      }
+    } catch (error) {
+      console.error('Failed to fetch current user:', error);
+    }
+  };
+
+  const canEdit = () => {
+    return currentUser && currentUser.role === 'super_admin';
+  };
+
+  const handleViewEvent = (event: ShootingEvent) => {
+    setEditingEvent(event);
+    setShowEventModal(true);
   };
 
   const addCrewToAssignment = async (crewId: string) => {
@@ -1290,22 +1315,35 @@ export default function CalendarPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleEditEvent(event)}
-                            className="text-blue-600 hover:text-blue-900"
-                            title="Edit Event"
-                          >
-                            <FiEdit />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(event._id)}
-                            className="text-red-600 hover:text-red-900"
-                            title="Delete Event"
-                          >
-                            <FiTrash2 />
-                          </button>
-                        </div>
+                        {canEdit() ? (
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleEditEvent(event)}
+                              className="text-blue-600 hover:text-blue-900"
+                              title="Edit Event"
+                            >
+                              <FiEdit />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(event._id)}
+                              className="text-red-600 hover:text-red-900"
+                              title="Delete Event"
+                            >
+                              <FiTrash2 />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleViewEvent(event)}
+                              className="text-green-600 hover:text-green-900"
+                              title="View Event"
+                            >
+                              <FiEye />
+                            </button>
+                            <span className="text-gray-400 text-xs">Read-only</span>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -1318,6 +1356,7 @@ export default function CalendarPage() {
                 <p className="text-gray-500 mb-4">
                   There are no shooting events scheduled for {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
                 </p>
+                {canEdit() && (
                 <button
                   onClick={() => {
                     setEditingEvent(null);
@@ -1328,6 +1367,7 @@ export default function CalendarPage() {
                   <FiPlus className="mr-2" />
                   Create First Event
                 </button>
+              )}
               </div>
             )}
           </div>
@@ -1340,9 +1380,17 @@ export default function CalendarPage() {
             <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
               {/* Main Form */}
               <div className="flex-1 p-4 sm:p-6 overflow-y-auto order-1 lg:order-1">
+                {!canEdit() && (
+                  <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-center">
+                      <FiEye className="text-yellow-600 mr-2" />
+                      <span className="text-sm text-yellow-800">View-Only Mode - Managers can view event details but cannot make changes</span>
+                    </div>
+                  </div>
+                )}
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold">
-                    {editingEvent ? 'Edit Shooting' : 'Add Shooting'}
+                    {editingEvent ? (canEdit() ? 'Edit Shooting' : 'View Shooting Details') : 'Add Shooting'}
                   </h3>
                   <button
                     onClick={() => {
@@ -1370,9 +1418,10 @@ export default function CalendarPage() {
                           <input
                             type="text"
                             required
+                            disabled={!canEdit()}
                             value={formData.title}
                             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
                             placeholder="e.g., Wedding Photography - John & Jane"
                           />
                         </div>
@@ -1644,33 +1693,51 @@ export default function CalendarPage() {
                                       <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
                                         <div className="flex items-center">
                                           <span className="text-gray-500 mr-1">$</span>
-                                          <input
-                                            type="text"
-                                            defaultValue={salary}
-                                            onBlur={(e) => updateCrewSalary(crewAssignment.crewId, e.target.value)}
-                                            className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                                            placeholder="0"
-                                          />
+                                          {canEdit() ? (
+                                            <input
+                                              type="text"
+                                              defaultValue={salary}
+                                              onBlur={(e) => updateCrewSalary(crewAssignment.crewId, e.target.value)}
+                                              className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                                              placeholder="0"
+                                            />
+                                          ) : (
+                                            <span className="w-20 px-2 py-1 text-sm">{salary || '0'}</span>
+                                          )}
                                         </div>
                                       </td>
                                       <td className="px-3 py-2 whitespace-nowrap">
-                                        <select
-                                          value={paymentStatus}
-                                          onChange={(e) => updateCrewPaymentStatus(crewAssignment.crewId, e.target.value)}
-                                          className="w-28 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                                        >
-                                          <option value="pending">Pending</option>
-                                          <option value="completed">Completed</option>
-                                        </select>
+                                        {canEdit() ? (
+                                          <select
+                                            value={paymentStatus}
+                                            onChange={(e) => updateCrewPaymentStatus(crewAssignment.crewId, e.target.value)}
+                                            className="w-28 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                                          >
+                                            <option value="pending">Pending</option>
+                                            <option value="completed">Completed</option>
+                                          </select>
+                                        ) : (
+                                          <span className={`px-2 py-1 text-xs rounded-full ${
+                                            paymentStatus === 'completed' 
+                                              ? 'bg-green-100 text-green-800' 
+                                              : 'bg-yellow-100 text-yellow-800'
+                                          }`}>
+                                            {paymentStatus}
+                                          </span>
+                                        )}
                                       </td>
                                       <td className="px-3 py-2 whitespace-nowrap text-right text-sm font-medium">
-                                        <button
-                                          type="button"
-                                          onClick={() => removeCrewFromAssignment(crew._id)}
-                                          className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-                                        >
-                                          Remove
-                                        </button>
+                                        {canEdit() ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => removeCrewFromAssignment(crew._id)}
+                                            className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                                          >
+                                            Remove
+                                          </button>
+                                        ) : (
+                                          <span className="text-gray-400 text-xs">-</span>
+                                        )}
                                       </td>
                                     </tr>
                                   );
@@ -1680,6 +1747,7 @@ export default function CalendarPage() {
                           </table>
                         </div>
                         
+                        {canEdit() && (
                         <div className="mt-2">
                           <button
                             type="button"
@@ -1689,13 +1757,14 @@ export default function CalendarPage() {
                             Add Crew
                           </button>
                         </div>
+                      )}
                       </div>
                     </div>
                   </div>
 
                   <div className="flex flex-col sm:flex-row justify-between pt-3 gap-3 border-t border-gray-200 bg-white">
                     <div>
-                      {editingEvent && (
+                      {editingEvent && canEdit() && (
                         <button
                           type="button"
                           onClick={() => editingEvent && handleDelete(editingEvent._id)}
@@ -1720,7 +1789,7 @@ export default function CalendarPage() {
                       </button>
                       <button
                         type="submit"
-                        disabled={loading}
+                        disabled={loading || !canEdit()}
                         className="px-3 py-2 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto text-sm"
                       >
                         {loading ? (
@@ -1732,7 +1801,7 @@ export default function CalendarPage() {
                             {editingEvent ? 'Updating...' : 'Creating...'} Sending Emails...
                           </div>
                         ) : (
-                          `${editingEvent ? 'Update' : 'Create'} Shooting`
+                          !canEdit() ? 'View-Only Mode' : `${editingEvent ? 'Update' : 'Create'} Shooting`
                         )}
                       </button>
                     </div>

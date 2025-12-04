@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       currentUser = await Crew.findOne({ email: auth.user?.email });
     }
     
-    if (!currentUser || currentUser.role !== 'super_admin') {
+    if (!currentUser || (currentUser.role !== 'super_admin' && currentUser.role !== 'manager')) {
       return NextResponse.json(
         { error: 'Insufficient permissions' },
         { status: 403, headers }

@@ -5,7 +5,7 @@ export interface ICrew extends Document {
   email: string;
   name: string;
   avatar?: string;
-  role: 'super_admin' | 'crew';
+  role: 'super_admin' | 'manager' | 'crew';
   permissions: string[];
   isActive: boolean;
   phone?: string;
@@ -40,7 +40,7 @@ const crewSchema = new Schema<ICrew>({
   },
   role: {
     type: String,
-    enum: ['super_admin', 'crew'],
+    enum: ['super_admin', 'manager', 'crew'],
     default: 'crew'
   },
   permissions: [{

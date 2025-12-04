@@ -99,7 +99,7 @@ export default function AdminLayout({
             const userData = await userResponse.json();
             setUser(userData);
             
-            // Check if user is crew, redirect to workspace
+            // Check if user is crew, redirect to workspace (managers and admins stay in admin)
             if (userData.role === 'crew') {
               router.push('/workspace');
               return;
