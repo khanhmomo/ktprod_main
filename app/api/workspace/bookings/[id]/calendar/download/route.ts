@@ -53,16 +53,12 @@ export async function GET(
     
     // Create calendar event
     const calendarEvent = {
-      title: event?.title || 'Shooting Event',
+      title: `TheWild | ${event?.title || 'Shooting Event'}`,
       description: `
-Booking Details:
-- Customer: ${event?.customerName || 'N/A'}
-- Email: ${event?.customerEmail || 'N/A'}
-- Location: ${event?.location || 'N/A'}
-- Duration: ${event?.duration || '1 hour'}
-- Notes: ${event?.notes || 'N/A'}
-- Status: ${booking.status}
-- Salary: $${booking.salary || '0'}
+Customer: ${event?.customerName || 'N/A'}
+Location: ${event?.location || 'N/A'}
+Duration: ${event?.duration || '1 hour'}
+Salary: $${booking.salary || '0'}
       `.trim(),
       location: event?.location || '',
       date: event?.date || booking.assignedAt.toISOString().split('T')[0],
