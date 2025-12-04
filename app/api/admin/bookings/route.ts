@@ -33,14 +33,70 @@ export async function POST(request: NextRequest) {
     await dbConnect();
 
     const body = await request.json();
-    const { crewId, eventId, status, assignedAt, salary, paymentStatus } = body;
+    const { crewId, eventId, status, assignedAt, salary, paymentStatus, freelanceCrew } = body;
     
-    console.log('Request body:', { crewId, eventId, status, assignedAt, salary, paymentStatus });
+    console.log('Request body:', { crewId, eventId, status, assignedAt, salary, paymentStatus, freelanceCrew });
 
-    if (!crewId || !eventId) {
-      console.log('Missing required fields:', { crewId, eventId });
+    // Handle freelance crew or existing crew
+    let targetCrewId = crewId;
+    let crew = null;
+    let isFreelance = false;
+
+    if (freelanceCrew) {
+      // Create or find freelance crew member
+      const { name, email, phone, specialties } = freelanceCrew;
+      
+      if (!name || !email) {
+        return NextResponse.json(
+          { error: 'Freelance crew name and email are required' },
+          { status: 400 }
+        );
+      }
+
+      // Check if crew member already exists
+      crew = await Crew.findOne({ email });
+      if (crew) {
+        targetCrewId = (crew._id as any).toString();
+        console.log('Found existing crew member for freelance:', email);
+      } else {
+        // Create new crew member for freelance
+        crew = new Crew({
+          name,
+          email,
+          phone: phone || '',
+          specialties: specialties || [],
+          role: 'crew',
+          permissions: ['view_bookings', 'respond_bookings'],
+          isActive: true,
+        });
+        
+        await crew.save();
+        targetCrewId = (crew._id as any).toString();
+        isFreelance = true;
+        console.log('Created new freelance crew member:', email);
+      }
+    } else {
+      // Existing crew member
+      if (!crewId) {
+        return NextResponse.json(
+          { error: 'Either crewId or freelanceCrew is required' },
+          { status: 400 }
+        );
+      }
+      
+      crew = await Crew.findById(crewId);
+      if (!crew) {
+        return NextResponse.json(
+          { error: 'Crew member not found' },
+          { status: 404 }
+        );
+      }
+    }
+
+    if (!targetCrewId || !eventId) {
+      console.log('Missing required fields:', { targetCrewId, eventId });
       return NextResponse.json(
-        { error: 'crewId and eventId are required' },
+        { error: 'crew and eventId are required' },
         { status: 400 }
       );
     }
@@ -50,7 +106,7 @@ export async function POST(request: NextRequest) {
     let existingBooking = null;
     if (eventId && eventId.length === 24) {
       // Only check for existing bookings for MongoDB ObjectId format
-      existingBooking = await Booking.findOne({ crewId, eventId });
+      existingBooking = await Booking.findOne({ crewId: targetCrewId, eventId });
     }
     
     if (existingBooking) {
@@ -64,7 +120,7 @@ export async function POST(request: NextRequest) {
     console.log('Creating new booking...');
     // Create new booking
     const bookingData = {
-      crewId,
+      crewId: targetCrewId,
       eventId,
       status: status || 'pending',
       assignedAt: assignedAt || new Date(),
@@ -78,50 +134,89 @@ export async function POST(request: NextRequest) {
 
     await booking.save();
 
-    console.log(`Booking created: ${booking._id} for crew ${crewId}, event ${eventId}`);
+    console.log(`Booking created: ${booking._id} for crew ${targetCrewId}, event ${eventId}`);
     console.log('Saved booking object:', JSON.stringify(booking.toObject(), null, 2));
 
-    // Get crew and event details for email
-    const crew = await Crew.findById(crewId);
+    // Get event details for email (crew already fetched above)
     const event = await ShootingEvent.findById(eventId);
 
     if (crew && crew.email) {
       try {
         // Send booking invitation email to crew member
+        const emailHtml = isFreelance ? `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Welcome to The Wild Studio!</h2>
+            
+            <p>Dear ${crew.name},</p>
+            
+            <p>We've created a workspace account for you and invited you to a new booking assignment:</p>
+            
+            <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p><strong>Event:</strong> ${event?.title || 'Shooting Event'}</p>
+              <p><strong>Date:</strong> ${event?.date || 'TBD'}</p>
+              <p><strong>Time:</strong> ${event?.time || 'TBD'}</p>
+              <p><strong>Location:</strong> ${event?.location || 'TBD'}</p>
+              <p><strong>Duration:</strong> ${event?.duration || 'TBD'}</p>
+              ${salary ? `<p><strong>Salary:</strong> $${salary}</p>` : ''}
+              ${event?.customerName ? `<p><strong>Customer:</strong> ${event.customerName}</p>` : ''}
+            </div>
+            
+            <div style="background: #e8f4fd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #007bff;">
+              <h3 style="margin-top: 0;">Your Workspace Account</h3>
+              <p><strong>Email:</strong> ${crew.email}</p>
+              <p><strong>Role:</strong> Crew Member</p>
+              <p>You can now log in to your workspace to view and manage your bookings.</p>
+            </div>
+            
+            <p>To get started, please log in with your Google account using the email address: ${crew.email}</p>
+            
+            <div style="margin: 30px 0;">
+              <a href="https://thewildstudio.org/workspace/bookings" 
+                 style="background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                View Your Bookings
+              </a>
+            </div>
+            
+            <p>Best regards,<br>The Wild Studio Team</p>
+          </div>
+        ` : `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>New Booking Invitation</h2>
+            
+            <p>Dear ${crew.name},</p>
+            
+            <p>You have been invited to a new booking assignment:</p>
+            
+            <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p><strong>Event:</strong> ${event?.title || 'Shooting Event'}</p>
+              <p><strong>Date:</strong> ${event?.date || 'TBD'}</p>
+              <p><strong>Time:</strong> ${event?.time || 'TBD'}</p>
+              <p><strong>Location:</strong> ${event?.location || 'TBD'}</p>
+              <p><strong>Duration:</strong> ${event?.duration || 'TBD'}</p>
+              ${salary ? `<p><strong>Salary:</strong> $${salary}</p>` : ''}
+              ${event?.customerName ? `<p><strong>Customer:</strong> ${event.customerName}</p>` : ''}
+            </div>
+            
+            <p>Please log in to your workspace to accept or decline this booking.</p>
+            
+            <div style="margin: 30px 0;">
+              <a href="https://thewildstudio.org/workspace/bookings" 
+                 style="background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                View Bookings
+              </a>
+            </div>
+            
+            <p>Best regards,<br>The Wild Studio Team</p>
+          </div>
+        `;
+
         await transporter.sendMail({
           from: `"The Wild Studio | Bookings" <${process.env.GMAIL_EMAIL}>`,
           to: crew.email,
-          subject: `New Booking Invitation: ${event?.title || 'Shooting Event'}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2>New Booking Invitation</h2>
-              
-              <p>Dear ${crew.name},</p>
-              
-              <p>You have been invited to a new booking assignment:</p>
-              
-              <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                <p><strong>Event:</strong> ${event?.title || 'Shooting Event'}</p>
-                <p><strong>Date:</strong> ${event?.date || 'TBD'}</p>
-                <p><strong>Time:</strong> ${event?.time || 'TBD'}</p>
-                <p><strong>Location:</strong> ${event?.location || 'TBD'}</p>
-                <p><strong>Duration:</strong> ${event?.duration || 'TBD'}</p>
-                ${salary ? `<p><strong>Salary:</strong> $${salary}</p>` : ''}
-                ${event?.customerName ? `<p><strong>Customer:</strong> ${event.customerName}</p>` : ''}
-              </div>
-              
-              <p>Please log in to your workspace to accept or decline this booking.</p>
-              
-              <div style="margin: 30px 0;">
-                <a href="https://thewildstudio.org/workspace/bookings" 
-                   style="background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
-                  View Bookings
-                </a>
-              </div>
-              
-              <p>Best regards,<br>The Wild Studio Team</p>
-            </div>
-          `,
+          subject: isFreelance 
+            ? `Welcome to The Wild Studio - New Booking: ${event?.title || 'Shooting Event'}`
+            : `New Booking Invitation: ${event?.title || 'Shooting Event'}`,
+          html: emailHtml,
         });
         
         console.log(`Booking invitation email sent to ${crew.email}`);
@@ -130,7 +225,7 @@ export async function POST(request: NextRequest) {
         // Don't fail the booking creation if email fails
       }
     } else {
-      console.log(`Crew not found or no email address for crew ID: ${crewId}`);
+      console.log(`Crew not found or no email address for crew ID: ${targetCrewId}`);
     }
 
     return NextResponse.json({ 

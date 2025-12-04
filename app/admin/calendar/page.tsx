@@ -99,6 +99,11 @@ export default function CalendarPage() {
       crewId: string;
       salary: string;
       paymentStatus: string;
+      freelanceCrew?: {
+        name: string;
+        email: string;
+        phone: string;
+      };
     }>;
     bookingIds?: string[];
   }>({
@@ -121,6 +126,12 @@ export default function CalendarPage() {
   const [availableCrew, setAvailableCrew] = useState<any[]>([]);
   const [eventBookings, setEventBookings] = useState<any[]>([]);
   const [showCrewPanel, setShowCrewPanel] = useState(false);
+  const [showFreelanceForm, setShowFreelanceForm] = useState(false);
+  const [freelanceCrew, setFreelanceCrew] = useState({
+    name: '',
+    email: '',
+    phone: ''
+  });
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -357,6 +368,86 @@ export default function CalendarPage() {
     }
   };
 
+  const addFreelanceCrew = async () => {
+    try {
+      if (!freelanceCrew.name || !freelanceCrew.email) {
+        alert('Please fill in name and email for freelance crew');
+        return;
+      }
+
+      const eventId = (formData as any)._id;
+      const bookingData = {
+        eventId: eventId,
+        freelanceCrew: {
+          name: freelanceCrew.name,
+          email: freelanceCrew.email,
+          phone: freelanceCrew.phone
+        },
+        status: 'pending',
+        assignedAt: new Date()
+      };
+
+      if (eventId) {
+        // For existing events, create actual booking
+        const response = await fetch('/api/admin/bookings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(bookingData),
+          credentials: 'include'
+        });
+
+        if (response.ok) {
+          const newBooking = await response.json();
+          setEventBookings([...eventBookings, newBooking.booking]);
+          setShowFreelanceForm(false);
+          setFreelanceCrew({ name: '', email: '', phone: '' });
+          setShowCrewPanel(false);
+          alert('Freelance crew added successfully!');
+        } else {
+          const error = await response.json();
+          alert('Failed to add freelance crew: ' + error.error);
+        }
+      } else {
+        // For new events, add to assignedCrew array
+        setFormData({
+          ...formData,
+          assignedCrew: [...formData.assignedCrew, {
+            crewId: `freelance-${Date.now()}`,
+            salary: '',
+            paymentStatus: 'pending',
+            freelanceCrew: freelanceCrew
+          }]
+        });
+        
+        // Create temporary booking object for display
+        const tempBooking = {
+          _id: `temp-freelance-${Date.now()}`,
+          crewId: `freelance-${Date.now()}`,
+          eventId: null,
+          status: 'pending',
+          assignedAt: new Date(),
+          crew: {
+            _id: `freelance-${Date.now()}`,
+            name: freelanceCrew.name,
+            email: freelanceCrew.email,
+            role: 'Freelance',
+            phone: freelanceCrew.phone
+          }
+        };
+        
+        setEventBookings([...eventBookings, tempBooking]);
+        setShowFreelanceForm(false);
+        setFreelanceCrew({ name: '', email: '', phone: '' });
+        setShowCrewPanel(false);
+      }
+    } catch (error) {
+      console.error('Error adding freelance crew:', error);
+      alert('Failed to add freelance crew');
+    }
+  };
+
   const removeCrewFromAssignment = async (crewId: string) => {
     try {
       console.log('Removing crew:', crewId);
@@ -529,19 +620,30 @@ export default function CalendarPage() {
         crewInfo = booking.crewId;
       }
       
-      const crew = crewMembers.find(c => c._id === crewId);
+      // Check if this is a freelance crew member (crewId starts with 'freelance-' or 'temp-freelance-')
+      const isFreelance = crewId && (crewId.startsWith('freelance-') || crewId.startsWith('temp-freelance-'));
+      
+      let crew;
+      if (isFreelance) {
+        // For freelance crew, use the crewInfo directly
+        crew = crewInfo;
+      } else {
+        // For regular crew, look up in crewMembers array
+        crew = crewMembers.find(c => c._id === crewId);
+      }
       
       console.log(`Booking for crew ${crewId}:`, {
         crew: crew?.name || crewInfo?.name || 'Unknown',
         booking: booking,
-        status: booking?.status || 'pending'
+        status: booking?.status || 'pending',
+        isFreelance: isFreelance
       });
       
       return {
         _id: crewId,
         name: crew?.name || crewInfo?.name || 'Unknown',
         email: crew?.email || crewInfo?.email || '',
-        role: crew?.role || crewInfo?.role || '',
+        role: isFreelance ? 'Freelance' : (crew?.role || crewInfo?.role || ''),
         status: booking?.status || 'pending',
         assignedAt: booking?.assignedAt
       };
@@ -569,6 +671,10 @@ export default function CalendarPage() {
       await Promise.all(deletePromises);
       console.log('All bookings cleaned up');
     }
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toISOString().split('T')[0];
   };
 
   const handleDateClick = (date: Date) => {
@@ -713,6 +819,9 @@ export default function CalendarPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Start loading
+    setLoading(true);
+    
     try {
       const url = editingEvent ? `/api/shooting-events/${editingEvent._id}` : '/api/shooting-events';
       const method = editingEvent ? 'PUT' : 'POST';
@@ -752,13 +861,22 @@ export default function CalendarPage() {
           for (const crewAssignment of formData.assignedCrew) {
             console.log('Creating booking for crewAssignment:', crewAssignment);
             try {
-              const bookingData = {
+              // Check if this is a freelance crew assignment
+              const isFreelance = crewAssignment.crewId && (crewAssignment.crewId.startsWith('freelance-') || crewAssignment.crewId.startsWith('temp-freelance-'));
+              
+              const bookingPayload: any = {
                 eventId,
                 crewId: crewAssignment.crewId,
                 salary: crewAssignment.salary,
                 paymentStatus: crewAssignment.paymentStatus
               };
-              console.log('Sending booking data:', bookingData);
+              
+              // Add freelance crew data if this is a freelance assignment
+              if (isFreelance && crewAssignment.freelanceCrew) {
+                bookingPayload.freelanceCrew = crewAssignment.freelanceCrew;
+              }
+              
+              console.log('Sending booking data:', bookingPayload);
               
               const bookingResponse = await fetch('/api/admin/bookings', {
                 method: 'POST',
@@ -766,12 +884,7 @@ export default function CalendarPage() {
                   'Content-Type': 'application/json',
                 },
                 credentials: 'include',
-                body: JSON.stringify({
-                  eventId,
-                  crewId: crewAssignment.crewId,
-                  salary: crewAssignment.salary,
-                  paymentStatus: crewAssignment.paymentStatus
-                })
+                body: JSON.stringify(bookingPayload)
               });
               
               if (bookingResponse.ok) {
@@ -813,6 +926,9 @@ export default function CalendarPage() {
         setCrewPaymentStatuses({});
         setShowInquiryPanel(false);
         setSelectedInquiry(null);
+        
+        // Stop loading
+        setLoading(false);
       } else {
         // Check if response is HTML (error page) instead of JSON
         const contentType = response.headers.get('content-type');
@@ -837,10 +953,16 @@ export default function CalendarPage() {
         console.error('Error response:', error);
         console.error('Response status:', response.status);
         alert(`Error: ${error.error || 'Failed to save shooting event'}${error.details ? '\nDetails: ' + error.details : ''}`);
+        
+        // Stop loading
+        setLoading(false);
       }
     } catch (error) {
       console.error('Error saving event:', error);
       alert('Error saving shooting event. Please try again.');
+      
+      // Stop loading
+      setLoading(false);
     }
   };
 
@@ -878,10 +1000,6 @@ export default function CalendarPage() {
 
   const navigateMonth = (direction: number) => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + direction, 1));
-  };
-
-  const formatDate = (date: Date) => {
-    return date.toISOString().split('T')[0];
   };
 
   const getDaysInMonth = (date: Date) => {
@@ -1479,7 +1597,23 @@ export default function CalendarPage() {
                                 </tr>
                               ) : (
                                 formData.assignedCrew.map((crewAssignment) => {
-                                  const crew = crewMembers.find(c => c._id === crewAssignment.crewId);
+                                  // Check if this is a freelance crew assignment
+                                  const isFreelance = crewAssignment.crewId && (crewAssignment.crewId.startsWith('freelance-') || crewAssignment.crewId.startsWith('temp-freelance-'));
+                                  
+                                  let crew;
+                                  if (isFreelance && crewAssignment.freelanceCrew) {
+                                    // For freelance crew, use the freelanceCrew data
+                                    crew = {
+                                      _id: crewAssignment.crewId,
+                                      name: crewAssignment.freelanceCrew.name,
+                                      email: crewAssignment.freelanceCrew.email,
+                                      role: 'Freelance'
+                                    };
+                                  } else {
+                                    // For regular crew, look up in crewMembers array
+                                    crew = crewMembers.find(c => c._id === crewAssignment.crewId);
+                                  }
+                                  
                                   const booking = eventBookings.find(b => (b.crewId._id || b.crewId) === crewAssignment.crewId);
                                   if (!crew) return null;
                                   const bookingStatus = booking?.status || 'pending';
@@ -1586,9 +1720,20 @@ export default function CalendarPage() {
                       </button>
                       <button
                         type="submit"
-                        className="px-3 py-2 bg-black text-white rounded-lg hover:bg-gray-800 w-full sm:w-auto text-sm"
+                        disabled={loading}
+                        className="px-3 py-2 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto text-sm"
                       >
-                        {editingEvent ? 'Update' : 'Create'} Shooting
+                        {loading ? (
+                          <div className="flex items-center justify-center">
+                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            {editingEvent ? 'Updating...' : 'Creating...'} Sending Emails...
+                          </div>
+                        ) : (
+                          `${editingEvent ? 'Update' : 'Create'} Shooting`
+                        )}
                       </button>
                     </div>
                   </div>
@@ -1692,6 +1837,85 @@ export default function CalendarPage() {
             </div>
             
             <div className="px-6 py-4 overflow-y-auto max-h-[60vh]">
+              {/* Freelance Crew Option */}
+              <div className="mb-4">
+                <button
+                  onClick={() => setShowFreelanceForm(!showFreelanceForm)}
+                  className="w-full p-4 border-2 border-dashed border-blue-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                >
+                  <div className="text-center">
+                    <FiUser className="w-6 h-6 mx-auto mb-2 text-blue-600" />
+                    <p className="font-medium text-blue-600">Add Freelance Crew</p>
+                    <p className="text-xs text-gray-500">Invite a new crew member by email</p>
+                  </div>
+                </button>
+              </div>
+
+              {/* Freelance Form */}
+              {showFreelanceForm && (
+                <div className="mb-4 p-4 border border-blue-300 rounded-lg bg-blue-50">
+                  <h4 className="font-medium mb-3">Freelance Crew Details</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                      <input
+                        type="text"
+                        value={freelanceCrew.name}
+                        onChange={(e) => setFreelanceCrew({...freelanceCrew, name: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        placeholder="John Photographer"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                      <input
+                        type="email"
+                        value={freelanceCrew.email}
+                        onChange={(e) => setFreelanceCrew({...freelanceCrew, email: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        placeholder="john@example.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                      <input
+                        type="tel"
+                        value={freelanceCrew.phone}
+                        onChange={(e) => setFreelanceCrew({...freelanceCrew, phone: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        placeholder="555-1234"
+                      />
+                    </div>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={addFreelanceCrew}
+                        className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                      >
+                        Add Freelance
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowFreelanceForm(false);
+                          setFreelanceCrew({ name: '', email: '', phone: '' });
+                        }}
+                        className="flex-1 px-3 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 text-sm"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Divider */}
+              {showFreelanceForm && (
+                <div className="mb-4 flex items-center">
+                  <div className="flex-1 border-t border-gray-300"></div>
+                  <span className="px-3 text-xs text-gray-500">OR</span>
+                  <div className="flex-1 border-t border-gray-300"></div>
+                </div>
+              )}
+
               {(() => {
                 console.log('Crew panel opened - availableCrew length:', availableCrew.length);
                 console.log('availableCrew:', availableCrew);

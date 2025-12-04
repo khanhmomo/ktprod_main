@@ -75,6 +75,13 @@ export default function ShootingEventModal({ isOpen, onClose, eventId, onEventSa
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
   const [loading, setLoading] = useState(false);
   const [eventBookings, setEventBookings] = useState<any[]>([]);
+  const [showFreelanceForm, setShowFreelanceForm] = useState(false);
+  const [freelanceCrew, setFreelanceCrew] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    specialties: ''
+  });
 
   useEffect(() => {
     if (isOpen) {
@@ -294,6 +301,50 @@ export default function ShootingEventModal({ isOpen, onClose, eventId, onEventSa
     } catch (error) {
       console.error('Error adding crew:', error);
       alert('Error adding crew member. Please try again.');
+    }
+  };
+
+  const addFreelanceCrew = async () => {
+    try {
+      if (!freelanceCrew.name || !freelanceCrew.email) {
+        alert('Please fill in name and email for freelance crew');
+        return;
+      }
+
+      const bookingData = {
+        eventId: eventId,
+        freelanceCrew: {
+          name: freelanceCrew.name,
+          email: freelanceCrew.email,
+          phone: freelanceCrew.phone,
+          specialties: freelanceCrew.specialties.split(',').map(s => s.trim()).filter(s => s)
+        },
+        status: 'pending',
+        assignedAt: new Date()
+      };
+
+      const response = await fetch('/api/admin/bookings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bookingData),
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const newBooking = await response.json();
+        setEventBookings([...eventBookings, newBooking.booking]);
+        setShowFreelanceForm(false);
+        setFreelanceCrew({ name: '', email: '', phone: '', specialties: '' });
+        alert('Freelance crew added successfully!');
+      } else {
+        const error = await response.json();
+        alert('Failed to add freelance crew: ' + error.error);
+      }
+    } catch (error) {
+      console.error('Error adding freelance crew:', error);
+      alert('Failed to add freelance crew');
     }
   };
 
@@ -710,6 +761,96 @@ export default function ShootingEventModal({ isOpen, onClose, eventId, onEventSa
               </button>
             </div>
             <div className="p-4 overflow-y-auto max-h-[60vh]">
+              {/* Freelance Crew Option */}
+              <div className="mb-4">
+                <button
+                  onClick={() => setShowFreelanceForm(!showFreelanceForm)}
+                  className="w-full p-4 border-2 border-dashed border-blue-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                >
+                  <div className="text-center">
+                    <FiUser className="w-6 h-6 mx-auto mb-2 text-blue-600" />
+                    <p className="font-medium text-blue-600">Add Freelance Crew</p>
+                    <p className="text-xs text-gray-500">Invite a new crew member by email</p>
+                  </div>
+                </button>
+              </div>
+
+              {/* Freelance Form */}
+              {showFreelanceForm && (
+                <div className="mb-4 p-4 border border-blue-300 rounded-lg bg-blue-50">
+                  <h4 className="font-medium mb-3">Freelance Crew Details</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                      <input
+                        type="text"
+                        value={freelanceCrew.name}
+                        onChange={(e) => setFreelanceCrew({...freelanceCrew, name: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        placeholder="John Photographer"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                      <input
+                        type="email"
+                        value={freelanceCrew.email}
+                        onChange={(e) => setFreelanceCrew({...freelanceCrew, email: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        placeholder="john@example.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                      <input
+                        type="tel"
+                        value={freelanceCrew.phone}
+                        onChange={(e) => setFreelanceCrew({...freelanceCrew, phone: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        placeholder="555-1234"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Specialties</label>
+                      <input
+                        type="text"
+                        value={freelanceCrew.specialties}
+                        onChange={(e) => setFreelanceCrew({...freelanceCrew, specialties: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        placeholder="Photography, Portrait, Wedding"
+                      />
+                    </div>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={addFreelanceCrew}
+                        className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                      >
+                        Add Freelance
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowFreelanceForm(false);
+                          setFreelanceCrew({ name: '', email: '', phone: '', specialties: '' });
+                        }}
+                        className="flex-1 px-3 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 text-sm"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Divider */}
+              {showFreelanceForm && (
+                <div className="mb-4 flex items-center">
+                  <div className="flex-1 border-t border-gray-300"></div>
+                  <span className="px-3 text-xs text-gray-500">OR</span>
+                  <div className="flex-1 border-t border-gray-300"></div>
+                </div>
+              )}
+
+              {/* Existing Crew */}
               {availableCrew.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">No available crew members</p>
               ) : (
