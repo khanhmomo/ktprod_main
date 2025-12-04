@@ -171,14 +171,10 @@ export default function BookingsPage() {
         const calendarEvent = {
           title: bookingData.title || 'Shooting Event',
           description: `
-Booking Details:
-- Customer: ${bookingData.customerName || 'N/A'}
-- Email: ${bookingData.customerEmail || 'N/A'}
-- Location: ${bookingData.location || 'N/A'}
-- Duration: ${bookingData.duration || '1 hour'}
-- Notes: ${bookingData.notes || 'N/A'}
-- Status: ${bookingData.status}
-- Salary: $${bookingData.salary || '0'}
+Customer: ${bookingData.customerName || 'N/A'}
+Location: ${bookingData.location || 'N/A'}
+Duration: ${bookingData.duration || '1 hour'}
+Salary: $${bookingData.salary || '0'}
           `.trim(),
           location: bookingData.location || '',
           date: bookingData.date,
