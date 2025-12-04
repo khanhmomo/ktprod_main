@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isAuthenticated } from '@/lib/auth';
 import dbConnect from '@/lib/db';
 import { Booking } from '@/models/Booking';
+import nodemailer from 'nodemailer';
+import { Crew } from '@/models/Crew';
+import ShootingEvent from '@/models/ShootingEvent';
+
+// Gmail SMTP configuration
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_EMAIL,
+    pass: process.env.GMAIL_APP_PASSWORD, // Use App Password for better security
+  },
+});
 
 // POST /api/admin/bookings - Create a new booking
 export async function POST(request: NextRequest) {
@@ -68,6 +80,58 @@ export async function POST(request: NextRequest) {
 
     console.log(`Booking created: ${booking._id} for crew ${crewId}, event ${eventId}`);
     console.log('Saved booking object:', JSON.stringify(booking.toObject(), null, 2));
+
+    // Get crew and event details for email
+    const crew = await Crew.findById(crewId);
+    const event = await ShootingEvent.findById(eventId);
+
+    if (crew && crew.email) {
+      try {
+        // Send booking invitation email to crew member
+        await transporter.sendMail({
+          from: `"The Wild Studio | Bookings" <${process.env.GMAIL_EMAIL}>`,
+          to: crew.email,
+          subject: `New Booking Invitation: ${event?.title || 'Shooting Event'}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2>New Booking Invitation</h2>
+              
+              <p>Dear ${crew.name},</p>
+              
+              <p>You have been invited to a new booking assignment:</p>
+              
+              <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <p><strong>Event:</strong> ${event?.title || 'Shooting Event'}</p>
+                <p><strong>Date:</strong> ${event?.date || 'TBD'}</p>
+                <p><strong>Time:</strong> ${event?.time || 'TBD'}</p>
+                <p><strong>Location:</strong> ${event?.location || 'TBD'}</p>
+                <p><strong>Duration:</strong> ${event?.duration || 'TBD'}</p>
+                ${salary ? `<p><strong>Salary:</strong> $${salary}</p>` : ''}
+                ${event?.customerName ? `<p><strong>Customer:</strong> ${event.customerName}</p>` : ''}
+              </div>
+              
+              <p>Please log in to your workspace to accept or decline this booking.</p>
+              
+              <div style="margin: 30px 0;">
+                <a href="https://thewildstudio.org/workspace/bookings" 
+                   style="background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                  View Bookings
+                </a>
+              </div>
+              
+              <p>Best regards,<br>The Wild Studio Team</p>
+            </div>
+          `,
+        });
+        
+        console.log(`Booking invitation email sent to ${crew.email}`);
+      } catch (emailError) {
+        console.error('Error sending booking invitation email:', emailError);
+        // Don't fail the booking creation if email fails
+      }
+    } else {
+      console.log(`Crew not found or no email address for crew ID: ${crewId}`);
+    }
 
     return NextResponse.json({ 
       message: 'Booking created successfully',

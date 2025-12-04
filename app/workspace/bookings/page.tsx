@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiCalendar, FiClock, FiMapPin, FiCheck, FiX } from 'react-icons/fi';
+import { FiCalendar, FiClock, FiMapPin, FiCheck, FiX, FiDownload } from 'react-icons/fi';
+import { addToDeviceCalendar } from '@/lib/calendar';
 
 interface Booking {
   _id: string;
@@ -155,6 +156,77 @@ export default function BookingsPage() {
       }
     } catch (error) {
       console.error('Error responding to booking:', error);
+    }
+  };
+
+  const handleCalendarDownload = async (bookingId: string) => {
+    try {
+      // Get booking details for calendar
+      const response = await fetch(`/api/workspace/bookings/${bookingId}/calendar`);
+      
+      if (response.ok) {
+        const bookingData = await response.json();
+        
+        // Create calendar event object
+        const calendarEvent = {
+          title: bookingData.title || 'Shooting Event',
+          description: `
+Booking Details:
+- Customer: ${bookingData.customerName || 'N/A'}
+- Email: ${bookingData.customerEmail || 'N/A'}
+- Location: ${bookingData.location || 'N/A'}
+- Duration: ${bookingData.duration || '1 hour'}
+- Notes: ${bookingData.notes || 'N/A'}
+- Status: ${bookingData.status}
+- Salary: $${bookingData.salary || '0'}
+          `.trim(),
+          location: bookingData.location || '',
+          date: bookingData.date,
+          time: bookingData.time,
+          duration: bookingData.duration || '1 hour'
+        };
+
+        // Try to add directly to device calendar first
+        const addedToDevice = await addToDeviceCalendar(calendarEvent);
+        
+        if (addedToDevice) {
+          alert('Event added to your device calendar!');
+          console.log('Calendar event added directly to device');
+        } else {
+          // Fallback to download .ics file
+          const icsResponse = await fetch(`/api/workspace/bookings/${bookingId}/calendar/download`);
+          const blob = await icsResponse.blob();
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          
+          // Get filename from response headers or create default
+          const contentDisposition = icsResponse.headers.get('content-disposition');
+          let filename = 'booking.ics';
+          if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+            if (filenameMatch) {
+              filename = filenameMatch[1];
+            }
+          }
+          
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+          
+          alert('Calendar file downloaded. Please import it to your calendar app.');
+          console.log('Calendar file downloaded as fallback');
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to get calendar data:', errorData);
+        alert(errorData.error || 'Failed to add to calendar');
+      }
+    } catch (error) {
+      console.error('Error adding to calendar:', error);
+      alert('Failed to add to calendar');
     }
   };
 
@@ -349,30 +421,57 @@ export default function BookingsPage() {
                 )}
 
                 {booking.bookingStatus === 'pending' && (
-                  <div className="flex space-x-2">
+                  <div className="flex flex-col space-y-2">
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleBookingResponse(booking._id, 'accept'); }}
+                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                      >
+                        <FiCheck className="mr-2" />
+                        Accept
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleBookingResponse(booking._id, 'decline'); }}
+                        className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                      >
+                        <FiX className="mr-2" />
+                        Decline
+                      </button>
+                    </div>
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleBookingResponse(booking._id, 'accept'); }}
-                      className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                      onClick={(e) => { e.stopPropagation(); handleCalendarDownload(booking._id); }}
+                      className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
                     >
-                      <FiCheck className="mr-2" />
-                      Accept
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleBookingResponse(booking._id, 'decline'); }}
-                      className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                    >
-                      <FiX className="mr-2" />
-                      Decline
+                      <FiDownload className="mr-2" />
+                      Add to Calendar
                     </button>
                   </div>
                 )}
 
                 {booking.bookingStatus === 'accepted' && (
-                  <span className="text-green-600 font-medium">✓ Accepted</span>
+                  <div className="flex flex-col space-y-2">
+                    <span className="text-green-600 font-medium">✓ Accepted</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleCalendarDownload(booking._id); }}
+                      className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                    >
+                      <FiDownload className="mr-2" />
+                      Add to Calendar
+                    </button>
+                  </div>
                 )}
 
                 {booking.bookingStatus === 'declined' && (
-                  <span className="text-red-600 font-medium">✗ Declined</span>
+                  <div className="flex flex-col space-y-2">
+                    <span className="text-red-600 font-medium">✗ Declined</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleCalendarDownload(booking._id); }}
+                      className="flex items-center px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm"
+                    >
+                      <FiDownload className="mr-2" />
+                      Add to Calendar
+                    </button>
+                  </div>
                 )}
               </div>
             );
