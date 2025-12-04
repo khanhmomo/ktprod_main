@@ -127,13 +127,31 @@ export async function addToDeviceCalendar(event: CalendarEvent): Promise<boolean
     const isAndroid = /Android/.test(navigator.userAgent);
 
     if (isIOS) {
-      // iOS: Use data URL to open in Calendar app
+      // iOS: Create and download .ics file, then try to open it
       const icsContent = generateICSFile(event);
-      const encodedData = encodeURIComponent(icsContent);
-      const dataUrl = `data:text/calendar;charset=utf-8,${encodedData}`;
       
-      // Open in new window to trigger iOS Calendar
-      window.open(dataUrl, '_blank');
+      // Create blob and download
+      const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      
+      // Create download link
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${event.title.replace(/[^a-zA-Z0-9]/g, '_')}.ics`;
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      // Also try to open with data URL (may work on some iOS versions)
+      setTimeout(() => {
+        const encodedData = encodeURIComponent(icsContent);
+        const dataUrl = `data:text/calendar;charset=utf-8,${encodedData}`;
+        window.open(dataUrl, '_blank');
+      }, 1000);
+      
       return true;
     }
 

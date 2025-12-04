@@ -190,8 +190,13 @@ Booking Details:
         const addedToDevice = await addToDeviceCalendar(calendarEvent);
         
         if (addedToDevice) {
-          alert('Event added to your device calendar!');
-          console.log('Calendar event added directly to device');
+          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+          if (isIOS) {
+            alert('Calendar file downloaded! Please open the Files app, find the .ics file, and tap "Add to Calendar" to add this event.');
+          } else {
+            alert('Event added to your device calendar!');
+          }
+          console.log('Calendar event processed for device');
         } else {
           // Fallback to download .ics file
           const icsResponse = await fetch(`/api/workspace/bookings/${bookingId}/calendar/download`);
