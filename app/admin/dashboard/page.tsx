@@ -475,22 +475,24 @@ export default function DashboardPage() {
             <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
             <p className="mt-1 text-sm text-gray-500">Manage your content</p>
           </div>
-          <div className="flex space-x-3">
+          <div className="flex flex-col sm:flex-row sm:space-x-3 space-y-2 sm:space-y-0">
             {activeTab === 'albums' ? (
               <>
-                <button
-                  onClick={handleReorderAlbums}
-                  disabled={reordering || albums.length === 0 || !selectedCategory}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <svg className="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                  {reordering ? 'Reordering...' : (!selectedCategory ? 'Select a category to reorder' : 'Drag to reorder albums')}
-                </button>
+                {selectedCategory && (
+                  <button
+                    onClick={handleReorderAlbums}
+                    disabled={reordering || albums.length === 0}
+                    className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg className="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                    {reordering ? 'Reordering...' : 'Drag to reorder albums'}
+                  </button>
+                )}
                 <Link
                   href="/admin/albums/new"
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
+                  className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
                 >
                   <FiPlus className="-ml-1 mr-2 h-5 w-5" />
                   New Album
@@ -499,7 +501,7 @@ export default function DashboardPage() {
             ) : (
               <Link
                 href="/admin/films/new"
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
+                className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
               >
                 <FiPlus className="-ml-1 mr-2 h-5 w-5" />
                 New Film
@@ -607,9 +609,11 @@ export default function DashboardPage() {
               Create New Album
             </Link>
           </div>
-        ) : (
+        ) : (activeTab === 'albums' || activeTab === 'films') && (
           <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
-            <table className="min-w-full divide-y divide-gray-200">
+            {/* Desktop Table View */}
+            <div className="hidden lg:block">
+              <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   {activeTab === 'albums' && (
@@ -810,6 +814,165 @@ export default function DashboardPage() {
                   )}
               </tbody>
             </table>
+            </div>
+            
+            {/* Mobile Card View */}
+            <div className="lg:hidden">
+              <div className="px-4 py-2 space-y-4">
+                {activeTab === 'albums' ? (
+                  albums.map((album, index) => (
+                    <div key={`mobile-${album._id}`} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center space-x-3">
+                          {album.coverImage ? (
+                            <div className="relative h-12 w-12 rounded-md overflow-hidden flex-shrink-0">
+                              <Image
+                                src={processImageUrl(album.coverImage)}
+                                alt={album.title}
+                                fill
+                                className="object-cover"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.onerror = null;
+                                  target.src = '/images/placeholder.jpg';
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="h-12 w-12 rounded-md bg-gray-200 flex items-center justify-center flex-shrink-0">
+                              <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                            </div>
+                          )}
+                          <div>
+                            <h3 className="text-sm font-medium text-gray-900">{album.title}</h3>
+                            <p className="text-xs text-gray-500">{album.location || 'No location'}</p>
+                          </div>
+                        </div>
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          album.isPublished ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {album.isPublished ? 'Published' : 'Draft'}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 mb-3">
+                        <div>
+                          <span className="font-medium">Photos:</span> {album.images?.length || 0}
+                        </div>
+                        <div>
+                          <span className="font-medium">Category:</span> {album.category || 'Uncategorized'}
+                        </div>
+                        <div className="col-span-2">
+                          <span className="font-medium">Date:</span> {new Date(album.date || album.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => togglePublish(album._id, album.isPublished)}
+                          className={`px-3 py-1 text-xs font-medium rounded ${
+                            album.isPublished 
+                              ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' 
+                              : 'bg-green-100 text-green-800 hover:bg-green-200'
+                          }`}
+                        >
+                          {album.isPublished ? 'Unpublish' : 'Publish'}
+                        </button>
+                        <Link
+                          href={`/admin/albums/${album._id}`}
+                          className="px-3 py-1 text-xs font-medium bg-indigo-100 text-indigo-800 rounded hover:bg-indigo-200"
+                        >
+                          Edit
+                        </Link>
+                        <button
+                          onClick={() => handleDelete(album._id)}
+                          className="px-3 py-1 text-xs font-medium bg-red-100 text-red-800 rounded hover:bg-red-200"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  films.map((film) => (
+                    <div key={`mobile-${film._id}`} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center space-x-3">
+                          {film.thumbnail ? (
+                            <div className="relative h-12 w-12 rounded-md overflow-hidden flex-shrink-0">
+                              <Image
+                                src={film.thumbnail}
+                                alt={film.title}
+                                fill
+                                className="object-cover"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = `https://img.youtube.com/vi/${film.youtubeId}/hqdefault.jpg`;
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="h-12 w-12 rounded-md bg-gray-200 flex items-center justify-center flex-shrink-0">
+                              <FiYoutube className="h-6 w-6 text-red-500" />
+                            </div>
+                          )}
+                          <div>
+                            <h3 className="text-sm font-medium text-gray-900">{film.title}</h3>
+                            <p className="text-xs text-gray-500 line-clamp-2">{film.description}</p>
+                          </div>
+                        </div>
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          film.isPublished ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {film.isPublished ? 'Published' : 'Draft'}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 mb-3">
+                        <div>
+                          <span className="font-medium">Type:</span> Film
+                        </div>
+                        <div>
+                          <span className="font-medium">Date:</span> {new Date(film.createdAt).toLocaleDateString()}
+                        </div>
+                        {film.youtubeId && (
+                          <div className="col-span-2">
+                            <span className="font-medium">YouTube:</span> {film.youtubeId}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => toggleFilmPublishStatus(film._id, film.isPublished)}
+                          className={`px-3 py-1 text-xs font-medium rounded ${
+                            film.isPublished 
+                              ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' 
+                              : 'bg-green-100 text-green-800 hover:bg-green-200'
+                          }`}
+                        >
+                          {film.isPublished ? 'Unpublish' : 'Publish'}
+                        </button>
+                        <Link
+                          href={`/admin/films/${film._id}`}
+                          className="px-3 py-1 text-xs font-medium bg-indigo-100 text-indigo-800 rounded hover:bg-indigo-200"
+                        >
+                          Edit
+                        </Link>
+                        <button
+                          onClick={() => handleDelete(film._id)}
+                          className="px-3 py-1 text-xs font-medium bg-red-100 text-red-800 rounded hover:bg-red-200"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>

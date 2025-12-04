@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { FiPlus, FiEdit2, FiTrash2, FiEye, FiEyeOff, FiMoreVertical } from 'react-icons/fi';
-// import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 
 interface Category {
   id: string;

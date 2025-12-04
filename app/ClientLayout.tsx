@@ -13,25 +13,28 @@ export default function ClientLayout({
   const pathname = usePathname();
   const isInvitation = pathname === '/invitation';
   const isAcademyPage = pathname?.startsWith('/academy');
+  const isAdminPage = pathname?.startsWith('/admin');
+  const isWorkspacePage = pathname?.startsWith('/workspace');
+  const shouldHideNavFooter = isInvitation || isAdminPage || isWorkspacePage;
 
   useEffect(() => {
-    // Remove any existing nav and footer for invitation page
-    if (isInvitation) {
+    // Remove any existing nav and footer for pages that should hide them
+    if (shouldHideNavFooter) {
       const nav = document.querySelector('nav');
       const footer = document.querySelector('footer');
       
       if (nav) nav.style.display = 'none';
       if (footer) footer.style.display = 'none';
     }
-  }, [isInvitation]);
+  }, [shouldHideNavFooter]);
 
   return (
     <div className="min-h-screen flex flex-col">
-      {!isInvitation && <Navbar />}
-      <main className={`flex-grow bg-white ${(!isInvitation && !isAcademyPage) ? 'pt-24' : ''}`}>
+      {!shouldHideNavFooter && <Navbar />}
+      <main className={`flex-grow bg-white ${(!shouldHideNavFooter && !isAcademyPage) ? 'pt-24' : ''}`}>
         {children}
       </main>
-      {!isInvitation && <Footer />}
+      {!shouldHideNavFooter && <Footer />}
     </div>
   );
 }

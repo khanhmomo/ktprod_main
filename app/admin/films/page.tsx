@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { FaPlus, FaEdit, FaTrash, FaYoutube } from 'react-icons/fa';
-import { FiEye, FiEyeOff, FiEdit, FiTrash2 } from 'react-icons/fi';
+import { FiEdit, FiTrash2, FiEye, FiEyeOff, FiYoutube, FiPlus } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 
@@ -113,7 +112,7 @@ export default function AdminFilmsPage() {
           href="/admin/films/new"
           className="bg-black text-white px-4 py-2 rounded-md text-sm flex items-center gap-2 hover:bg-gray-800 transition-colors"
         >
-          <FaPlus /> Add New Film
+          <FiPlus /> Add New Film
         </Link>
       </div>
 
@@ -173,7 +172,7 @@ export default function AdminFilmsPage() {
                           <div className="text-xs text-gray-500 mt-0.5">
                             {film.youtubeId ? (
                               <span className="inline-flex items-center">
-                                <FaYoutube className="text-red-500 mr-1" />
+                                <FiYoutube className="text-red-500 mr-1" />
                                 {film.youtubeId}
                               </span>
                             ) : (

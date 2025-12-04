@@ -48,6 +48,19 @@ export async function POST(request: Request) {
         path: '/',
         maxAge: 60 * 60 * 24 * 7, // 1 week
       });
+
+      // Set user info cookie for traditional login
+      response.cookies.set('user', JSON.stringify({
+        id: 'admin-traditional',
+        email: 'admin@company.com',
+        name: 'System Administrator',
+        role: 'super_admin'
+      }), {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7 // 7 days
+      });
       
       return response;
     }

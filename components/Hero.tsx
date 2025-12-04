@@ -13,34 +13,53 @@ interface Album {
   featuredInHero?: boolean;
 }
 
+interface HeroContent {
+  headline: string;
+  primaryButton: { text: string; href: string; style: string };
+  secondaryButton: { text: string; href: string; style: string };
+  slideshowInterval: number;
+  showNavigation: boolean;
+  showIndicators: boolean;
+}
+
 export default function Hero() {
   const [albums, setAlbums] = useState<Album[]>([]);
+  const [heroContent, setHeroContent] = useState<HeroContent | null>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchAlbums = async () => {
+    const fetchData = async () => {
       try {
+        // Fetch albums
         console.log('Fetching albums...');
-        const response = await fetch('/api/albums');
-        if (response.ok) {
-          const data = await response.json();
-          console.log(`Received ${data.length} albums from API`);
-          setAlbums(data);
+        const albumsResponse = await fetch('/api/albums');
+        if (albumsResponse.ok) {
+          const albumsData = await albumsResponse.json();
+          console.log(`Received ${albumsData.length} albums from API`);
+          setAlbums(albumsData);
           // Start slideshow only if we have albums
-          if (data.length > 0) {
-            console.log('Starting slideshow with', data.length, 'albums');
+          if (albumsData.length > 0) {
+            console.log('Starting slideshow with', albumsData.length, 'albums');
             startSlideshow();
           }
         }
+
+        // Fetch hero content
+        console.log('Fetching hero content...');
+        const contentResponse = await fetch('/api/homepage');
+        if (contentResponse.ok) {
+          const contentData = await contentResponse.json();
+          setHeroContent(contentData.hero);
+        }
       } catch (error) {
-        console.error('Error fetching albums:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchAlbums();
+    fetchData();
 
     return () => {
       // Cleanup slideshow interval on component unmount
@@ -56,10 +75,11 @@ export default function Hero() {
       clearInterval(slideshowInterval.current);
     }
     
-    // Set up new interval to change slides every 2 seconds on all devices
+    // Set up new interval to change slides using dynamic interval
+    const interval = heroContent?.slideshowInterval || 2000;
     slideshowInterval.current = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % (albums.length || 1));
-    }, 2000); // Change slide every 2 seconds for both mobile and desktop
+    }, interval);
   };
 
   // Handle manual slide change
@@ -109,7 +129,7 @@ export default function Hero() {
       </div>
 
       {/* Navigation Arrows */}
-      {albums.length > 1 && (
+      {albums.length > 1 && heroContent?.showNavigation && (
         <>
           <button 
             onClick={() => goToSlide((currentSlide - 1 + albums.length) % albums.length)}
@@ -129,7 +149,7 @@ export default function Hero() {
       )}
 
       {/* Slide Indicators */}
-      {albums.length > 1 && (
+      {albums.length > 1 && heroContent?.showIndicators && (
         <div className="absolute bottom-8 left-0 right-0 z-20 flex justify-center gap-2">
           {albums.map((_, index) => (
             <button
@@ -153,25 +173,25 @@ export default function Hero() {
           className="max-w-4xl mx-auto"
         >
           <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl font-bold mb-4 sm:mb-6 px-4 text-center">
-            Let us tell your story in a different way
+            {heroContent?.headline || 'Let us tell your story in a different way'}
           </h1>
           
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <motion.a
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              href="#contact"
+              href={heroContent?.primaryButton?.href || '#contact'}
               className="bg-white text-black px-8 py-4 rounded-full font-semibold flex items-center justify-center border-2 border-white hover:bg-gray-100 transition-colors"
             >
-              Book now
+              {heroContent?.primaryButton?.text || 'Book now'}
             </motion.a>
             <motion.a
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              href="/gallery"
+              href={heroContent?.secondaryButton?.href || '/gallery'}
               className=" text-white px-8 py-4 rounded-full font-semibold flex items-center justify-center border-2 border-white  transition-colors"
             >
-              View Our Work
+              {heroContent?.secondaryButton?.text || 'View Our Work'}
             </motion.a>
           </div>
         </motion.div>
