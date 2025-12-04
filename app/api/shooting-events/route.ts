@@ -9,12 +9,20 @@ import { sendEmail } from '@/lib/email';
 // GET all shooting events or events for a specific month
 export async function GET(request: NextRequest) {
   try {
+    // Add caching headers to prevent browser caching issues
+    const headers = new Headers({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Surrogate-Control': 'no-store'
+    });
+
     // Check if user is authenticated
     const auth = await isAuthenticated();
     if (!auth) {
       return NextResponse.json(
         { error: 'Unauthorized' },
-        { status: 401 }
+        { status: 401, headers }
       );
     }
 
@@ -46,12 +54,21 @@ export async function GET(request: NextRequest) {
     console.log('Found events:', events.length);
     console.log('Events sample:', events[0]);
     
-    return NextResponse.json(events);
+    return NextResponse.json(events, { headers });
   } catch (error) {
     console.error('Error fetching shooting events:', error);
+    
+    // Add caching headers to error responses as well
+    const headers = new Headers({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Surrogate-Control': 'no-store'
+    });
+    
     return NextResponse.json(
       { error: 'Failed to fetch shooting events' },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 }

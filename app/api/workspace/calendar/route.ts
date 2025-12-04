@@ -37,17 +37,20 @@ export async function GET(request: NextRequest) {
     console.log('Found user:', currentUser.email, 'ID:', currentUser._id);
 
     // Get all bookings for this crew member except pending
-    console.log('Fetching non-pending bookings for crew:', currentUser._id);
+    console.log('Fetching bookings for crew:', currentUser._id);
     
-    // Try without populate first
+    // First, let's see all bookings regardless of status
     const allBookings = await Booking.find({ 
-      crewId: currentUser._id,
-      status: { $ne: 'pending' } // Exclude pending bookings
+      crewId: currentUser._id
     });
     
-    console.log(`Found ${allBookings.length} non-pending bookings (no populate)`);
+    console.log(`Found ${allBookings.length} total bookings for crew:`, allBookings.map(b => ({
+      id: b._id,
+      status: b.status,
+      eventId: b.eventId
+    })));
     
-    // Now try with simple populate
+    // Now get non-pending bookings
     const bookingsWithEvent = await Booking.find({ 
       crewId: currentUser._id,
       status: { $ne: 'pending' } // Exclude pending bookings
@@ -79,13 +82,28 @@ export async function GET(request: NextRequest) {
 
     console.log('Transformed calendar events:', calendarEvents.length);
     console.log('Sample event:', calendarEvents[0]);
+    console.log('All events:', calendarEvents.map(e => ({
+      id: e._id,
+      title: e.title,
+      date: e.date,
+      bookingStatus: e.bookingStatus
+    })));
 
     return NextResponse.json({ events: calendarEvents });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching crew calendar:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     return NextResponse.json(
-      { error: 'Failed to fetch calendar' },
+      { 
+        error: 'Failed to fetch calendar',
+        message: error.message,
+        stack: error.stack
+      },
       { status: 500 }
     );
   }

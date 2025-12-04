@@ -36,6 +36,8 @@ export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [filter, setFilter] = useState<'all' | 'pending' | 'accepted' | 'declined' | 'in_progress' | 'completed' | 'uploaded'>('all');
   const router = useRouter();
 
@@ -46,9 +48,37 @@ export default function BookingsPage() {
   };
 
   useEffect(() => {
-    fetchUser();
-    fetchBookings();
+    initializeData();
   }, []);
+
+  const initializeData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // First fetch user to ensure authentication
+      const userResponse = await fetch('/api/auth/me');
+      if (!userResponse.ok) {
+        throw new Error('Failed to authenticate user');
+      }
+      const userData = await userResponse.json();
+      setUser(userData);
+      
+      // Then fetch bookings
+      await fetchBookings();
+    } catch (error) {
+      console.error('Initialization error:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load data');
+      setLoading(false);
+    }
+  };
+
+  const retryFetch = () => {
+    if (retryCount < 3) {
+      setRetryCount(prev => prev + 1);
+      initializeData();
+    }
+  };
 
   const fetchUser = async () => {
     try {
@@ -65,7 +95,17 @@ export default function BookingsPage() {
   const fetchBookings = async () => {
     try {
       console.log('Fetching bookings from workspace...');
-      const response = await fetch('/api/workspace/bookings');
+      
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const response = await fetch('/api/workspace/bookings', {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
       if (response.ok) {
         const data = await response.json();
         console.log('Raw API response:', data);
@@ -79,13 +119,18 @@ export default function BookingsPage() {
         }
         
         setBookings(data.bookings || []);
+        setError(null);
       } else {
         console.error('Failed to fetch bookings:', response.status);
         const errorData = await response.text();
         console.error('Error response:', errorData);
+        throw new Error(`Failed to fetch bookings: ${response.status}`);
       }
     } catch (error) {
       console.error('Error fetching bookings:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch bookings';
+      setError(errorMessage);
+      setBookings([]); // Clear bookings on error
     } finally {
       setLoading(false);
     }
@@ -150,6 +195,25 @@ export default function BookingsPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-black"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <div className="text-red-600 mb-4">Error: {error}</div>
+        {retryCount < 3 && (
+          <button
+            onClick={retryFetch}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Retry (Attempt {retryCount + 1}/3)
+          </button>
+        )}
+        {retryCount >= 3 && (
+          <div className="text-gray-500">Maximum retry attempts reached. Please refresh the page.</div>
+        )}
       </div>
     );
   }

@@ -72,6 +72,8 @@ export default function CalendarPage() {
   const [events, setEvents] = useState<ShootingEvent[]>([]);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [showEventModal, setShowEventModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [editingEvent, setEditingEvent] = useState<ShootingEvent | null>(null);
@@ -144,11 +146,34 @@ export default function CalendarPage() {
 
   useEffect(() => {
     if (isClient) {
-      fetchEvents();
-      fetchInquiries();
-      fetchCrew();
+      initializeCalendarData();
     }
   }, [currentDate, isClient]);
+
+  const initializeCalendarData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      await Promise.all([
+        fetchEvents(),
+        fetchInquiries(),
+        fetchCrew()
+      ]);
+    } catch (error) {
+      console.error('Calendar initialization error:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load calendar data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const retryFetch = () => {
+    if (retryCount < 3) {
+      setRetryCount(prev => prev + 1);
+      initializeCalendarData();
+    }
+  };
 
   const fetchData = async () => {
     await Promise.all([
@@ -165,9 +190,17 @@ export default function CalendarPage() {
       const month = (currentDate.getMonth() + 1).toString();
       const year = currentDate.getFullYear().toString();
       
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
       const response = await fetch(`/api/shooting-events?month=${month}&year=${year}`, {
-        credentials: 'include'
+        credentials: 'include',
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
+      
       if (response.ok) {
         const data = await response.json();
         console.log('Events data received:', data);
@@ -176,9 +209,14 @@ export default function CalendarPage() {
         console.log('Events state set to:', Array.isArray(data) ? data : []);
       } else {
         console.error('Failed to fetch events:', response.status);
+        throw new Error(`Failed to fetch events: ${response.status}`);
       }
     } catch (error) {
       console.error('Error fetching events:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch events';
+      setError(errorMessage);
+      setEvents([]); // Clear events on error
+      throw error; // Re-throw to be caught by Promise.all
     }
   };
 
@@ -190,9 +228,15 @@ export default function CalendarPage() {
       if (response.ok) {
         const data = await response.json();
         setInquiries(data.inquiries || []);
+      } else {
+        throw new Error(`Failed to fetch inquiries: ${response.status}`);
       }
     } catch (error) {
       console.error('Error fetching inquiries:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch inquiries';
+      setError(errorMessage);
+      setInquiries([]); // Clear inquiries on error
+      throw error; // Re-throw to be caught by Promise.all
     }
   };
 
@@ -208,10 +252,14 @@ export default function CalendarPage() {
         // API returns crew array directly, not wrapped in { crew: [] }
         setCrewMembers(Array.isArray(data) ? data : (data.crew || []));
       } else {
-        console.error('Failed to fetch crew:', response.status);
+        throw new Error(`Failed to fetch crew: ${response.status}`);
       }
     } catch (error) {
       console.error('Error fetching crew:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch crew';
+      setError(errorMessage);
+      setCrewMembers([]); // Clear crew on error
+      throw error; // Re-throw to be caught by Promise.all
     }
   };
 
@@ -858,6 +906,29 @@ export default function CalendarPage() {
               <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
               <div className="h-4 bg-gray-200 rounded w-1/2"></div>
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col items-center justify-center h-64">
+            <div className="text-red-600 mb-4">Error: {error}</div>
+            {retryCount < 3 && (
+              <button
+                onClick={retryFetch}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Retry (Attempt {retryCount + 1}/3)
+              </button>
+            )}
+            {retryCount >= 3 && (
+              <div className="text-gray-500">Maximum retry attempts reached. Please refresh the page.</div>
+            )}
           </div>
         </div>
       </div>

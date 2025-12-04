@@ -6,12 +6,20 @@ import Inquiry from '@/models/Inquiry';
 // GET /api/admin/inquiries - Fetch all inquiries with filtering
 export async function GET(request: Request) {
   try {
+    // Add caching headers to prevent browser caching issues
+    const headers = new Headers({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Surrogate-Control': 'no-store'
+    });
+
     // Check if user is authenticated
     const auth = await isAuthenticated();
     if (!auth) {
       return NextResponse.json(
         { message: 'Unauthorized' },
-        { status: 401 }
+        { status: 401, headers }
       );
     }
 
@@ -74,12 +82,21 @@ export async function GET(request: Request) {
         read: await Inquiry.countDocuments({ status: 'read' }),
         replied: await Inquiry.countDocuments({ status: 'replied' })
       }
-    });
+    }, { headers });
   } catch (error) {
     console.error('Error fetching inquiries:', error);
+    
+    // Add caching headers to error responses as well
+    const headers = new Headers({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Surrogate-Control': 'no-store'
+    });
+    
     return NextResponse.json(
       { message: 'Internal server error' },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 }

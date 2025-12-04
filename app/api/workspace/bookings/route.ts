@@ -8,12 +8,20 @@ import { Booking } from '@/models/Booking';
 // GET /api/workspace/bookings - Get bookings for current crew member
 export async function GET(request: NextRequest) {
   try {
+    // Add caching headers to prevent browser caching issues
+    const headers = new Headers({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Surrogate-Control': 'no-store'
+    });
+
     // Check if user is authenticated
     const auth = await getCurrentUser();
     if (!auth.success) {
       return NextResponse.json(
         { error: 'Unauthorized' },
-        { status: 401 }
+        { status: 401, headers }
       );
     }
 
@@ -24,7 +32,7 @@ export async function GET(request: NextRequest) {
     if (!currentUser) {
       return NextResponse.json(
         { error: 'User not found' },
-        { status: 404 }
+        { status: 404, headers }
       );
     }
 
@@ -93,12 +101,30 @@ export async function GET(request: NextRequest) {
 
     console.log('Final transformed bookings:', transformedBookings.length);
 
-    return NextResponse.json({ bookings: transformedBookings });
-  } catch (error) {
+    return NextResponse.json({ bookings: transformedBookings }, { headers });
+  } catch (error: any) {
     console.error('Error fetching bookings:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
+    // Add caching headers to error responses as well
+    const headers = new Headers({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Surrogate-Control': 'no-store'
+    });
+    
     return NextResponse.json(
-      { error: 'Failed to fetch bookings' },
-      { status: 500 }
+      { 
+        error: 'Failed to fetch bookings',
+        message: error.message,
+        stack: error.stack
+      },
+      { status: 500, headers }
     );
   }
 }

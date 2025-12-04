@@ -8,6 +8,14 @@ export async function GET(request: NextRequest) {
   try {
     console.log('GET /api/admin/crew - Starting request');
     
+    // Add caching headers to prevent browser caching issues
+    const headers = new Headers({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Surrogate-Control': 'no-store'
+    });
+    
     // Check if user is authenticated and is super admin
     const auth = await getCurrentUser();
     console.log('Auth result:', auth);
@@ -16,7 +24,7 @@ export async function GET(request: NextRequest) {
       console.log('Authentication failed');
       return NextResponse.json(
         { error: 'Unauthorized' },
-        { status: 401 }
+        { status: 401, headers }
       );
     }
 
@@ -35,7 +43,7 @@ export async function GET(request: NextRequest) {
     if (!currentUser || currentUser.role !== 'super_admin') {
       return NextResponse.json(
         { error: 'Insufficient permissions' },
-        { status: 403 }
+        { status: 403, headers }
       );
     }
 
@@ -45,12 +53,21 @@ export async function GET(request: NextRequest) {
     
     console.log('Found crew members:', crew.length);
     
-    return NextResponse.json(crew);
+    return NextResponse.json(crew, { headers });
   } catch (error) {
     console.error('Error fetching crew:', error);
+    
+    // Add caching headers to error responses as well
+    const headers = new Headers({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Surrogate-Control': 'no-store'
+    });
+    
     return NextResponse.json(
       { error: 'Failed to fetch crew members' },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 }
