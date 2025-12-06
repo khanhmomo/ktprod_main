@@ -29,7 +29,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/date-fns": "^2.5.3",
     "@types/nodemailer": "^7.0.1",
-        "bcryptjs": "^3.0.2",
+    "bcryptjs": "^3.0.2",
     "cloudinary": "^2.7.0",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.23.12",
@@ -38,13 +38,13 @@
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.544.0",
     "mongoose": "^8.18.0",
-    "next": "15.5.2",
+    "next": "^16.0.7",
     "next-auth": "^4.24.11",
     "next-sitemap": "^4.2.3",
     "nodemailer": "^6.10.1",
     "postcss": "^8.4.31",
     "react": "19.1.0",
-        "react-dom": "19.1.0",
+    "react-dom": "19.1.0",
     "react-dropzone": "^14.3.8",
     "react-hot-toast": "^2.6.0",
     "react-icons": "^5.5.0",
@@ -64,7 +64,7 @@
     "esbuild": "^0.25.9",
     "esbuild-register": "^3.6.0",
     "eslint": "^9",
-    "eslint-config-next": "15.5.2",
+    "eslint-config-next": "^16.0.7",
     "typescript": "^5"
   }
 }
