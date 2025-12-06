@@ -101,7 +101,8 @@ export default function TermsOfService() {
               <p className="text-gray-700 mt-2">
                 The Wild Studio<br />
                 Email: khanhtranproduction@gmail.com<br />
-                Phone: [Your Phone Number]
+                Email: thewildstudio.nt@gmail.com<br />
+                Phone: (832) 992-7879
               </p>
             </section>
 

@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Document, Schema, Types } from 'mongoose';
 
 export interface IGalleryImage {
   url: string;
@@ -9,6 +9,7 @@ export interface IGalleryImage {
 export interface IGallery extends Document {
   title: string;
   slug: string;
+  category: Types.ObjectId;
   description?: string;
   coverImage: string;
   images: IGalleryImage[];
@@ -34,6 +35,11 @@ const GallerySchema = new Schema<IGallery>(
   {
     title: { type: String, required: true },
     slug: { type: String, required: true, unique: true, lowercase: true },
+    category: { 
+      type: Schema.Types.ObjectId, 
+      ref: 'GalleryCategory',
+      required: true 
+    },
     description: { type: String },
     coverImage: { type: String, required: true },
     images: [GalleryImageSchema],

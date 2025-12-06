@@ -34,6 +34,8 @@ export default function Footer() {
               <li><Link href="#about" className="text-gray-400 hover:text-white transition-colors">About Us</Link></li>
               <li><Link href="#services" className="text-gray-400 hover:text-white transition-colors">Services</Link></li>
               <li><Link href="#contact" className="text-gray-400 hover:text-white transition-colors">Contact</Link></li>
+              <li><Link href="/privacy" className="text-gray-400 hover:text-white transition-colors">Privacy Policy</Link></li>
+              <li><Link href="/terms" className="text-gray-400 hover:text-white transition-colors">Terms of Service</Link></li>
             </ul>
           </div>
           
@@ -48,7 +50,11 @@ export default function Footer() {
         </div>
         
         <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-500 text-sm">
-          <p className="text-sm text-gray-400">&copy; {currentYear} TheWildStudio. All rights reserved.</p>
+          <p className="text-sm text-gray-400 mb-2">&copy; {currentYear} TheWildStudio. All rights reserved.</p>
+          <div className="flex justify-center space-x-4 text-sm">
+            <Link href="/privacy" className="text-gray-400 hover:text-white transition-colors">Privacy Policy</Link>
+            <Link href="/terms" className="text-gray-400 hover:text-white transition-colors">Terms of Service</Link>
+          </div>
         </div>
       </div>
     </footer>

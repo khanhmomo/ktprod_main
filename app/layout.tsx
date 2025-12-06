@@ -102,6 +102,7 @@ export default function RootLayout({
     <html lang="en" className={`${lato.variable} ${cormorant.variable} ${caveat.variable}`}>
       <head>
         <JsonLd data={websiteSchema} />
+        <meta name="google-site-verification" content="Sf3ro2PG_KzNpl7DsGzzobYwQGSeZk5tEMYbBn8W804" />
       </head>
       <body className="font-sans bg-white text-gray-900">
         <ClientLayout>
