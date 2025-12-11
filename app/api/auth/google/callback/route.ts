@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get('code');
     const error = searchParams.get('error');
+    const state = searchParams.get('state'); // Return URL
     const isWorkspace = searchParams.get('workspace') === 'true';
 
     if (error) {
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
       if (crewMember) {
         // Update existing crew member with Google info
         crewMember.googleId = userInfo.id;
-        crewMember.avatar = userInfo.picture;
+        crewMember.avatar = userInfo.picture || '';
         await crewMember.save();
       } else {
         // Auto-create crew member for first-time users
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
           googleId: userInfo.id!,
           email: userInfo.email?.toLowerCase() || '',
           name: userInfo.name || '',
-          avatar: userInfo.picture,
+          avatar: userInfo.picture || '',
           role: 'crew', // Default to crew for new users
           permissions: []
         });
@@ -59,14 +60,22 @@ export async function GET(request: NextRequest) {
     } else {
       // Update avatar if changed
       if (!crewMember.avatar && userInfo.picture) {
-        crewMember.avatar = userInfo.picture;
+        crewMember.avatar = userInfo.picture || '';
         await crewMember.save();
       }
     }
 
     // Set authentication cookie
     const baseUrl = process.env.NEXTAUTH_URL;
-    const redirectUrl = isWorkspace ? '/workspace' : '/admin';
+    
+    // Use state parameter for return URL, or fallback to default
+    let redirectUrl = state || (isWorkspace ? '/workspace' : '/admin');
+    
+    // Ensure redirect URL is relative
+    if (redirectUrl.startsWith('http')) {
+      redirectUrl = new URL(redirectUrl).pathname + new URL(redirectUrl).search;
+    }
+    
     const response = NextResponse.redirect(`${baseUrl}${redirectUrl}`);
     
     response.cookies.set('isAuthenticated', 'true', {
@@ -89,6 +98,24 @@ export async function GET(request: NextRequest) {
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7 // 7 days
     });
+
+    // Store Google access token for calendar integration
+    response.cookies.set('google_access_token', tokens.access_token!, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7 // 7 days
+    });
+
+    // Store refresh token if available
+    if (tokens.refresh_token) {
+      response.cookies.set('google_refresh_token', tokens.refresh_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 30 // 30 days
+      });
+    }
 
     return response;
   } catch (error) {

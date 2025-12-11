@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { FiCalendar, FiClock, FiMapPin, FiUser, FiArrowLeft, FiCamera, FiCheckCircle, FiUpload, FiLoader, FiDollarSign, FiCreditCard } from 'react-icons/fi';
+import { FiCalendar, FiClock, FiMapPin, FiUser, FiArrowLeft, FiCamera, FiCheckCircle, FiUpload, FiLoader, FiDollarSign, FiCreditCard, FiExternalLink } from 'react-icons/fi';
 
 interface ShootingEvent {
   _id: string;
@@ -93,6 +93,40 @@ export default function ShootingDetailsPage() {
     }
   };
 
+  const handleGoogleCalendar = async () => {
+    try {
+      const response = await fetch(`/api/workspace/bookings/${shooting?.bookingId}/google-calendar`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+
+      const data = await response.json();
+
+      if (data.needsAuth) {
+        // User needs to grant calendar access
+        window.location.href = data.authUrl;
+        return;
+      }
+
+      if (data.message === 'Token refreshed, please try again') {
+        // Token was refreshed, try again automatically
+        setTimeout(() => {
+          handleGoogleCalendar();
+        }, 1000);
+        return;
+      }
+
+      if (data.success) {
+        alert('Event added to your Google Calendar successfully!');
+      } else {
+        alert(data.error || 'Failed to add to Google Calendar');
+      }
+    } catch (error) {
+      console.error('Error adding to Google Calendar:', error);
+      alert('Failed to add to Google Calendar');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -179,6 +213,17 @@ export default function ShootingDetailsPage() {
               Status: <span className="ml-2 font-medium">{formatStatus(currentStatus)}</span>
             </div>
           </div>
+        </div>
+
+        {/* Google Calendar Button */}
+        <div className="mt-4">
+          <button
+            onClick={handleGoogleCalendar}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <FiExternalLink className="mr-2" />
+            Add to Google Calendar
+          </button>
         </div>
 
         {shooting.notes && (

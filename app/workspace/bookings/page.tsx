@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiCalendar, FiClock, FiMapPin, FiCheck, FiX, FiDownload } from 'react-icons/fi';
-import { addToDeviceCalendar } from '@/lib/calendar';
+import { FiCalendar, FiClock, FiMapPin, FiCheck, FiX, FiExternalLink } from 'react-icons/fi';
 
 interface Booking {
   _id: string;
@@ -159,75 +158,29 @@ export default function BookingsPage() {
     }
   };
 
-  const handleCalendarDownload = async (bookingId: string) => {
+  const handleGoogleCalendar = async (bookingId: string) => {
     try {
-      // Get booking details for calendar
-      const response = await fetch(`/api/workspace/bookings/${bookingId}/calendar?t=${Date.now()}`);
-      
-      if (response.ok) {
-        const bookingData = await response.json();
-        
-        // Create calendar event object
-        const calendarEvent = {
-          title: bookingData.title || 'Shooting Event',
-          description: `
-Customer: ${bookingData.customerName || 'N/A'}
-Location: ${bookingData.location || 'N/A'}
-Duration: ${bookingData.duration || '1 hour'}
-Salary: $${bookingData.salary || '0'}
-          `.trim(),
-          location: bookingData.location || '',
-          date: bookingData.date,
-          time: bookingData.time,
-          duration: bookingData.duration || '1 hour'
-        };
+      const response = await fetch(`/api/workspace/bookings/${bookingId}/google-calendar`, {
+        method: 'POST',
+        credentials: 'include'
+      });
 
-        // Try to add directly to device calendar first
-        const addedToDevice = await addToDeviceCalendar(calendarEvent);
-        
-        if (addedToDevice) {
-          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-          if (isIOS) {
-            alert('Calendar file downloaded! Please open the Files app, find the .ics file, and tap "Add to Calendar" to add this event.');
-          } else {
-            alert('Event added to your device calendar!');
-          }
-          console.log('Calendar event processed for device');
-        } else {
-          // Fallback to download .ics file
-          const icsResponse = await fetch(`/api/workspace/bookings/${bookingId}/calendar/download?t=${Date.now()}`);
-          const blob = await icsResponse.blob();
-          const url = window.URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          
-          // Get filename from response headers or create default
-          const contentDisposition = icsResponse.headers.get('content-disposition');
-          let filename = 'booking.ics';
-          if (contentDisposition) {
-            const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-            if (filenameMatch) {
-              filename = filenameMatch[1];
-            }
-          }
-          
-          link.download = filename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(url);
-          
-          alert('Calendar file downloaded. Please import it to your calendar app.');
-          console.log('Calendar file downloaded as fallback');
-        }
+      const data = await response.json();
+
+      if (data.needsAuth) {
+        // User needs to grant calendar access
+        window.location.href = data.authUrl;
+        return;
+      }
+
+      if (data.success) {
+        alert('Event added to your Google Calendar successfully!');
       } else {
-        const errorData = await response.json();
-        console.error('Failed to get calendar data:', errorData);
-        alert(errorData.error || 'Failed to add to calendar');
+        alert(data.error || 'Failed to add to Google Calendar');
       }
     } catch (error) {
-      console.error('Error adding to calendar:', error);
-      alert('Failed to add to calendar');
+      console.error('Error adding to Google Calendar:', error);
+      alert('Failed to add to Google Calendar');
     }
   };
 
@@ -422,29 +375,20 @@ Salary: $${bookingData.salary || '0'}
                 )}
 
                 {booking.bookingStatus === 'pending' && (
-                  <div className="flex flex-col space-y-2">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleBookingResponse(booking._id, 'accept'); }}
-                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                      >
-                        <FiCheck className="mr-2" />
-                        Accept
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleBookingResponse(booking._id, 'decline'); }}
-                        className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                      >
-                        <FiX className="mr-2" />
-                        Decline
-                      </button>
-                    </div>
+                  <div className="flex space-x-2">
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleCalendarDownload(booking._id); }}
-                      className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                      onClick={(e) => { e.stopPropagation(); handleBookingResponse(booking._id, 'accept'); }}
+                      className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                     >
-                      <FiDownload className="mr-2" />
-                      Add to Calendar
+                      <FiCheck className="mr-2" />
+                      Accept
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleBookingResponse(booking._id, 'decline'); }}
+                      className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                    >
+                      <FiX className="mr-2" />
+                      Decline
                     </button>
                   </div>
                 )}
@@ -452,26 +396,12 @@ Salary: $${bookingData.salary || '0'}
                 {booking.bookingStatus === 'accepted' && (
                   <div className="flex flex-col space-y-2">
                     <span className="text-green-600 font-medium">✓ Accepted</span>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleCalendarDownload(booking._id); }}
-                      className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-                    >
-                      <FiDownload className="mr-2" />
-                      Add to Calendar
-                    </button>
                   </div>
                 )}
 
                 {booking.bookingStatus === 'declined' && (
                   <div className="flex flex-col space-y-2">
                     <span className="text-red-600 font-medium">✗ Declined</span>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleCalendarDownload(booking._id); }}
-                      className="flex items-center px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm"
-                    >
-                      <FiDownload className="mr-2" />
-                      Add to Calendar
-                    </button>
                   </div>
                 )}
               </div>

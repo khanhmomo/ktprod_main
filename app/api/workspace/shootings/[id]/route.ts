@@ -8,9 +8,11 @@ import ShootingEvent from '@/models/ShootingEvent';
 // GET /api/workspace/shootings/[id] - Get shooting details for crew member
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+
     // Check if user is authenticated
     const auth = await getCurrentUser();
     if (!auth.success) {
@@ -33,7 +35,7 @@ export async function GET(
 
     // Find the booking for this shooting and crew member
     const booking = await Booking.findOne({ 
-      eventId: params.id,
+      eventId: id,
       crewId: currentUser._id 
     }).populate('eventId');
 

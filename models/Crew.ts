@@ -61,9 +61,7 @@ const crewSchema = new Schema<ICrew>({
   timestamps: true
 });
 
-// Index for faster lookups
-crewSchema.index({ googleId: 1 });
-crewSchema.index({ email: 1 });
+// Index for faster lookups (only for fields that don't already have unique indexes)
 crewSchema.index({ role: 1 });
 
 // Clear any existing model to force schema refresh
