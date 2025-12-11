@@ -45,6 +45,11 @@ const pageContentItems = [
     icon: <FiFolder className="h-5 w-5" />,
   },
   {
+    name: 'Showcase',
+    href: '/admin/showcase',
+    icon: <FiImage className="h-5 w-5" />,
+  },
+  {
     name: 'Homepage',
     href: '/admin/homepage',
     icon: <FiEdit3 className="h-5 w-5" />,

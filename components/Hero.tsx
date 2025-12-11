@@ -5,12 +5,13 @@ import Image from 'next/image';
 import { FiArrowRight, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { useEffect, useState, useRef } from 'react';
 
-interface Album {
+interface ShowcaseItem {
   _id: string;
   title: string;
-  coverImage: string;
-  images: { url: string; alt?: string }[];
-  featuredInHero?: boolean;
+  description?: string;
+  imageUrl: string;
+  order: number;
+  isActive: boolean;
 }
 
 interface HeroContent {
@@ -23,7 +24,7 @@ interface HeroContent {
 }
 
 export default function Hero() {
-  const [albums, setAlbums] = useState<Album[]>([]);
+  const [showcaseItems, setShowcaseItems] = useState<ShowcaseItem[]>([]);
   const [heroContent, setHeroContent] = useState<HeroContent | null>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,16 +32,16 @@ export default function Hero() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch albums
-        console.log('Fetching albums...');
-        const albumsResponse = await fetch('/api/albums');
-        if (albumsResponse.ok) {
-          const albumsData = await albumsResponse.json();
-          console.log(`Received ${albumsData.length} albums from API`);
-          setAlbums(albumsData);
-          // Start slideshow only if we have albums
-          if (albumsData.length > 0) {
-            console.log('Starting slideshow with', albumsData.length, 'albums');
+        // Fetch showcase items
+        console.log('Fetching showcase items...');
+        const showcaseResponse = await fetch('/api/showcase?activeOnly=true');
+        if (showcaseResponse.ok) {
+          const showcaseData = await showcaseResponse.json();
+          console.log(`Received ${showcaseData.length} showcase items from API`);
+          setShowcaseItems(showcaseData);
+          // Start slideshow only if we have showcase items
+          if (showcaseData.length > 0) {
+            console.log('Starting slideshow with', showcaseData.length, 'showcase items');
             startSlideshow();
           }
         }
@@ -78,7 +79,7 @@ export default function Hero() {
     // Set up new interval to change slides using dynamic interval
     const interval = heroContent?.slideshowInterval || 2000;
     slideshowInterval.current = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % (albums.length || 1));
+      setCurrentSlide((prev) => (prev + 1) % (showcaseItems.length || 1));
     }, interval);
   };
 
@@ -98,11 +99,11 @@ export default function Hero() {
       <div className="absolute inset-0 z-0">
         {isLoading ? (
           <div className="w-full h-full bg-gray-200 animate-pulse" />
-        ) : albums.length > 0 ? (
+        ) : showcaseItems.length > 0 ? (
           <div className="relative w-full h-full">
-            {albums.map((album, index) => (
+            {showcaseItems.map((item, index) => (
               <motion.div
-                key={album._id}
+                key={item._id}
                 className="absolute inset-0"
                 initial={{ opacity: 0 }}
                 animate={{
@@ -112,8 +113,8 @@ export default function Hero() {
                 transition={{ duration: 1.5, ease: [0.4, 0, 0.2, 1] }}
               >
                 <Image
-                  src={album.coverImage}
-                  alt={album.title || 'Studio Background'}
+                  src={item.imageUrl}
+                  alt={item.title || 'Showcase Background'}
                   fill
                   priority={index <= 1} // Only prioritize first two images for loading
                   className="object-cover"
@@ -129,17 +130,17 @@ export default function Hero() {
       </div>
 
       {/* Navigation Arrows */}
-      {albums.length > 1 && heroContent?.showNavigation && (
+      {showcaseItems.length > 1 && heroContent?.showNavigation && (
         <>
           <button 
-            onClick={() => goToSlide((currentSlide - 1 + albums.length) % albums.length)}
+            onClick={() => goToSlide((currentSlide - 1 + showcaseItems.length) % showcaseItems.length)}
             className="absolute left-4 z-20 p-2 rounded-full bg-black/30 text-white hover:bg-black/50 transition-colors"
             aria-label="Previous slide"
           >
             <FiChevronLeft size={32} />
           </button>
           <button 
-            onClick={() => goToSlide((currentSlide + 1) % albums.length)}
+            onClick={() => goToSlide((currentSlide + 1) % showcaseItems.length)}
             className="absolute right-4 z-20 p-2 rounded-full bg-black/30 text-white hover:bg-black/50 transition-colors"
             aria-label="Next slide"
           >
@@ -149,9 +150,9 @@ export default function Hero() {
       )}
 
       {/* Slide Indicators */}
-      {albums.length > 1 && heroContent?.showIndicators && (
+      {showcaseItems.length > 1 && heroContent?.showIndicators && (
         <div className="absolute bottom-8 left-0 right-0 z-20 flex justify-center gap-2">
-          {albums.map((_, index) => (
+          {showcaseItems.map((_, index) => (
             <button
               key={index}
               onClick={() => goToSlide(index)}
