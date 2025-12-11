@@ -129,42 +129,6 @@ export default function Hero() {
         )}
       </div>
 
-      {/* Navigation Arrows */}
-      {showcaseItems.length > 1 && heroContent?.showNavigation && (
-        <>
-          <button 
-            onClick={() => goToSlide((currentSlide - 1 + showcaseItems.length) % showcaseItems.length)}
-            className="absolute left-4 z-20 p-2 rounded-full bg-black/30 text-white hover:bg-black/50 transition-colors"
-            aria-label="Previous slide"
-          >
-            <FiChevronLeft size={32} />
-          </button>
-          <button 
-            onClick={() => goToSlide((currentSlide + 1) % showcaseItems.length)}
-            className="absolute right-4 z-20 p-2 rounded-full bg-black/30 text-white hover:bg-black/50 transition-colors"
-            aria-label="Next slide"
-          >
-            <FiChevronRight size={32} />
-          </button>
-        </>
-      )}
-
-      {/* Slide Indicators */}
-      {showcaseItems.length > 1 && heroContent?.showIndicators && (
-        <div className="absolute bottom-8 left-0 right-0 z-20 flex justify-center gap-2">
-          {showcaseItems.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => goToSlide(index)}
-              className={`w-3 h-3 rounded-full transition-colors ${
-                index === currentSlide ? 'bg-white' : 'bg-white/50 hover:bg-white/75'
-              }`}
-              aria-label={`Go to slide ${index + 1}`}
-            />
-          ))}
-        </div>
-      )}
-
       {/* Hero Content */}
       <div className="container mx-auto px-4 z-10 text-center text-white">
         <motion.div
