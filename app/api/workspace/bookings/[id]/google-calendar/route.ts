@@ -93,6 +93,37 @@ export async function POST(
       });
     }
 
+    // Test the token with calendar scope before using it
+    try {
+      const oauth2Client = new (await import('googleapis')).google.auth.OAuth2(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET,
+        process.env.GOOGLE_REDIRECT_URI
+      );
+      oauth2Client.setCredentials({ access_token: sessionToken });
+
+      const calendar = (await import('googleapis')).google.calendar({ version: 'v3', auth: oauth2Client });
+      
+      // Test access by trying to list calendars
+      await calendar.calendarList.list();
+      
+    } catch (scopeError: any) {
+      console.error('Token lacks calendar scope:', scopeError);
+      
+      // Clear the invalid token and force re-auth
+      const response = NextResponse.json({
+        needsAuth: true,
+        authUrl: getGoogleCalendarAuthURL(request.headers.get('referer') || `${process.env.NEXTAUTH_URL}/workspace/shootings/${id}`),
+        bookingId: id,
+        error: 'Token lacks calendar scope, please re-authenticate'
+      });
+      
+      response.cookies.delete('google_access_token');
+      response.cookies.delete('google_refresh_token');
+      
+      return response;
+    }
+
     // Add event to Google Calendar
     const calendarEvent = {
       title: `TheWild | ${booking.eventId?.title || 'No Title'}`,
