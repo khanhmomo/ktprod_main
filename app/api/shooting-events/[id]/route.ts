@@ -41,7 +41,8 @@ export async function PUT(
       customerEmail,
       customerPhone,
       packageType,
-      assignedCrew
+      assignedCrew,
+      status
     } = body;
     
     // Create update data object
@@ -58,6 +59,7 @@ export async function PUT(
       customerPhone: customerPhone || '',
       packageType: packageType || '',
       assignedCrew: assignedCrew || [],
+      status: status || 'scheduled',
       updatedAt: new Date()
     };
     
@@ -78,66 +80,6 @@ export async function PUT(
     }
     
     console.log('Shooting event updated successfully');
-    
-    // Handle crew assignments and email notifications
-    if (assignedCrew && assignedCrew.length > 0) {
-      console.log('Updating crew assignments and sending notifications...');
-      
-      try {
-        // Update crew assignments
-        shootingEvent.crewAssignments = assignedCrew.map((crewId: string) => ({
-          crewId,
-          status: 'pending',
-          assignedAt: new Date()
-        }));
-        
-        // Also set the assignedCrew field for easy access
-        shootingEvent.assignedCrew = assignedCrew;
-        
-        // Save the updated event with crew assignments
-        await shootingEvent.save();
-        
-        // Get crew member details for email notifications
-        const crewMembers = await Crew.find({ _id: { $in: assignedCrew } });
-        
-        for (const crew of crewMembers) {
-          console.log(`Sending email to crew: ${crew.name} (${crew.email})`);
-          
-          const emailContent = `
-            Updated Booking with TheWild Studio
-            
-            Event: ${title}
-            Date: ${date}
-            Time: ${time}
-            Location: ${location}
-            Duration: ${duration}
-            Customer: ${customerName}
-            Email: ${customerEmail}
-            Phone: ${customerPhone}
-            Package: ${packageType}
-            
-            Notes: ${notes}
-            
-            This booking has been assigned to you. Please check your calendar.
-          `;
-          
-          console.log(`Email content for ${crew.email}:`, emailContent);
-          
-          // Send the email (disabled for now)
-          // await sendEmail({
-          //   to: crew.email,
-          //   subject: 'Updated booking with TheWild Studio',
-          //   text: emailContent
-          // });
-          console.log('Email sending disabled - would send to:', crew.email);
-        }
-        
-        console.log(`Email notifications sent to ${crewMembers.length} crew members`);
-      } catch (crewError) {
-        console.error('Error handling crew assignments:', crewError);
-        // Don't fail the request if crew handling fails
-      }
-    }
     
     return NextResponse.json(shootingEvent);
   } catch (error) {

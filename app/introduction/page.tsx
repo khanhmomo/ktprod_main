@@ -9,7 +9,7 @@ const Logo = () => (
   <div className="relative w-96 h-24 mx-auto mb-8">
     <Image
       src="/thewildlogo_black.png"
-      alt="The Wild Photography"
+      alt="The Wild Studio"
       width={384}
       height={96}
       className="object-contain w-full h-full"

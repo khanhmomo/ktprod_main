@@ -50,7 +50,7 @@ export default function Navbar() {
             >
               <Image
                 src="/thewildlogo.png"
-                alt="The Wild Photography"
+                alt="The Wild Studio"
                 fill
                 className="object-contain"
                 priority
@@ -60,7 +60,7 @@ export default function Navbar() {
             <div className={`relative h-12 w-40 ${scrolled || !isTransparentPage ? 'block' : 'hidden'}`}>
               <Image
                 src="/thewildlogo_black.png"
-                alt="The Wild Photography"
+                alt="The Wild Studio"
                 fill
                 className="object-contain"
                 priority
