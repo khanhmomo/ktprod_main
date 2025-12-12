@@ -67,7 +67,14 @@ export default function HomepageManager() {
 
   const startEditing = (section: string) => {
     setEditingSection(section);
-    setEditData(content ? { ...content[section as keyof HomepageContent] } : null);
+    if (content) {
+      const sectionData = content[section as keyof HomepageContent];
+      // Deep copy to ensure arrays are properly copied
+      const editDataCopy = JSON.parse(JSON.stringify(sectionData));
+      setEditData(editDataCopy);
+    } else {
+      setEditData(null);
+    }
   };
 
   const cancelEditing = () => {
@@ -110,16 +117,48 @@ export default function HomepageManager() {
   const updateEditData = (path: string, value: any) => {
     if (!editData) return;
     
+    console.log('updateEditData called with path:', path, 'value:', value);
+    
     const keys = path.split('.');
     const newData = { ...editData };
     let current = newData;
     
     for (let i = 0; i < keys.length - 1; i++) {
-      current[keys[i]] = { ...current[keys[i]] };
-      current = current[keys[i]];
+      const key = keys[i];
+      // Handle array indices
+      if (!isNaN(Number(key))) {
+        if (!Array.isArray(current)) {
+          console.error('Expected array at path:', path.substring(0, path.indexOf(key)));
+          return;
+        }
+        current = current[Number(key)];
+      } else {
+        // Handle object properties
+        if (key === 'stats') {
+          // Ensure stats is always an array
+          if (!Array.isArray(current[key])) {
+            current[key] = [];
+          }
+          current[key] = [...current[key]]; // Create new array reference
+        } else {
+          current[key] = { ...current[key] };
+        }
+        current = current[key];
+      }
     }
     
-    current[keys[keys.length - 1]] = value;
+    const finalKey = keys[keys.length - 1];
+    if (!isNaN(Number(finalKey))) {
+      // Setting array index
+      if (Array.isArray(current)) {
+        current[Number(finalKey)] = value;
+      }
+    } else {
+      // Setting object property
+      current[finalKey] = value;
+    }
+    
+    console.log('Updated editData:', newData);
     setEditData(newData);
   };
 
@@ -216,7 +255,7 @@ export default function HomepageManager() {
         </div>
 
         {/* Section-specific editor */}
-        {renderSectionEditor(activeSection, editingSection === activeSection, editData, updateEditData)}
+        {renderSectionEditor(activeSection, editingSection === activeSection, editingSection === activeSection ? editData : content?.[activeSection as keyof HomepageContent], updateEditData)}
       </motion.div>
     </div>
   );
@@ -240,6 +279,134 @@ function renderSectionEditor(section: string, isEditing: boolean, editData: any,
 }
 
 function HeroEditor({ isEditing, data, updateEditData }: { isEditing: boolean; data: any; updateEditData: (path: string, value: any) => void }) {
+  const [showcaseItems, setShowcaseItems] = useState<any[]>([]);
+  const [showcaseLoading, setShowcaseLoading] = useState(true);
+
+  useEffect(() => {
+    fetchShowcaseItems();
+  }, []);
+
+  const fetchShowcaseItems = async () => {
+    try {
+      const response = await fetch('/api/showcase');
+      if (response.ok) {
+        const items = await response.json();
+        setShowcaseItems(items.sort((a: any, b: any) => a.order - b.order));
+      }
+    } catch (error) {
+      console.error('Error fetching showcase items:', error);
+    } finally {
+      setShowcaseLoading(false);
+    }
+  };
+
+  const addShowcaseItem = async () => {
+    const imageUrl = prompt('Enter Google Drive image URL:');
+    if (!imageUrl) return;
+
+    try {
+      // Validate it's a Google Drive URL
+      if (!imageUrl.includes('drive.google.com') && !imageUrl.includes('googleusercontent.com')) {
+        alert('Please enter a valid Google Drive URL');
+        return;
+      }
+      
+      // Extract file ID from various Google Drive URL formats
+      let fileId = '';
+      const patterns = [
+        /\/file\/d\/([\w-]+)/, // /file/d/FILE_ID/
+        /[?&]id=([\w-]+)/, // ?id=FILE_ID or &id=FILE_ID
+        /^([\w-]{25,})$/ // Just the ID (25+ characters)
+      ];
+      
+      for (const pattern of patterns) {
+        const match = imageUrl.match(pattern);
+        if (match && match[1]) {
+          fileId = match[1];
+          break;
+        }
+      }
+      
+      if (!fileId) {
+        alert('Could not extract file ID from the URL. Please check the URL format.');
+        return;
+      }
+      
+      // Create the proxy URL
+      const proxyUrl = `/api/drive/image?id=${encodeURIComponent(fileId)}`;
+
+      const response = await fetch('/api/showcase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageUrl: proxyUrl,
+          order: showcaseItems.length
+        }),
+      });
+
+      if (response.ok) {
+        await fetchShowcaseItems();
+      } else {
+        alert('Failed to add showcase item');
+      }
+    } catch (error) {
+      console.error('Error adding showcase item:', error);
+      alert('Failed to add showcase item');
+    }
+  };
+
+  const deleteShowcaseItem = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this showcase item?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/showcase/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        await fetchShowcaseItems();
+      } else {
+        alert('Failed to delete showcase item');
+      }
+    } catch (error) {
+      console.error('Error deleting showcase item:', error);
+      alert('Failed to delete showcase item');
+    }
+  };
+
+  const moveShowcaseItem = async (item: any, direction: 'up' | 'down') => {
+    const currentIndex = showcaseItems.findIndex((i: any) => i._id === item._id);
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+
+    if (newIndex < 0 || newIndex >= showcaseItems.length) {
+      return;
+    }
+
+    const otherItem = showcaseItems[newIndex];
+
+    try {
+      await Promise.all([
+        fetch(`/api/showcase/${item._id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...item, order: newIndex }),
+        }),
+        fetch(`/api/showcase/${otherItem._id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...otherItem, order: currentIndex }),
+        }),
+      ]);
+
+      await fetchShowcaseItems();
+    } catch (error) {
+      console.error('Error reordering items:', error);
+      alert('Failed to reorder items');
+    }
+  };
+
   if (!isEditing || !data) {
     return (
       <div className="space-y-4">
@@ -256,6 +423,29 @@ function HeroEditor({ isEditing, data, updateEditData }: { isEditing: boolean; d
             <label className="block text-sm font-medium text-gray-700 mb-1">Secondary Button</label>
             <p className="text-gray-900">{data?.secondaryButton?.text || 'No text set'}</p>
           </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Showcase Images</label>
+          <div className="space-y-2">
+            {showcaseLoading ? (
+              <p className="text-gray-500">Loading showcase items...</p>
+            ) : showcaseItems.length > 0 ? (
+              showcaseItems.map((item: any, index: number) => (
+                <div key={item._id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="w-16 h-12 bg-gray-200 rounded overflow-hidden flex-shrink-0">
+                    <img src={item.imageUrl} alt={`Showcase ${index + 1}`} className="w-full h-full object-cover" />
+                  </div>
+                  <span className="text-sm text-gray-700">Image #{index + 1}</span>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-500">No showcase images added</p>
+            )}
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Slideshow Interval</label>
+          <p className="text-gray-900">{(data?.slideshowInterval || 2000) / 1000} seconds</p>
         </div>
       </div>
     );
@@ -317,34 +507,92 @@ function HeroEditor({ isEditing, data, updateEditData }: { isEditing: boolean; d
       
       <div className="grid grid-cols-3 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Slideshow Interval (ms)</label>
-          <input
-            type="number"
-            value={data.slideshowInterval || 2000}
-            onChange={(e) => updateEditData('slideshowInterval', parseInt(e.target.value))}
+          <label className="block text-sm font-medium text-gray-700 mb-1">Slideshow Interval (seconds)</label>
+          <select
+            value={(data.slideshowInterval || 2000) / 1000}
+            onChange={(e) => updateEditData('slideshowInterval', parseInt(e.target.value) * 1000)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
+          >
+            <option value="1">1 second</option>
+            <option value="2">2 seconds</option>
+            <option value="3">3 seconds</option>
+            <option value="4">4 seconds</option>
+            <option value="5">5 seconds</option>
+            <option value="6">6 seconds</option>
+            <option value="8">8 seconds</option>
+            <option value="10">10 seconds</option>
+            <option value="15">15 seconds</option>
+            <option value="20">20 seconds</option>
+            <option value="30">30 seconds</option>
+          </select>
         </div>
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            id="showNavigation"
-            checked={data.showNavigation || false}
-            onChange={(e) => updateEditData('showNavigation', e.target.checked)}
-            className="mr-2"
-          />
-          <label htmlFor="showNavigation" className="text-sm text-gray-700">Show Navigation</label>
+      </div>
+      
+      {/* Showcase Images Management */}
+      <div>
+        <div className="flex justify-between items-center mb-4">
+          <label className="block text-sm font-medium text-gray-700">Showcase Images</label>
+          <button
+            onClick={addShowcaseItem}
+            className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+          >
+            Add Image
+          </button>
         </div>
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            id="showIndicators"
-            checked={data.showIndicators || false}
-            onChange={(e) => updateEditData('showIndicators', e.target.checked)}
-            className="mr-2"
-          />
-          <label htmlFor="showIndicators" className="text-sm text-gray-700">Show Indicators</label>
-        </div>
+        
+        {showcaseLoading ? (
+          <p className="text-gray-500">Loading showcase items...</p>
+        ) : showcaseItems.length > 0 ? (
+          <div className="space-y-2">
+            {showcaseItems.map((item: any, index: number) => (
+              <div key={item._id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                <div className="w-20 h-16 bg-gray-200 rounded overflow-hidden flex-shrink-0">
+                  <img src={item.imageUrl} alt={`Showcase ${index + 1}`} className="w-full h-full object-cover" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700">Image #{index + 1}</span>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => moveShowcaseItem(item, 'up')}
+                        disabled={index === 0}
+                        className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Move up"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        onClick={() => moveShowcaseItem(item, 'down')}
+                        disabled={index === showcaseItems.length - 1}
+                        className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Move down"
+                      >
+                        ↓
+                      </button>
+                      <button
+                        onClick={() => deleteShowcaseItem(item._id)}
+                        className="p-1 text-red-500 hover:text-red-700"
+                        title="Delete"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 bg-gray-50 rounded-lg">
+            <p className="text-gray-500 mb-2">No showcase images added</p>
+            <button
+              onClick={addShowcaseItem}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Add First Image
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -367,6 +615,21 @@ function AboutEditor({ isEditing, data, updateEditData }: { isEditing: boolean; 
               </p>
             )) || <p className="text-gray-500">No paragraphs set</p>}
           </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Story Image</label>
+          {data?.imageUrl ? (
+            <div className="space-y-2">
+              <img 
+                src={data.imageUrl} 
+                alt={data.imageAlt || 'Our Story'} 
+                className="w-full h-48 object-cover rounded-lg"
+              />
+              <p className="text-sm text-gray-600">Current image: {data.imageAlt || 'Our Story'}</p>
+            </div>
+          ) : (
+            <p className="text-gray-500">No image set</p>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Stats</label>
@@ -427,6 +690,155 @@ function AboutEditor({ isEditing, data, updateEditData }: { isEditing: boolean; 
             </div>
           </div>
         ))}
+      </div>
+      
+      {/* Story Image Management */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Story Image</label>
+        <div className="space-y-4">
+          {data?.imageUrl && (
+            <div className="relative">
+              <img 
+                src={data.imageUrl} 
+                alt={data.imageAlt || 'Our Story'} 
+                className="w-full h-48 object-cover rounded-lg"
+              />
+            </div>
+          )}
+          <div>
+            <label className="block text-sm text-gray-600 mb-1">Google Drive Image URL</label>
+            <input
+              type="url"
+              placeholder="https://drive.google.com/file/d/..."
+              onBlur={(e) => {
+                const url = e.target.value;
+                if (url.trim()) {
+                  // Validate it's a Google Drive URL
+                  if (!url.includes('drive.google.com') && !url.includes('googleusercontent.com')) {
+                    alert('Please enter a valid Google Drive URL');
+                    return;
+                  }
+                  
+                  // Extract file ID from various Google Drive URL formats
+                  let fileId = '';
+                  const patterns = [
+                    /\/file\/d\/([\w-]+)/, // /file/d/FILE_ID/
+                    /[?&]id=([\w-]+)/, // ?id=FILE_ID or &id=FILE_ID
+                    /^([\w-]{25,})$/ // Just the ID (25+ characters)
+                  ];
+                  
+                  for (const pattern of patterns) {
+                    const match = url.match(pattern);
+                    if (match && match[1]) {
+                      fileId = match[1];
+                      break;
+                    }
+                  }
+                  
+                  if (!fileId) {
+                    alert('Could not extract file ID from the URL. Please check the URL format.');
+                    return;
+                  }
+                  
+                  // Create the proxy URL
+                  const proxyUrl = `/api/drive/image?id=${encodeURIComponent(fileId)}`;
+                  updateEditData('imageUrl', proxyUrl);
+                }
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <p className="text-sm text-gray-500 mt-1">
+              Paste Google Drive file URL and click outside the field to convert
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm text-gray-600 mb-1">Image Alt Text</label>
+            <input
+              type="text"
+              value={data.imageAlt || ''}
+              onChange={(e) => updateEditData('imageAlt', e.target.value)}
+              placeholder="Our Story"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+        </div>
+      </div>
+      
+      {/* Stats Management */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Stats</label>
+        <div className="space-y-4">
+          {console.log('AboutEditor data.stats:', data?.stats)}
+          {Array.isArray(data?.stats) && data.stats.map((stat: any, index: number) => (
+            <div key={index} className="grid grid-cols-2 gap-4 p-4 border border-gray-200 rounded-lg">
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Value</label>
+                <input
+                  type="text"
+                  value={stat.value || ''}
+                  onChange={(e) => {
+                    console.log('Updating stats value:', index, e.target.value);
+                    updateEditData(`stats.${index}.value`, e.target.value);
+                  }}
+                  placeholder="500+"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Label</label>
+                <input
+                  type="text"
+                  value={stat.label || ''}
+                  onChange={(e) => {
+                    console.log('Updating stats label:', index, e.target.value);
+                    updateEditData(`stats.${index}.label`, e.target.value);
+                  }}
+                  placeholder="Happy Clients"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+          )) || (
+            <div className="text-center py-8 bg-gray-50 rounded-lg">
+              <p className="text-gray-500 mb-2">No stats set</p>
+              <button
+                onClick={() => updateEditData('stats', [
+                  { value: '', label: '' },
+                  { value: '', label: '' },
+                  { value: '', label: '' }
+                ])}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Add Stats
+              </button>
+            </div>
+          )}
+          
+          {Array.isArray(data?.stats) && data.stats.length > 0 && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  const currentStats = Array.isArray(data.stats) ? data.stats : [];
+                  updateEditData('stats', [...currentStats, { value: '', label: '' }]);
+                }}
+                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+              >
+                Add Stat
+              </button>
+              {Array.isArray(data?.stats) && data.stats.length > 1 && (
+                <button
+                  onClick={() => {
+                    const currentStats = Array.isArray(data.stats) ? data.stats : [];
+                    updateEditData('stats', currentStats.slice(0, -1));
+                  }}
+                  className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                >
+                  Remove Last
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
       
       <div>

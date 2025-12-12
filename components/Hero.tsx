@@ -29,6 +29,41 @@ export default function Hero() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Use useRef to store the interval ID
+  const slideshowInterval = useRef<NodeJS.Timeout | null>(null);
+
+  const startSlideshow = () => {
+    console.log('startSlideshow called, showcaseItems.length:', showcaseItems.length);
+    console.log('heroContent:', heroContent);
+    
+    // Clear any existing interval
+    if (slideshowInterval.current) {
+      console.log('Clearing existing interval');
+      clearInterval(slideshowInterval.current);
+    }
+    
+    // Set up new interval to change slides using dynamic interval
+    const interval = heroContent?.slideshowInterval || 2000;
+    console.log('Setting interval to:', interval);
+    
+    if (showcaseItems.length > 1) {
+      slideshowInterval.current = setInterval(() => {
+        console.log('Slideshow tick, current slide:', currentSlide);
+        setCurrentSlide((prev) => (prev + 1) % showcaseItems.length);
+      }, interval);
+      console.log('Slideshow interval started');
+    } else {
+      console.log('Not enough items for slideshow');
+    }
+  };
+
+  // Handle manual slide change
+  const goToSlide = (index: number) => {
+    setCurrentSlide(index);
+    // Reset the slideshow timer when manually changing slides
+    startSlideshow();
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -41,8 +76,8 @@ export default function Hero() {
           setShowcaseItems(showcaseData);
           // Start slideshow only if we have showcase items
           if (showcaseData.length > 0) {
-            console.log('Starting slideshow with', showcaseData.length, 'showcase items');
-            startSlideshow();
+            console.log('About to call startSlideshow with', showcaseData.length, 'items');
+            // Note: We'll call startSlideshow after heroContent is also loaded
           }
         }
 
@@ -51,6 +86,7 @@ export default function Hero() {
         const contentResponse = await fetch('/api/homepage');
         if (contentResponse.ok) {
           const contentData = await contentResponse.json();
+          console.log('Hero content received:', contentData.hero);
           setHeroContent(contentData.hero);
         }
       } catch (error) {
@@ -70,28 +106,14 @@ export default function Hero() {
     };
   }, []);
 
-  const startSlideshow = () => {
-    // Clear any existing interval
-    if (slideshowInterval.current) {
-      clearInterval(slideshowInterval.current);
+  // Start slideshow when both showcaseItems and heroContent are available
+  useEffect(() => {
+    console.log('useEffect for slideshow - showcaseItems.length:', showcaseItems.length, 'heroContent:', !!heroContent);
+    if (showcaseItems.length > 1 && heroContent) {
+      console.log('Starting slideshow in useEffect');
+      startSlideshow();
     }
-    
-    // Set up new interval to change slides using dynamic interval
-    const interval = heroContent?.slideshowInterval || 2000;
-    slideshowInterval.current = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % (showcaseItems.length || 1));
-    }, interval);
-  };
-
-  // Handle manual slide change
-  const goToSlide = (index: number) => {
-    setCurrentSlide(index);
-    // Reset the slideshow timer when manually changing slides
-    startSlideshow();
-  };
-
-  // Use useRef to store the interval ID
-  const slideshowInterval = useRef<NodeJS.Timeout | null>(null);
+  }, [showcaseItems, heroContent]);
 
   return (
     <section className="relative h-screen w-full -mt-24 pt-24 flex items-center justify-center overflow-hidden">

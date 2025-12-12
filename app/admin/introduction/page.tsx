@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 
-// Dynamically import the HomepageManager to avoid SSR issues
-const HomepageManager = dynamic(() => import('@/components/admin/HomepageManager'), {
+// Dynamically import the IntroductionManager to avoid SSR issues
+const IntroductionManager = dynamic(() => import('@/components/admin/IntroductionManager'), {
   ssr: false,
   loading: () => (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -22,7 +22,7 @@ const HomepageManager = dynamic(() => import('@/components/admin/HomepageManager
   )
 });
 
-export default function HomepageAdminPage() {
+export default function IntroductionAdminPage() {
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);
 
@@ -84,7 +84,7 @@ export default function HomepageAdminPage() {
       </div>
       
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <HomepageManager />
+        <IntroductionManager />
       </div>
     </div>
   );

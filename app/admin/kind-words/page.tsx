@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 
-// Dynamically import the HomepageManager to avoid SSR issues
-const HomepageManager = dynamic(() => import('@/components/admin/HomepageManager'), {
+// Dynamically import the KindWordsManager to avoid SSR issues
+const KindWordsManager = dynamic(() => import('@/components/admin/KindWordsManager'), {
   ssr: false,
   loading: () => (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -22,7 +22,7 @@ const HomepageManager = dynamic(() => import('@/components/admin/HomepageManager
   )
 });
 
-export default function HomepageAdminPage() {
+export default function KindWordsAdminPage() {
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);
 
@@ -77,14 +77,14 @@ export default function HomepageAdminPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <h1 className="text-2xl font-bold text-gray-900">Page Content</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Kind Words</h1>
             </div>
           </div>
         </div>
       </div>
       
       <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <HomepageManager />
+        <KindWordsManager />
       </div>
     </div>
   );

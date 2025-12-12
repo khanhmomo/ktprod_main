@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 
-// Dynamically import the HomepageManager to avoid SSR issues
-const HomepageManager = dynamic(() => import('@/components/admin/HomepageManager'), {
+// Dynamically import the ServicesManager to avoid SSR issues
+const ServicesManager = dynamic(() => import('@/components/admin/ServicesManager'), {
   ssr: false,
   loading: () => (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -22,7 +22,7 @@ const HomepageManager = dynamic(() => import('@/components/admin/HomepageManager
   )
 });
 
-export default function HomepageAdminPage() {
+export default function ServicesAdminPage() {
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);
 
@@ -63,29 +63,5 @@ export default function HomepageAdminPage() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center">
-              <button
-                onClick={() => router.push('/admin/dashboard')}
-                className="mr-4 text-gray-500 hover:text-gray-700"
-              >
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <h1 className="text-2xl font-bold text-gray-900">Page Content</h1>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <HomepageManager />
-      </div>
-    </div>
-  );
+  return <ServicesManager />;
 }
