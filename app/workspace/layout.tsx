@@ -167,7 +167,7 @@ export default function WorkspaceLayout({
       </div>
 
       {/* Desktop sidebar */}
-      <div className="hidden md:flex md:flex-shrink-0">
+      <div className="hidden md:flex md:flex-shrink-0 md:fixed md:inset-y-0 md:left-0 md:z-50">
         <div className="flex flex-col w-64 bg-white border-r border-gray-200 shadow-sm">
           <div className="flex-1 flex flex-col overflow-y-auto">
             {/* Logo/Brand */}
@@ -225,7 +225,7 @@ export default function WorkspaceLayout({
       </div>
 
       {/* Main Content */}
-      <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex flex-col flex-1 overflow-hidden md:ml-64">
         {/* Mobile header with hamburger menu */}
         <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
           <button

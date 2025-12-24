@@ -6,11 +6,16 @@ const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_REDIRECT_URI
 );
 
-export const getGoogleAuthURL = () => {
+export const getGoogleAuthURL = (includeCalendar: boolean = false) => {
   const scopes = [
     'https://www.googleapis.com/auth/userinfo.email',
     'https://www.googleapis.com/auth/userinfo.profile'
   ];
+
+  // Add calendar scope if requested
+  if (includeCalendar) {
+    scopes.push('https://www.googleapis.com/auth/calendar');
+  }
 
   return oauth2Client.generateAuthUrl({
     access_type: 'offline',

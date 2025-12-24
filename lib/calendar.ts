@@ -81,96 +81,73 @@ export function downloadCalendarFile(event: CalendarEvent, filename?: string) {
   URL.revokeObjectURL(url);
 }
 
-// Add event directly to device calendar
+// Google Calendar API integration with OAuth2
+export async function addToGoogleCalendar(event: CalendarEvent): Promise<boolean> {
+  try {
+    // Try to use our API endpoint first
+    const response = await fetch('/api/calendar/add-event', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(event)
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log('Event created via API:', result);
+      return true;
+    } else {
+      const error = await response.json();
+      
+      // If requires reauth, try OAuth flow
+      if (error.requiresReauth) {
+        return await initiateGoogleCalendarAuth(event);
+      }
+      
+      console.error('Calendar API error:', error);
+      return false;
+    }
+  } catch (error) {
+    console.error('Error adding to Google Calendar:', error);
+    return false;
+  }
+}
+
+// Initiate Google Calendar OAuth2 flow
+async function initiateGoogleCalendarAuth(event: CalendarEvent): Promise<boolean> {
+  try {
+    // Store event data for after auth
+    sessionStorage.setItem('pendingCalendarEvent', JSON.stringify(event));
+    
+    // Redirect to Google OAuth2 with proper scopes - use existing auth flow
+    const redirectUrl = `${window.location.origin}/admin/login?calendar_auth=true`;
+    
+    window.location.href = redirectUrl;
+    return true; // Will return after redirect
+  } catch (error) {
+    console.error('Error initiating Google Calendar auth:', error);
+    return false;
+  }
+}
+
+// Check for pending calendar event after OAuth callback
+export function checkPendingCalendarEvent(): CalendarEvent | null {
+  const pendingEvent = sessionStorage.getItem('pendingCalendarEvent');
+  if (pendingEvent) {
+    sessionStorage.removeItem('pendingCalendarEvent');
+    return JSON.parse(pendingEvent);
+  }
+  return null;
+}
+
+// Add event directly to device calendar - Google Calendar API only
 export async function addToDeviceCalendar(event: CalendarEvent): Promise<boolean> {
   try {
-    // Parse date and time
-    const eventDate = new Date(event.date);
-    const [hours, minutes] = event.time.split(':');
-    eventDate.setHours(parseInt(hours), parseInt(minutes));
-
-    // Calculate end time
-    const endTime = new Date(eventDate);
-    if (event.duration) {
-      const durationMatch = event.duration.match(/(\d+)\s*(hour|minute|hours|minutes)/i);
-      if (durationMatch) {
-        const [, amount, unit] = durationMatch;
-        if (unit.startsWith('hour')) {
-          endTime.setHours(endTime.getHours() + parseInt(amount));
-        } else if (unit.startsWith('minute')) {
-          endTime.setMinutes(endTime.getMinutes() + parseInt(amount));
-        }
-      }
-    } else {
-      endTime.setHours(endTime.getHours() + 1);
-    }
-
-    // Check if Web Calendar API is supported
-    if ('calendar' in navigator && 'Calendar' in window) {
-      // Use Web Calendar API (Chrome/Edge on Android)
-      const calendar = await (navigator as any).calendar.create();
-      
-      const calendarEvent = {
-        title: event.title,
-        description: event.description,
-        location: event.location,
-        start: eventDate,
-        end: endTime,
-      };
-
-      await calendar.createEvent(calendarEvent);
-      return true;
-    }
-    
-    // Fallback: Try to use platform-specific calendar apps
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isAndroid = /Android/.test(navigator.userAgent);
-
-    if (isIOS) {
-      // iOS: Create and download .ics file, then try to open it
-      const icsContent = generateICSFile(event);
-      
-      // Create blob and download
-      const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      
-      // Create download link
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${event.title.replace(/[^a-zA-Z0-9]/g, '_')}.ics`;
-      
-      // Trigger download
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      
-      // Also try to open with data URL (may work on some iOS versions)
-      setTimeout(() => {
-        const encodedData = encodeURIComponent(icsContent);
-        const dataUrl = `data:text/calendar;charset=utf-8,${encodedData}`;
-        window.open(dataUrl, '_blank');
-      }, 1000);
-      
-      return true;
-    }
-
-    if (isAndroid) {
-      // Android: Try to use Google Calendar intent
-      const startDate = eventDate.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-      const endDate = endTime.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-      
-      const googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.title)}&dates=${startDate}/${endDate}&details=${encodeURIComponent(event.description)}&location=${encodeURIComponent(event.location)}`;
-      
-      window.open(googleCalendarUrl, '_blank');
-      return true;
-    }
-
-    // Fallback to download
-    return false;
-
+    // Only use Google Calendar API
+    return await addToGoogleCalendar(event);
   } catch (error) {
-    console.error('Error adding to device calendar:', error);
+    console.error('Error adding to Google Calendar:', error);
     return false;
   }
 }

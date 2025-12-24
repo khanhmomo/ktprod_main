@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FiHome, FiFileText, FiImage, FiLogOut, FiFolder, FiMail, FiEdit3, FiCalendar, FiUsers, FiUser, FiMenu, FiX, FiBook, FiHeart } from 'react-icons/fi';
+import CalendarAuthHandler from '@/components/CalendarAuthHandler';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -191,7 +192,7 @@ export default function AdminLayout({
       )}
 
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-gray-200 shadow-xl transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:inset-0 md:w-64 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <div className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-gray-200 shadow-xl transform transition-transform duration-300 ease-in-out md:translate-x-0 md:fixed md:inset-0 md:w-64 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex flex-col h-full">
           {/* Logo/Brand */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white">
@@ -306,7 +307,7 @@ export default function AdminLayout({
       </div>
       
       {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden md:ml-64">
         {/* Mobile header with hamburger menu */}
         <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center shadow-sm">
           <button
@@ -321,6 +322,7 @@ export default function AdminLayout({
         {/* Page content */}
         <main className="flex-1 overflow-y-auto bg-gray-50">
           <div className="p-6">
+            <CalendarAuthHandler />
             {children}
           </div>
         </main>
