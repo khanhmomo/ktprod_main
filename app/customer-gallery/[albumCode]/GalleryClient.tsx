@@ -121,6 +121,20 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
         // Revert on error
         setFavorites(favorites);
         console.error('Failed to update favorite');
+      } else {
+        const result = await response.json();
+        console.log('Favorite toggle result:', result);
+        
+        // Update local state based on server response
+        if (result.action === 'added') {
+          setFavorites(prev => new Set(prev).add(photoIndex));
+        } else if (result.action === 'removed') {
+          setFavorites(prev => {
+            const updated = new Set(prev);
+            updated.delete(photoIndex);
+            return updated;
+          });
+        }
       }
     } catch (error) {
       // Revert on error
