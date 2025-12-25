@@ -85,7 +85,7 @@ export const metadata: Metadata = {
     // Add other verification services as needed
   },
   icons: {
-    icon: '/favicon.ico',
+    icon: '/web_logo.ico',
     apple: '/apple-touch-icon.png',
   },
   manifest: '/site.webmanifest',

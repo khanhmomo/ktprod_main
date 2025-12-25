@@ -127,7 +127,11 @@ export default function CalendarPage() {
   const [eventBookings, setEventBookings] = useState<any[]>([]);
   const [showCrewPanel, setShowCrewPanel] = useState(false);
   const [showFreelanceForm, setShowFreelanceForm] = useState(false);
-  const [freelanceCrew, setFreelanceCrew] = useState({
+  const [freelanceCrew, setFreelanceCrew] = useState<{
+    name: string;
+    email: string;
+    phone: string;
+  }>({
     name: '',
     email: '',
     phone: ''
@@ -1055,7 +1059,7 @@ export default function CalendarPage() {
     );
   }
 
-  if (error) {
+  if (error !== null) {
     return (
       <div className="min-h-screen bg-gray-50 p-8">
         <div className="max-w-7xl mx-auto">
