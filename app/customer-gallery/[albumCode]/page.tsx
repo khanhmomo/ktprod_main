@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   
   if (!gallery) {
     return {
-      title: 'Gallery Not Found | KhanhTran Production',
+      title: 'Gallery Not Found | The Wild',
       description: 'The requested gallery could not be found.',
     };
   }

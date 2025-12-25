@@ -13,13 +13,13 @@ export function generateGalleryMetadata(gallery: GalleryMetadata): Metadata {
   const galleryUrl = `${siteUrl}/customer-gallery/${gallery.albumCode}`;
   
   return {
-    title: `${gallery.title || `${gallery.customerName}'s ${gallery.eventType}`} | KhanhTran Production`,
-    description: `View ${gallery.customerName}'s ${gallery.eventType} gallery by KhanhTran Production. Professional photography and videography services.`,
+    title: `${gallery.title || `${gallery.customerName}'s ${gallery.eventType}`} | The Wild`,
+    description: `View ${gallery.customerName}'s ${gallery.eventType} gallery by The Wild. Professional photography and videography services.`,
     openGraph: {
       title: gallery.title || `${gallery.customerName}'s ${gallery.eventType}`,
-      description: `View ${gallery.customerName}'s ${gallery.eventType} gallery by KhanhTran Production. Professional photography and videography services.`,
+      description: `View ${gallery.customerName}'s ${gallery.eventType} gallery by The Wild. Professional photography and videography services.`,
       url: galleryUrl,
-      siteName: 'KhanhTran Production',
+      siteName: 'The Wild Studio',
       images: [
         {
           url: gallery.coverPhotoUrl,
@@ -34,7 +34,7 @@ export function generateGalleryMetadata(gallery: GalleryMetadata): Metadata {
     twitter: {
       card: 'summary_large_image',
       title: gallery.title || `${gallery.customerName}'s ${gallery.eventType}`,
-      description: `View ${gallery.customerName}'s ${gallery.eventType} gallery by KhanhTran Production.`,
+      description: `View ${gallery.customerName}'s ${gallery.eventType} gallery by The Wild.`,
       images: [gallery.coverPhotoUrl],
     },
     alternates: {
