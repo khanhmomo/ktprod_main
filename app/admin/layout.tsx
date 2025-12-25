@@ -23,14 +23,19 @@ const menuItems = [
     icon: <FiCalendar className="h-5 w-5" />,
   },
   {
-    name: 'Crew',
-    href: '/admin/crew',
-    icon: <FiUsers className="h-5 w-5" />,
+    name: 'Customer Galleries',
+    href: '/admin/customer-galleries/list',
+    icon: <FiImage className="h-5 w-5" />,
   },
   {
     name: 'Inquiries',
     href: '/admin/inquiries',
     icon: <FiMail className="h-5 w-5" />,
+  },
+  {
+    name: 'Crew',
+    href: '/admin/crew',
+    icon: <FiUsers className="h-5 w-5" />,
   },
 ];
 
