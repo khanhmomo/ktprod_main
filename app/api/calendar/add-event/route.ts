@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { google } from 'googleapis';
 
 export async function POST(request: NextRequest) {
   try {
     const { title, description, location, date, time, duration } = await request.json();
 
-    // Get Google access token from cookies
+    // Get Google tokens from cookies
     const accessToken = request.cookies.get('google_access_token')?.value;
+    const refreshToken = request.cookies.get('google_refresh_token')?.value;
 
     if (!accessToken) {
       return NextResponse.json(
@@ -61,26 +63,44 @@ export async function POST(request: NextRequest) {
       }
     };
 
-    const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(calendarEvent)
-    });
+    let currentAccessToken = accessToken;
+    let response = await makeCalendarRequest(currentAccessToken, calendarEvent);
+
+    // If token expired and we have refresh token, try to refresh
+    if (!response.ok && response.status === 401 && refreshToken) {
+      try {
+        const newTokens = await refreshAccessToken(refreshToken);
+        currentAccessToken = newTokens.access_token;
+        
+        // Retry with new token
+        response = await makeCalendarRequest(currentAccessToken, calendarEvent);
+        
+        if (response.ok) {
+          // Update the access token cookie
+          const responseData = await response.json();
+          const httpResponse = NextResponse.json({
+            success: true,
+            event: responseData,
+            message: 'Event added to Google Calendar successfully'
+          });
+          
+          httpResponse.cookies.set('google_access_token', currentAccessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24 * 7 // 7 days
+          });
+          
+          return httpResponse;
+        }
+      } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError);
+      }
+    }
 
     if (!response.ok) {
       const errorData = await response.json();
       console.error('Google Calendar API error:', errorData);
-      
-      // If token expired, try to refresh
-      if (response.status === 401) {
-        return NextResponse.json(
-          { error: 'Token expired', requiresReauth: true },
-          { status: 401 }
-        );
-      }
       
       return NextResponse.json(
         { error: 'Failed to create calendar event', details: errorData },
@@ -103,4 +123,37 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+async function makeCalendarRequest(accessToken: string, calendarEvent: any) {
+  return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(calendarEvent)
+  });
+}
+
+async function refreshAccessToken(refreshToken: string) {
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      client_id: process.env.GOOGLE_CLIENT_ID!,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to refresh token');
+  }
+
+  const tokens = await response.json();
+  return tokens;
 }
