@@ -11,6 +11,8 @@ import './Gallery';
 import './GalleryImage';
 import './HomepageContent';
 import './Advertisement';
+import './Showcase';
+import './Chat';
 
 export { default as ShootingEvent } from './ShootingEvent';
 export { Booking } from './Booking';
@@ -24,3 +26,5 @@ export { default as Gallery } from './Gallery';
 export { default as GalleryImage } from './GalleryImage';
 export { default as HomepageContent } from './HomepageContent';
 export { default as Advertisement } from './Advertisement';
+export { default as Showcase } from './Showcase';
+export { Chat, ChatMessage } from './Chat';

@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiHeart, FiX, FiChevronLeft, FiChevronRight, FiGrid, FiList } from 'react-icons/fi';
+import { FiHeart, FiX, FiChevronLeft, FiChevronRight, FiGrid, FiList, FiAlertCircle } from 'react-icons/fi';
 import Masonry from 'react-masonry-css';
+import Image from 'next/image';
 
 interface Photo {
   url: string;
@@ -34,13 +35,23 @@ interface GalleryClientProps {
   gallery: Gallery;
 }
 
+const MAX_RETRIES = 3;
+
+interface ImageLoadState {
+  error: boolean;
+  retryCount: number;
+  loading: boolean;
+}
+
 export default function GalleryClient({ gallery: initialGallery }: GalleryClientProps) {
   const [gallery, setGallery] = useState<Gallery>(initialGallery);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const [favorites, setFavorites] = useState<Set<number>>(new Set());
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [imageLoadState, setImageLoadState] = useState<Record<string, boolean>>({});
+  const [imageLoadState, setImageLoadState] = useState<Record<string, ImageLoadState>>({});
+  const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
+  const imageTimeoutsRef = useRef<Record<string, number>>({});
   const params = useParams();
   const router = useRouter();
 
@@ -82,7 +93,68 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
     }
     
     return url; // Return original URL if not a Google Drive link or ID not found
-  }, [imageLoadState]);
+  }, []);
+
+  const handleImageLoad = useCallback((url: string) => {
+    // Clear any existing timeout for this image
+    const timeoutId = imageTimeoutsRef.current[url];
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      delete imageTimeoutsRef.current[url];
+    }
+    
+    setLoadedImages(prev => ({
+      ...prev,
+      [url]: true
+    }));
+
+    setImageLoadState((prev: Record<string, ImageLoadState>) => ({
+      ...prev,
+      [url]: { 
+        ...(prev[url] || { error: false, retryCount: 0, loading: false }),
+        error: false,
+        loading: false
+      }
+    }));
+  }, []);
+
+  const handleImageError = useCallback((event: React.SyntheticEvent<HTMLImageElement, Event>, url: string, index: number) => {
+    console.error(`Error loading image ${index}:`, { url, event });
+    
+    const currentState = imageLoadState[url] || { error: false, retryCount: 0, loading: false };
+    const currentRetryCount = currentState.retryCount;
+    
+    if (currentRetryCount >= MAX_RETRIES) {
+      setImageLoadState((prev: Record<string, ImageLoadState>) => ({
+        ...prev,
+        [url]: {
+          ...(prev[url] || { error: false, retryCount: 0, loading: false }),
+          error: true,
+          retryCount: currentRetryCount,
+          loading: false
+        }
+      }));
+      return;
+    }
+    
+    const retryCount = currentRetryCount + 1;
+    
+    // Force re-render with processed URL
+    const img = document.querySelector(`img[data-photo-index="${index}"]`) as HTMLImageElement;
+    if (img) {
+      img.src = processImageUrl(url, true);
+    }
+    
+    setImageLoadState((prev: Record<string, ImageLoadState>) => ({
+      ...prev,
+      [url]: { 
+        ...(prev[url] || { error: false, retryCount: 0, loading: false }),
+        error: true,
+        retryCount,
+        loading: false
+      }
+    }));
+  }, [imageLoadState, processImageUrl]);
 
   // Load favorites on component mount
   useEffect(() => {
@@ -140,17 +212,6 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
       // Revert on error
       setFavorites(favorites);
       console.error('Error updating favorite:', error);
-    }
-  };
-
-  const handleImageError = (photoUrl: string, photoIndex: number) => {
-    if (!imageLoadState[photoUrl]) {
-      setImageLoadState(prev => ({ ...prev, [photoUrl]: true }));
-      // Force re-render with processed URL
-      const img = document.querySelector(`img[data-photo-index="${photoIndex}"]`) as HTMLImageElement;
-      if (img) {
-        img.src = processImageUrl(photoUrl, true);
-      }
     }
   };
 
@@ -287,13 +348,43 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
                       onClick={() => setSelectedPhotoIndex(originalIndex)}
                     >
                       <div className="relative overflow-hidden rounded-lg">
-                        <img
-                          src={processImageUrl(photo.url)}
-                          alt={photo.alt || `Photo ${originalIndex + 1}`}
-                          data-photo-index={originalIndex}
-                          className="w-full h-auto object-cover transition-transform duration-300 group-hover:scale-105"
-                          onError={() => handleImageError(photo.url, originalIndex)}
-                        />
+                        {(() => {
+                          const imageUrl = processImageUrl(photo.url);
+                          const isLoaded = !!loadedImages[imageUrl];
+                          const hasError = imageLoadState[imageUrl]?.error || false;
+                          
+                          return (
+                            <>
+                              {!isLoaded && !hasError && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <div className="animate-pulse w-full h-full bg-gray-200"></div>
+                                </div>
+                              )}
+                              {hasError ? (
+                                <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                                  <div className="text-center p-4">
+                                    <FiAlertCircle className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                                    <p className="text-sm text-gray-500">Couldn't load image</p>
+                                  </div>
+                                </div>
+                              ) : (
+                                <Image
+                                  key={`${photo.driveFileId}-${imageLoadState[imageUrl]?.retryCount || 0}`}
+                                  src={imageUrl}
+                                  alt={photo.alt || `Photo ${originalIndex + 1}`}
+                                  data-photo-index={originalIndex}
+                                  width={400}
+                                  height={400}
+                                  className={`w-full h-auto object-cover transition-transform duration-300 group-hover:scale-105 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                                  onLoad={() => handleImageLoad(imageUrl)}
+                                  onError={(e) => handleImageError(e, imageUrl, originalIndex)}
+                                  loading="lazy"
+                                  unoptimized={imageUrl.includes('google.com')}
+                                />
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                       <button
                         onClick={(e) => {
@@ -323,13 +414,43 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
               <div key={photo.driveFileId} className="bg-white rounded-lg shadow-sm overflow-hidden">
                 <div className="flex flex-col md:flex-row">
                   <div className="md:w-1/3">
-                    <img
-                      src={processImageUrl(photo.url)}
-                      alt={photo.alt || `Photo ${originalIndex + 1}`}
-                      data-photo-index={originalIndex}
-                      className="w-full h-48 md:h-full object-cover"
-                      onError={() => handleImageError(photo.url, originalIndex)}
-                    />
+                    {(() => {
+                      const imageUrl = processImageUrl(photo.url);
+                      const isLoaded = !!loadedImages[imageUrl];
+                      const hasError = imageLoadState[imageUrl]?.error || false;
+                      
+                      return (
+                        <div className="relative w-full h-48 md:h-full">
+                          {!isLoaded && !hasError && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="animate-pulse w-full h-full bg-gray-200"></div>
+                            </div>
+                          )}
+                          {hasError ? (
+                            <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                              <div className="text-center p-4">
+                                <FiAlertCircle className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                                <p className="text-sm text-gray-500">Couldn't load image</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <Image
+                              key={`${photo.driveFileId}-${imageLoadState[imageUrl]?.retryCount || 0}`}
+                              src={imageUrl}
+                              alt={photo.alt || `Photo ${originalIndex + 1}`}
+                              data-photo-index={originalIndex}
+                              width={400}
+                              height={300}
+                              className={`w-full h-48 md:h-full object-cover ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                              onLoad={() => handleImageLoad(imageUrl)}
+                              onError={(e) => handleImageError(e, imageUrl, originalIndex)}
+                              loading="lazy"
+                              unoptimized={imageUrl.includes('google.com')}
+                            />
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div className="md:w-2/3 p-6">
                     <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -375,55 +496,73 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
               onClick={() => setSelectedPhotoIndex(null)}
             >
-              <div className="relative max-w-6xl max-h-full">
+              <div className="absolute top-4 right-4 z-50">
                 <button
                   onClick={() => setSelectedPhotoIndex(null)}
-                  className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors"
+                  className="p-2 text-white hover:bg-white/10 rounded-full"
+                  aria-label="Close viewer"
                 >
-                  <FiX className="w-8 h-8" />
+                  <FiX className="w-6 h-6" />
                 </button>
-                
-                <div className="flex items-center justify-center">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedPhotoIndex(Math.max(0, selectedPhotoIndex - 1));
-                    }}
-                    className="absolute left-4 text-white hover:text-gray-300 transition-colors z-10"
-                    disabled={selectedPhotoIndex === 0}
-                  >
-                    <FiChevronLeft className="w-8 h-8" />
-                  </button>
-                  
-                  <img
+              </div>
+
+              <div className="relative w-full h-full flex items-center justify-center">
+                <motion.div
+                  className="relative max-w-full max-h-full"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Image
                     src={processImageUrl(gallery.photos[selectedPhotoIndex].url)}
                     alt={gallery.photos[selectedPhotoIndex].alt || `Photo ${selectedPhotoIndex + 1}`}
-                    className="max-w-full max-h-full object-contain"
+                    width={1200}
+                    height={800}
+                    className="max-w-[90vw] max-h-[90vh] object-contain"
+                    priority
+                    unoptimized={processImageUrl(gallery.photos[selectedPhotoIndex].url).includes('google.com')}
                   />
-                  
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedPhotoIndex(Math.min(gallery.photos.length - 1, selectedPhotoIndex + 1));
-                    }}
-                    className="absolute right-4 text-white hover:text-gray-300 transition-colors z-10"
-                    disabled={selectedPhotoIndex === gallery.photos.length - 1}
-                  >
-                    <FiChevronRight className="w-8 h-8" />
-                  </button>
-                </div>
-                
-                <div className="absolute bottom-4 left-0 right-0 text-center text-white">
-                  <p className="text-lg">
-                    {gallery.photos[selectedPhotoIndex].alt || `Photo ${selectedPhotoIndex + 1}`}
-                  </p>
-                  <p className="text-sm text-gray-300">
-                    {selectedPhotoIndex + 1} of {gallery.photos.length}
-                  </p>
-                </div>
+                </motion.div>
+
+                {gallery.photos.length > 1 && (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedPhotoIndex(Math.max(0, selectedPhotoIndex - 1));
+                      }}
+                      className="absolute left-4 text-white hover:text-gray-300 transition-colors z-10"
+                      disabled={selectedPhotoIndex === 0}
+                    >
+                      <FiChevronLeft className="w-8 h-8" />
+                    </button>
+                    
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedPhotoIndex(Math.min(gallery.photos.length - 1, selectedPhotoIndex + 1));
+                      }}
+                      className="absolute right-4 text-white hover:text-gray-300 transition-colors z-10"
+                      disabled={selectedPhotoIndex === gallery.photos.length - 1}
+                    >
+                      <FiChevronRight className="w-8 h-8" />
+                    </button>
+                  </>
+                )}
+              </div>
+              
+              <div className="absolute bottom-4 left-0 right-0 text-center text-white">
+                <p className="text-lg">
+                  {gallery.photos[selectedPhotoIndex].alt || `Photo ${selectedPhotoIndex + 1}`}
+                </p>
+                <p className="text-sm text-gray-300">
+                  {selectedPhotoIndex + 1} of {gallery.photos.length}
+                </p>
               </div>
             </motion.div>
           )}

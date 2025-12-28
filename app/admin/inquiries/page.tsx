@@ -13,6 +13,7 @@ interface Inquiry {
   subject?: string;
   message: string;
   status: 'unread' | 'read' | 'replied';
+  source: 'email' | 'live_chat';
   repliedAt?: string;
   replyNote?: string;
   createdAt: string;
@@ -33,6 +34,8 @@ interface Stats {
   unread: number;
   read: number;
   replied: number;
+  email: number;
+  live_chat: number;
 }
 
 export default function InquiriesPage() {
@@ -40,6 +43,7 @@ export default function InquiriesPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [sourceFilter, setSourceFilter] = useState('all');
     const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
   const [replyNote, setReplyNote] = useState('');
   const [updating, setUpdating] = useState(false);
@@ -47,6 +51,15 @@ export default function InquiriesPage() {
   const [isConnected, setIsConnected] = useState(false);
   const [newInquiryNotification, setNewInquiryNotification] = useState<Inquiry | null>(null);
   const [showNotification, setShowNotification] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newInquiry, setNewInquiry] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    subject: '',
+    message: '',
+    source: 'email' as 'email' | 'live_chat' | 'phone' | 'in_person' | 'other'
+  });
   const socketRef = useRef<Socket | null>(null);
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
@@ -60,7 +73,9 @@ export default function InquiriesPage() {
     total: 0,
     unread: 0,
     read: 0,
-    replied: 0
+    replied: 0,
+    email: 0,
+    live_chat: 0
   });
 
   // Initialize WebSocket connection
@@ -193,6 +208,7 @@ export default function InquiriesPage() {
         page: pagination.page.toString(),
         limit: pagination.limit.toString(),
         ...(statusFilter !== 'all' && { status: statusFilter }),
+        ...(sourceFilter !== 'all' && { source: sourceFilter }),
                 ...(searchTerm && { search: searchTerm })
       });
 
@@ -212,7 +228,54 @@ export default function InquiriesPage() {
 
   useEffect(() => {
     fetchInquiries();
-  }, [statusFilter, pagination.page, searchTerm]);
+  }, [statusFilter, sourceFilter, pagination.page, searchTerm]);
+
+  const createInquiry = async () => {
+    try {
+      setUpdating(true);
+      
+      const response = await fetch('/api/admin/inquiries', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newInquiry.name.trim(),
+          email: newInquiry.email.trim(),
+          subject: newInquiry.subject.trim(),
+          message: newInquiry.message.trim(),
+          source: newInquiry.source
+        }),
+      });
+
+      if (response.ok) {
+        const inquiry = await response.json();
+        alert(`Inquiry created successfully!\nCase ID: ${inquiry.caseId}`);
+        
+        // Reset form and close modal
+        setNewInquiry({
+          name: '',
+          email: '',
+          phone: '',
+          subject: '',
+          message: '',
+          source: 'email'
+        });
+        setShowCreateModal(false);
+        
+        // Refresh inquiries list
+        fetchInquiries();
+      } else {
+        const error = await response.json();
+        alert(`Failed to create inquiry: ${error.message}`);
+      }
+    } catch (error) {
+      console.error('Error creating inquiry:', error);
+      alert('Failed to create inquiry. Please try again.');
+    } finally {
+      setUpdating(false);
+    }
+  };
 
   const updateInquiryStatus = async (inquiryId: string, status: string, note?: string) => {
     try {
@@ -261,6 +324,28 @@ export default function InquiriesPage() {
       console.error('Error deleting inquiry:', error);
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const getSourceLabel = (source: string) => {
+    switch (source) {
+      case 'email': return 'Email';
+      case 'live_chat': return 'Live Chat';
+      case 'phone': return 'Phone';
+      case 'in_person': return 'In Person';
+      case 'other': return 'Other';
+      default: return 'Email';
+    }
+  };
+
+  const getSourceColor = (source: string) => {
+    switch (source) {
+      case 'email': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'live_chat': return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'phone': return 'bg-green-100 text-green-800 border-green-200';
+      case 'in_person': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'other': return 'bg-gray-100 text-gray-800 border-gray-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
@@ -348,28 +433,37 @@ export default function InquiriesPage() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Customer Inquiries</h1>
             <p className="text-gray-600">Manage and respond to customer messages</p>
           </div>
-          <div className={`flex items-center px-3 py-2 rounded-full text-sm font-medium transition-colors ${
-            isConnected 
-              ? 'bg-green-100 text-green-800 border border-green-200' 
-              : 'bg-red-100 text-red-800 border border-red-200'
-          }`}>
-            {isConnected ? (
-              <>
-                <FiWifi className="h-4 w-4 mr-2" />
-                Connected
-              </>
-            ) : (
-              <>
-                <FiWifiOff className="h-4 w-4 mr-2" />
-                Disconnected
-              </>
-            )}
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
+            >
+              <FiMail className="h-4 w-4" />
+              Create Inquiry
+            </button>
+            <div className={`flex items-center px-3 py-2 rounded-full text-sm font-medium transition-colors ${
+              isConnected 
+                ? 'bg-green-100 text-green-800 border border-green-200' 
+                : 'bg-red-100 text-red-800 border border-red-200'
+            }`}>
+              {isConnected ? (
+                <>
+                  <FiWifi className="h-4 w-4 mr-2" />
+                  Connected
+                </>
+              ) : (
+                <>
+                  <FiWifiOff className="h-4 w-4 mr-2" />
+                  Disconnected
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-8">
         <div className="bg-white p-6 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
@@ -406,6 +500,24 @@ export default function InquiriesPage() {
             <FiCheck className="h-8 w-8 text-green-400" />
           </div>
         </div>
+        <div className="bg-white p-6 rounded-lg border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Email</p>
+              <p className="text-2xl font-bold text-blue-600">{stats.email}</p>
+            </div>
+            <FiMail className="h-8 w-8 text-blue-400" />
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-lg border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Live Chat</p>
+              <p className="text-2xl font-bold text-purple-600">{stats.live_chat}</p>
+            </div>
+            <FiMessageSquare className="h-8 w-8 text-purple-400" />
+          </div>
+        </div>
       </div>
 
       {/* Filters and Search */}
@@ -432,6 +544,18 @@ export default function InquiriesPage() {
             <option value="unread">Unread</option>
             <option value="read">Read</option>
             <option value="replied">Replied</option>
+          </select>
+          <select
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="all">All Sources</option>
+            <option value="email">Email</option>
+            <option value="live_chat">Live Chat</option>
+            <option value="phone">Phone</option>
+            <option value="in_person">In Person</option>
+            <option value="other">Other</option>
           </select>
                   </div>
       </div>
@@ -474,7 +598,10 @@ export default function InquiriesPage() {
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(inquiry.status)}`}>
                             {inquiry.status}
                           </span>
-                                                    <span className="text-sm text-gray-500">#{inquiry.caseId}</span>
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getSourceColor(inquiry.source)}`}>
+                            {getSourceLabel(inquiry.source)}
+                          </span>
+                          <span className="text-sm text-gray-500">#{inquiry.caseId}</span>
                         </div>
                         <h3 className="text-sm font-medium text-gray-900 truncate">
                           {inquiry.subject || 'No Subject'}
@@ -655,6 +782,116 @@ export default function InquiriesPage() {
           )}
         </div>
       </div>
+
+      {/* Create Inquiry Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">Create New Inquiry</h2>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <FiX className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                  <input
+                    type="text"
+                    value={newInquiry.name}
+                    onChange={(e) => setNewInquiry({...newInquiry, name: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                    placeholder="Customer name"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                  <input
+                    type="email"
+                    value={newInquiry.email}
+                    onChange={(e) => setNewInquiry({...newInquiry, email: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                    placeholder="customer@email.com"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                  <input
+                    type="tel"
+                    value={newInquiry.phone}
+                    onChange={(e) => setNewInquiry({...newInquiry, phone: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                    placeholder="(123) 456-7890"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Source *</label>
+                  <select
+                    value={newInquiry.source}
+                    onChange={(e) => setNewInquiry({...newInquiry, source: e.target.value as any})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="email">Email</option>
+                    <option value="live_chat">Live Chat</option>
+                    <option value="phone">Phone Call</option>
+                    <option value="in_person">In Person</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                <input
+                  type="text"
+                  value={newInquiry.subject}
+                  onChange={(e) => setNewInquiry({...newInquiry, subject: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  placeholder="Brief subject or topic"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Message *</label>
+                <textarea
+                  value={newInquiry.message}
+                  onChange={(e) => setNewInquiry({...newInquiry, message: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  rows={4}
+                  placeholder="Detailed description of the inquiry..."
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={createInquiry}
+                disabled={updating || !newInquiry.name.trim() || !newInquiry.email.trim() || !newInquiry.message.trim()}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                {updating ? 'Creating...' : 'Create Inquiry'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

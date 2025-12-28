@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FiHome, FiFileText, FiImage, FiLogOut, FiFolder, FiMail, FiEdit3, FiCalendar, FiUsers, FiUser, FiMenu, FiX, FiBook, FiHeart, FiVolume2 } from 'react-icons/fi';
+import { FiHome, FiFileText, FiImage, FiLogOut, FiFolder, FiMail, FiEdit3, FiCalendar, FiUsers, FiUser, FiMenu, FiX, FiBook, FiHeart, FiVolume2, FiMessageCircle } from 'react-icons/fi';
 import CalendarAuthHandler from '@/components/CalendarAuthHandler';
 import './globals.css';
 
@@ -39,6 +39,11 @@ const eventManagerItems = [
     name: 'Crew',
     href: '/admin/crew',
     icon: <FiUsers className="h-5 w-5" />,
+  },
+  {
+    name: 'Live Chat',
+    href: '/admin/chats',
+    icon: <FiMessageCircle className="h-5 w-5" />,
   },
 ];
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthenticated } from '@/lib/server-auth';
+import { getCurrentUser } from '@/lib/auth';
 
 export async function OPTIONS() {
   return new Response(null, {
@@ -37,12 +38,12 @@ export async function GET(request: NextRequest) {
       );
     }
     
+    // Get user info from authentication
+    const userResponse = await getCurrentUser();
+    
     return NextResponse.json({ 
       authenticated: true,
-      user: { 
-        name: 'Admin',
-        // Add more user info here if needed
-      }
+      user: userResponse.user
     }, {
       headers: {
         'Access-Control-Allow-Origin': origin,

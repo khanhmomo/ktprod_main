@@ -19,7 +19,7 @@ const nextConfig = {
       bodySizeLimit: '2mb',
     },
     // Optimize package imports
-    optimizePackageImports: ['@heroicons/react', 'framer-motion'],
+    optimizePackageImports: ['@heroicons/react', 'framer-motion', 'lucide-react', 'react-icons'],
   },
   // External packages for server components
   serverExternalPackages: ['mongoose'],
@@ -56,8 +56,20 @@ const nextConfig = {
       },
     ];
   },
-  webpack: (config) => {
+  webpack: (config, { dev, isServer }) => {
     config.resolve.alias['@'] = __dirname;
+    
+    // Optimize bundle size in production
+    if (!dev && !isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        crypto: false,
+      };
+    }
+    
     return config;
   },
 };

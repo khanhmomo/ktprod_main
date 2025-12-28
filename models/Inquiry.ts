@@ -7,6 +7,7 @@ export interface IInquiry extends Document {
   subject?: string;
   message: string;
   status: 'unread' | 'read' | 'replied';
+  source: 'email' | 'live_chat' | 'phone' | 'in_person' | 'other';
   repliedAt?: Date;
   replyNote?: string;
   createdAt: Date;
@@ -43,6 +44,12 @@ const InquirySchema: Schema = new Schema({
     type: String,
     enum: ['unread', 'read', 'replied'],
     default: 'unread',
+    required: true,
+  },
+  source: {
+    type: String,
+    enum: ['email', 'live_chat', 'phone', 'in_person', 'other'],
+    default: 'email',
     required: true,
   },
     repliedAt: {
