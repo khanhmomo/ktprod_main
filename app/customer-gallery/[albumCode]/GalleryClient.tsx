@@ -555,7 +555,9 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
             {!faceSearchSelfie ? (
               <div className="text-center">
                 <div className="mb-6">
-                  <FiCamera className="w-16 h-16 text-purple-500 mx-auto mb-4" />
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-full mb-4">
+                    <FiSearch className="w-8 h-8 text-purple-500" />
+                  </div>
                   <h4 className="text-lg font-medium text-gray-900 mb-2">Upload Your Selfie</h4>
                   <p className="text-gray-600 mb-4">
                     Take a clear photo of your face and we'll find all photos with you in the gallery!
@@ -579,7 +581,7 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
                     htmlFor="selfie-upload"
                     className="cursor-pointer inline-flex items-center px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
                   >
-                    <FiCamera className="w-4 h-4 mr-2" />
+                    <FiSearch className="w-4 h-4 mr-2" />
                     Choose Selfie Photo
                   </label>
                   <p className="text-sm text-gray-500 mt-3">
@@ -791,7 +793,7 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
                 onClick={() => setShowFaceSearch(true)}
                 className="hidden md:flex items-center space-x-2 px-4 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600 transition-colors"
               >
-                <FiCamera className="w-4 h-4" />
+                <FiSearch className="w-4 h-4" />
                 <span className="text-sm font-medium">Find My Photos</span>
               </button>
               <button
@@ -872,13 +874,7 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
             <div className="relative z-10 p-8">
               <div className="max-w-4xl mx-auto text-white">
                 <div className="text-center mb-6">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-white bg-opacity-20 backdrop-blur-sm rounded-full mb-4">
-                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                  </div>
                   <h2 className="text-2xl font-serif text-white mb-2">Welcome to Your Gallery</h2>
-                  <p className="text-sm text-gray-200 font-medium uppercase tracking-wide">An Introduction</p>
                 </div>
                 <div className="prose prose-lg max-w-none">
                   <p className="text-gray-100 leading-relaxed font-serif text-lg text-center whitespace-pre-line">
