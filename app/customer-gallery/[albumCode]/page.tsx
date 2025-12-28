@@ -33,7 +33,8 @@ async function getGallery(albumCode: string) {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const gallery = await getGallery(params.albumCode);
+  const { albumCode } = await params;
+  const gallery = await getGallery(albumCode);
   
   if (!gallery) {
     return {
@@ -52,7 +53,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function GalleryPage({ params }: PageProps) {
-  const gallery = await getGallery(params.albumCode);
+  const { albumCode } = await params;
+  const gallery = await getGallery(albumCode);
   
   if (!gallery) {
     notFound();

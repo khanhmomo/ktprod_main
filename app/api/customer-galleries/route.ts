@@ -106,6 +106,20 @@ export async function POST(request: NextRequest) {
     await gallery.save();
     console.log('Gallery saved successfully:', gallery);
     
+    // Start background face indexing if gallery has photos and is published
+    if (gallery.photos && gallery.photos.length > 0 && gallery.status === 'published') {
+      console.log('Starting background face indexing for gallery:', gallery.albumCode);
+      
+      // Trigger background job (don't wait for completion)
+      fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/background-jobs/index-faces`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ albumCode: gallery.albumCode })
+      }).catch(error => {
+        console.error('Failed to start background indexing:', error);
+      });
+    }
+    
     return NextResponse.json(gallery, { status: 201 });
   } catch (error) {
     console.error('Error creating customer gallery:', error);

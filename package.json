@@ -12,7 +12,9 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@google-cloud/local-auth": "^3.0.1",
+    "@aws-sdk/client-dynamodb": "^3.958.0",
+    "@aws-sdk/client-rekognition": "^3.490.0",
+    "@aws-sdk/client-s3": "^3.958.0",
     "@headlessui/react": "^2.2.7",
     "@heroicons/react": "^2.2.0",
     "@react-oauth/google": "^0.12.2",
@@ -61,7 +63,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.16",
-    "dotenv": "^17.2.2",
+    "dotenv": "^17.2.3",
     "esbuild": "^0.25.9",
     "esbuild-register": "^3.6.0",
     "eslint": "^9",

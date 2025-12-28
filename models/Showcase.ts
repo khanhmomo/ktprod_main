@@ -35,3 +35,4 @@ if (mongoose.models.Showcase) {
 }
 
 export const Showcase = mongoose.model<IShowcase>('Showcase', showcaseSchema);
+export default Showcase;

@@ -54,6 +54,25 @@ export async function GET(
           { status: 400 }
         );
       }
+    } else if (downloadType === 'face-matches') {
+      const facesParam = searchParams.get('faces');
+      if (facesParam) {
+        const faceIndices = facesParam.split(',').map(idx => parseInt(idx)).filter(idx => !isNaN(idx));
+        photosToDownload = faceIndices.map(idx => gallery.photos[idx]).filter(photo => photo);
+        
+        if (photosToDownload.length === 0) {
+          return NextResponse.json(
+            { error: 'No valid face matches found' },
+            { status: 400 }
+          );
+        }
+      } else {
+        // No face matches specified, return empty
+        return NextResponse.json(
+          { error: 'No face matches specified' },
+          { status: 400 }
+        );
+      }
     }
 
     // Create temporary directory

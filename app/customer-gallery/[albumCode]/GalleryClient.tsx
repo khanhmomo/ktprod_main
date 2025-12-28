@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiHeart, FiX, FiChevronLeft, FiChevronRight, FiGrid, FiList, FiAlertCircle, FiDownload } from 'react-icons/fi';
+import { FiHeart, FiX, FiChevronLeft, FiChevronRight, FiGrid, FiList, FiAlertCircle, FiDownload, FiCamera, FiSearch } from 'react-icons/fi';
 import Masonry from 'react-masonry-css';
 import Image from 'next/image';
 
@@ -48,6 +48,8 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const [favorites, setFavorites] = useState<Set<number>>(new Set());
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [showFaceMatchesOnly, setShowFaceMatchesOnly] = useState(false);
+  const [faceMatchPhotos, setFaceMatchPhotos] = useState<Set<number>>(new Set());
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [imageLoadState, setImageLoadState] = useState<Record<string, ImageLoadState>>({});
   const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
@@ -55,9 +57,51 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloadStatus, setDownloadStatus] = useState('');
   const [showDownloadOptions, setShowDownloadOptions] = useState(false);
+  const [showFaceSearch, setShowFaceSearch] = useState(false);
+  const [isSearchingFaces, setIsSearchingFaces] = useState(false);
+  const [faceSearchResults, setFaceSearchResults] = useState<any[]>([]);
+  const [faceSearchSelfie, setFaceSearchSelfie] = useState<string | null>(null);
+  const [searchProgress, setSearchProgress] = useState(0);
+  const [currentBatch, setCurrentBatch] = useState(1);
+  const [totalPhotos, setTotalPhotos] = useState(0);
+  const [hasMoreBatches, setHasMoreBatches] = useState(false);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const imageTimeoutsRef = useRef<Record<string, number>>({});
   const params = useParams();
   const router = useRouter();
+
+  // Cleanup function for face search
+  const stopFaceSearch = () => {
+    // Close EventSource connection
+    if (eventSourceRef.current) {
+      console.log('Closing EventSource connection...');
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+    
+    // Clear progress interval
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+    
+    // Reset states
+    setIsSearchingFaces(false);
+    setSearchProgress(0);
+    setFaceSearchResults([]);
+    setFaceSearchSelfie(null);
+    setTotalPhotos(0);
+    
+    console.log('Face search stopped by user');
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopFaceSearch();
+    };
+  }, []);
 
   // Process Google Drive URLs for proper display
   const processImageUrl = useCallback((url: string, isRetry = false): string => {
@@ -223,17 +267,96 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
     setShowDownloadOptions(true);
   };
 
-  const handleDownloadChoice = async (downloadType: 'full' | 'favorites') => {
+  const handleFaceSearch = async (selfieFile: File) => {
+    setIsSearchingFaces(true);
+    setFaceSearchSelfie(URL.createObjectURL(selfieFile));
+    setFaceSearchResults([]);
+    setSearchProgress(0);
+    
+    try {
+      // Close any existing connection
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      
+      // Get total photos first
+      const galleryResponse = await fetch(`/api/customer-gallery/${params.albumCode}`);
+      const galleryData = await galleryResponse.json();
+      const totalPhotos = galleryData.photos?.length || 0;
+      setTotalPhotos(totalPhotos);
+
+      // Simulate progress based on actual processing time
+      let currentProgress = 0;
+      progressIntervalRef.current = setInterval(() => {
+        // Slower, more realistic progress
+        currentProgress += 1; // 1% increments
+        if (currentProgress >= 95) {
+          currentProgress = 95; // Cap at 95% until complete
+          if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+            progressIntervalRef.current = null;
+          }
+        }
+        setSearchProgress(currentProgress);
+      }, 1000); // Update every second
+
+      // Create form data for the request
+      const formData = new FormData();
+      formData.append('selfie', selfieFile);
+
+      // Make the POST request
+      const response = await fetch(`/api/customer-gallery/${params.albumCode}/face-search/simple`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+      setSearchProgress(100);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Face search failed');
+      }
+
+      const data = await response.json();
+      console.log('Face search complete:', data);
+
+      setFaceSearchResults(data.matches || []);
+      
+      // Set face filter with matched photo indices
+      const matchedIndices = new Set<number>((data.matches || []).map((match: any) => match.index));
+      setFaceMatchPhotos(matchedIndices);
+      setShowFaceMatchesOnly(true);
+      
+      setIsSearchingFaces(false);
+
+    } catch (error) {
+      console.error('Face search error:', error);
+      alert(`Face search failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setIsSearchingFaces(false);
+    }
+  };
+
+  const handleDownloadChoice = async (downloadType: 'full' | 'favorites' | 'face-matches') => {
     setShowDownloadOptions(false);
     setIsDownloading(true);
     setDownloadProgress(0);
     setDownloadStatus('Starting download...');
     
     try {
-      // For favorites, pass the favorite indices to the server
-      const url = downloadType === 'favorites' 
-        ? `/api/customer-gallery/${params.albumCode}/download?type=favorites&favorites=${Array.from(favorites).join(',')}`
-        : `/api/customer-gallery/${params.albumCode}/download?type=full`;
+      // Build download URL based on type
+      let url;
+      if (downloadType === 'favorites') {
+        url = `/api/customer-gallery/${params.albumCode}/download?type=favorites&favorites=${Array.from(favorites).join(',')}`;
+      } else if (downloadType === 'face-matches') {
+        url = `/api/customer-gallery/${params.albumCode}/download?type=face-matches&faces=${Array.from(faceMatchPhotos).join(',')}`;
+      } else {
+        url = `/api/customer-gallery/${params.albumCode}/download?type=full`;
+      }
       
       const response = await fetch(url);
       
@@ -300,10 +423,34 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
     );
   }
 
-  // Filter photos based on favorites
-  const filteredPhotos = showFavoritesOnly 
-    ? gallery.photos.filter((_, index) => favorites.has(index))
-    : gallery.photos;
+  // Filter photos based on favorites and face matches
+  const getFilteredPhotos = () => {
+    if (showFavoritesOnly) {
+      return gallery.photos.filter((_, index) => favorites.has(index));
+    }
+    if (showFaceMatchesOnly) {
+      return gallery.photos.filter((_, index) => faceMatchPhotos.has(index));
+    }
+    return gallery.photos;
+  };
+
+  const filteredPhotos = getFilteredPhotos();
+
+  // Get original indices for filtered photos
+  const getOriginalIndex = (filteredIndex: number) => {
+    if (showFavoritesOnly) {
+      return Array.from(favorites)[filteredIndex];
+    }
+    if (showFaceMatchesOnly) {
+      return Array.from(faceMatchPhotos)[filteredIndex];
+    }
+    return filteredIndex;
+  };
+
+  // Debug logging
+  console.log('Filter state:', { showFavoritesOnly, showFaceMatchesOnly });
+  console.log('Face matches count:', faceMatchPhotos.size);
+  console.log('Filtered photos count:', filteredPhotos.length);
 
   // Masonry breakpoints - same as albums section
   const breakpointColumnsObj = {
@@ -359,6 +506,23 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
                 </div>
                 <span className={favorites.size === 0 ? 'text-gray-400' : 'text-blue-500'}>→</span>
               </button>
+              
+              {/* Face Matches Download Option */}
+              {faceMatchPhotos.size > 0 && (
+                <button
+                  onClick={() => handleDownloadChoice('face-matches')}
+                  className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center">
+                    <FiCamera className="w-5 h-5 text-purple-500 mr-3" />
+                    <div className="text-left">
+                      <p className="font-medium text-gray-900">Face Matches Only</p>
+                      <p className="text-sm text-gray-500">{faceMatchPhotos.size} matched photos</p>
+                    </div>
+                  </div>
+                  <span className="text-purple-500">→</span>
+                </button>
+              )}
             </div>
             
             <button
@@ -367,6 +531,214 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Face Search Modal */}
+      {showFaceSearch && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">Find Your Photos</h3>
+              <button
+                onClick={() => {
+                  stopFaceSearch();
+                  setShowFaceSearch(false);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {!faceSearchSelfie ? (
+              <div className="text-center">
+                <div className="mb-6">
+                  <FiCamera className="w-16 h-16 text-purple-500 mx-auto mb-4" />
+                  <h4 className="text-lg font-medium text-gray-900 mb-2">Upload Your Selfie</h4>
+                  <p className="text-gray-600 mb-4">
+                    Take a clear photo of your face and we'll find all photos with you in the gallery!
+                  </p>
+                </div>
+                
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8">
+                  <input
+                    type="file"
+                    id="selfie-upload"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        handleFaceSearch(file);
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  <label
+                    htmlFor="selfie-upload"
+                    className="cursor-pointer inline-flex items-center px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+                  >
+                    <FiCamera className="w-4 h-4 mr-2" />
+                    Choose Selfie Photo
+                  </label>
+                  <p className="text-sm text-gray-500 mt-3">
+                    JPG, PNG or GIF (max 10MB)
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="mb-6">
+                  <div className="flex items-center justify-center mb-4">
+                    <img
+                      src={faceSearchSelfie}
+                      alt="Your selfie"
+                      className="w-32 h-32 object-cover rounded-lg border-2 border-purple-200"
+                    />
+                  </div>
+                  
+                  {isSearchingFaces ? (
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500 mx-auto mb-3"></div>
+                      <p className="text-gray-600">Analyzing faces in gallery...</p>
+                      
+                      {/* Progress Bar */}
+                      <div className="mt-4">
+                        <div className="flex justify-between text-sm text-gray-600 mb-2">
+                          <span>Analyzing photos...</span>
+                          <span>{searchProgress}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-3">
+                          <div 
+                            className="bg-gradient-to-r from-purple-500 to-purple-600 h-3 rounded-full transition-all duration-200 ease-out"
+                            style={{ width: `${searchProgress}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">
+                          {totalPhotos > 0 
+                            ? `Processed ${Math.floor(totalPhotos * searchProgress / 100)} of ${totalPhotos} photos`
+                            : 'Initializing...'
+                          }
+                        </p>
+                        {searchProgress > 0 && searchProgress < 100 && (
+                          <p className="text-xs text-purple-600 mt-1 font-medium">
+                            {searchProgress < 25 ? 'Initializing face detection...' :
+                             searchProgress < 50 ? 'Finding matching faces...' :
+                             searchProgress < 75 ? 'Analyzing facial features...' :
+                             'Almost done!'}
+                          </p>
+                        )}
+                      </div>
+                      
+                      {/* Real-time Results Display */}
+                      {faceSearchResults.length > 0 && (
+                        <div className="mt-6">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-sm font-medium text-gray-900">
+                              Found {faceSearchResults.length} photo{faceSearchResults.length !== 1 ? 's' : ''}!
+                            </h4>
+                            {isSearchingFaces && (
+                              <span className="text-xs text-purple-600 animate-pulse">
+                                Searching...
+                              </span>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto">
+                            {faceSearchResults.map((result, index) => (
+                              <div 
+                                key={result.index} 
+                                className={`relative group cursor-pointer transform transition-all duration-300 ${
+                                  result.isNew 
+                                    ? 'scale-110 animate-pulse ring-2 ring-green-400 ring-opacity-50' 
+                                    : 'scale-100 hover:scale-105'
+                                }`}
+                                onClick={() => setSelectedPhotoIndex(result.index)}
+                              >
+                                <img
+                                  src={processImageUrl(result.url)}
+                                  alt={result.alt}
+                                  className="w-full h-20 object-cover rounded-lg shadow-sm"
+                                />
+                                {result.confidence && (
+                                  <div className="absolute top-1 right-1 bg-green-500 text-white text-xs px-1 rounded shadow">
+                                    {Math.round(result.confidence * 100)}%
+                                  </div>
+                                )}
+                                {result.isNew && (
+                                  <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center animate-bounce">
+                                    ✓
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <FiSearch className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                      <p className="text-lg font-medium text-gray-900">
+                        Complete! Found {faceSearchResults.length} photos with your face!
+                      </p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Searched {totalPhotos} photos in the gallery
+                      </p>
+                      {faceSearchResults.length > 0 && (
+                        <p className="text-sm text-gray-500 mt-1">
+                          Click any photo to view full size
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                
+                {faceSearchResults.length > 0 && (
+                  <div>
+                    <h4 className="text-md font-medium text-gray-900 mb-3">Your Photos:</h4>
+                    <div className="grid grid-cols-3 gap-3 max-h-64 overflow-y-auto">
+                      {faceSearchResults.map((result, index) => (
+                        <div key={index} className="relative group">
+                          <img
+                            src={processImageUrl(result.url)}
+                            alt={result.alt}
+                            className="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => setSelectedPhotoIndex(result.index)}
+                          />
+                          {result.confidence && (
+                            <div className="absolute top-1 right-1 bg-green-500 text-white text-xs px-1 rounded">
+                              {Math.round(result.confidence * 100)}%
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div className="mt-4 flex justify-center">
+                      <button
+                        onClick={() => setSelectedPhotoIndex(faceSearchResults[0]?.index)}
+                        className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+                      >
+                        View First Photo
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="mt-6 text-center">
+                  <button
+                    onClick={() => {
+                      setFaceSearchSelfie(null);
+                      setFaceSearchResults([]);
+                    }}
+                    className="text-purple-500 hover:text-purple-600 text-sm"
+                  >
+                    Try with a different photo
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -416,6 +788,13 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
             </div>
             <div className="flex items-center space-x-4">
               <button
+                onClick={() => setShowFaceSearch(true)}
+                className="hidden md:flex items-center space-x-2 px-4 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600 transition-colors"
+              >
+                <FiCamera className="w-4 h-4" />
+                <span className="text-sm font-medium">Find My Photos</span>
+              </button>
+              <button
                 onClick={handleDownloadAlbum}
                 disabled={isDownloading}
                 className={`hidden md:flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
@@ -448,6 +827,28 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
                   {showFavoritesOnly ? 'All Photos' : 'Show Favorites'}
                 </span>
               </button>
+              
+              {/* Face Filter Button */}
+              {faceMatchPhotos.size > 0 && (
+                <button
+                  onClick={() => {
+                    setShowFaceMatchesOnly(!showFaceMatchesOnly);
+                    if (showFaceMatchesOnly) {
+                      setShowFavoritesOnly(false);
+                    }
+                  }}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                    showFaceMatchesOnly
+                      ? 'bg-purple-500 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  <FiCamera className={`w-4 h-4 ${showFaceMatchesOnly ? 'fill-current' : ''}`} />
+                  <span className="text-sm font-medium">
+                    {showFaceMatchesOnly ? 'All Photos' : `Face Matches (${faceMatchPhotos.size})`}
+                  </span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -504,9 +905,11 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
                 className="flex -ml-4 w-auto"
                 columnClassName="pl-4 bg-clip-padding"
               >
-                {gallery.photos
-                  .map((photo, originalIndex) => ({ photo, originalIndex }))
-                  .filter(({ originalIndex }) => !showFavoritesOnly || favorites.has(originalIndex))
+                {filteredPhotos
+                  .map((photo, filteredIndex) => {
+                    const originalIndex = getOriginalIndex(filteredIndex);
+                    return { photo, originalIndex };
+                  })
                   .map(({ photo, originalIndex }) => (
                   <div key={photo.driveFileId} className="mb-4">
                     <motion.div
@@ -577,9 +980,11 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
           </div>
         ) : (
           <div className="space-y-6">
-            {gallery.photos
-              .map((photo, originalIndex) => ({ photo, originalIndex }))
-              .filter(({ originalIndex }) => !showFavoritesOnly || favorites.has(originalIndex))
+            {filteredPhotos
+              .map((photo, filteredIndex) => {
+                const originalIndex = getOriginalIndex(filteredIndex);
+                return { photo, originalIndex };
+              })
               .map(({ photo, originalIndex }) => (
               <div key={photo.driveFileId} className="bg-white rounded-lg shadow-sm overflow-hidden">
                 <div className="flex flex-col md:flex-row">

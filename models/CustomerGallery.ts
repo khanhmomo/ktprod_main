@@ -82,6 +82,26 @@ const CustomerGallerySchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  // Face indexing status
+  faceIndexing: {
+    status: {
+      type: String,
+      enum: ['not_started', 'in_progress', 'completed', 'failed'],
+      default: 'not_started'
+    },
+    totalPhotos: {
+      type: Number,
+      default: 0
+    },
+    indexedPhotos: {
+      type: Number,
+      default: 0
+    },
+    lastUpdated: {
+      type: Date,
+      default: Date.now
+    }
   }
 }, {
   timestamps: true
