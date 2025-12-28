@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiHeart, FiX, FiChevronLeft, FiChevronRight, FiGrid, FiList, FiAlertCircle } from 'react-icons/fi';
+import { FiHeart, FiX, FiChevronLeft, FiChevronRight, FiGrid, FiList, FiAlertCircle, FiDownload } from 'react-icons/fi';
 import Masonry from 'react-masonry-css';
 import Image from 'next/image';
 
@@ -51,6 +51,10 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [imageLoadState, setImageLoadState] = useState<Record<string, ImageLoadState>>({});
   const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [downloadStatus, setDownloadStatus] = useState('');
+  const [showDownloadOptions, setShowDownloadOptions] = useState(false);
   const imageTimeoutsRef = useRef<Record<string, number>>({});
   const params = useParams();
   const router = useRouter();
@@ -215,6 +219,70 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
     }
   };
 
+  const handleDownloadAlbum = () => {
+    setShowDownloadOptions(true);
+  };
+
+  const handleDownloadChoice = async (downloadType: 'full' | 'favorites') => {
+    setShowDownloadOptions(false);
+    setIsDownloading(true);
+    setDownloadProgress(0);
+    setDownloadStatus('Starting download...');
+    
+    try {
+      // For favorites, pass the favorite indices to the server
+      const url = downloadType === 'favorites' 
+        ? `/api/customer-gallery/${params.albumCode}/download?type=favorites&favorites=${Array.from(favorites).join(',')}`
+        : `/api/customer-gallery/${params.albumCode}/download?type=full`;
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Download failed');
+      }
+      
+      // Get the filename from the Content-Disposition header
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
+      const suffix = downloadType === 'favorites' ? '_Favorites' : '';
+      const filename = filenameMatch?.[1] || `${gallery.customerName}_${gallery.eventType}${suffix}_Photos.tar.gz`;
+      
+      setDownloadStatus('Downloading archive...');
+      setDownloadProgress(90);
+      
+      // Create blob and download
+      const blob = await response.blob();
+      const url2 = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url2;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url2);
+      document.body.removeChild(a);
+      
+      setDownloadProgress(100);
+      setDownloadStatus('Download complete!');
+      
+      // Reset after a short delay
+      setTimeout(() => {
+        setIsDownloading(false);
+        setDownloadProgress(0);
+        setDownloadStatus('');
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Download error:', error);
+      setDownloadStatus('Download failed');
+      setTimeout(() => {
+        setIsDownloading(false);
+        setDownloadProgress(0);
+        setDownloadStatus('');
+      }, 3000);
+    }
+  };
+
   if (!gallery) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -247,6 +315,94 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Download Options Modal */}
+      {showDownloadOptions && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Download Options</h3>
+            <p className="text-gray-600 mb-6">What would you like to download?</p>
+            
+            <div className="space-y-3">
+              <button
+                onClick={() => handleDownloadChoice('full')}
+                className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center">
+                  <FiDownload className="w-5 h-5 text-blue-500 mr-3" />
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">Full Album</p>
+                    <p className="text-sm text-gray-500">All {gallery.photos.length} photos</p>
+                  </div>
+                </div>
+                <span className="text-blue-500">→</span>
+              </button>
+              
+              <button
+                onClick={() => handleDownloadChoice('favorites')}
+                disabled={favorites.size === 0}
+                className={`w-full flex items-center justify-between p-4 border rounded-lg transition-colors ${
+                  favorites.size === 0 
+                    ? 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-50'
+                    : 'border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center">
+                  <FiHeart className={`w-5 h-5 mr-3 ${
+                    favorites.size === 0 ? 'text-gray-400' : 'text-red-500'
+                  }`} />
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">Favorites Only</p>
+                    <p className="text-sm text-gray-500">
+                      {favorites.size === 0 ? 'No favorites selected' : `${favorites.size} favorite photos`}
+                    </p>
+                  </div>
+                </div>
+                <span className={favorites.size === 0 ? 'text-gray-400' : 'text-blue-500'}>→</span>
+              </button>
+            </div>
+            
+            <button
+              onClick={() => setShowDownloadOptions(false)}
+              className="w-full mt-4 px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Download Progress Modal */}
+      {isDownloading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mr-3"></div>
+              <h3 className="text-lg font-semibold text-gray-900">Downloading Album</h3>
+            </div>
+            
+            <div className="mb-4">
+              <div className="flex justify-between text-sm text-gray-600 mb-2">
+                <span>{downloadStatus}</span>
+                <span>{downloadProgress}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-blue-500 h-2 rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${downloadProgress}%` }}
+                ></div>
+              </div>
+            </div>
+            
+            <p className="text-sm text-gray-500 text-center">
+              {downloadProgress < 30 && 'Downloading images from gallery...'}
+              {downloadProgress >= 30 && downloadProgress < 70 && 'Creating compressed archive...'}
+              {downloadProgress >= 70 && downloadProgress < 90 && 'Finalizing download...'}
+              {downloadProgress >= 90 && 'Almost done!'}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -259,6 +415,20 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
               </p>
             </div>
             <div className="flex items-center space-x-4">
+              <button
+                onClick={handleDownloadAlbum}
+                disabled={isDownloading}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                  isDownloading
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-blue-500 text-white hover:bg-blue-600'
+                }`}
+              >
+                <FiDownload className={`w-4 h-4 ${isDownloading ? 'animate-spin' : ''}`} />
+                <span className="text-sm font-medium">
+                  {isDownloading ? 'Preparing...' : 'Download Album'}
+                </span>
+              </button>
               <button
                 onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
                 className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
