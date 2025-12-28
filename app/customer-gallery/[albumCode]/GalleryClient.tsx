@@ -418,7 +418,7 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
               <button
                 onClick={handleDownloadAlbum}
                 disabled={isDownloading}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                className={`hidden md:flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
                   isDownloading
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-blue-500 text-white hover:bg-blue-600'
