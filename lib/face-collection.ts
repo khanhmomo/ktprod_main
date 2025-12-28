@@ -4,6 +4,10 @@ import { CreateCollectionCommand, IndexFacesCommand, SearchFacesByImageCommand, 
 export class FaceCollectionService {
   // Create a face collection for an event
   static async createCollection(collectionId: string) {
+    if (!rekognitionClient) {
+      throw new Error('AWS Rekognition not configured');
+    }
+    
     try {
       const command = new CreateCollectionCommand({
         CollectionId: collectionId,
@@ -24,6 +28,10 @@ export class FaceCollectionService {
 
   // Index faces from images
   static async indexFaces(collectionId: string, imageBytes: Buffer, externalImageId: string) {
+    if (!rekognitionClient) {
+      throw new Error('AWS Rekognition not configured');
+    }
+    
     try {
       const command = new IndexFacesCommand({
         CollectionId: collectionId,
@@ -46,6 +54,10 @@ export class FaceCollectionService {
 
   // Search for faces
   static async searchFaces(collectionId: string, imageBytes: Buffer, maxFaces: number = 10, threshold: number = 85) {
+    if (!rekognitionClient) {
+      throw new Error('AWS Rekognition not configured');
+    }
+    
     try {
       const command = new SearchFacesByImageCommand({
         CollectionId: collectionId,
@@ -67,6 +79,10 @@ export class FaceCollectionService {
 
   // List all collections
   static async listCollections() {
+    if (!rekognitionClient) {
+      throw new Error('AWS Rekognition not configured');
+    }
+    
     try {
       const command = new ListCollectionsCommand({
         MaxResults: 100,
@@ -82,6 +98,10 @@ export class FaceCollectionService {
 
   // Delete collection
   static async deleteCollection(collectionId: string) {
+    if (!rekognitionClient) {
+      throw new Error('AWS Rekognition not configured');
+    }
+    
     try {
       const command = new DeleteCollectionCommand({
         CollectionId: collectionId,
