@@ -1,40 +1,49 @@
-import { RekognitionClient } from '@aws-sdk/client-rekognition';
-import { S3Client } from '@aws-sdk/client-s3';
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+// Lazy load AWS clients only when needed
+let rekognitionClient: any = null;
+let s3Client: any = null;
+let dynamoClient: any = null;
 
-// Only configure if environment variables exist
-const hasAwsCredentials = process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY;
-
-// AWS Clients (only if credentials exist)
-export const rekognitionClient = hasAwsCredentials 
-  ? new RekognitionClient({
+export const getRekognitionClient = () => {
+  if (!rekognitionClient && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+    const { RekognitionClient } = require('@aws-sdk/client-rekognition');
+    rekognitionClient = new RekognitionClient({
       region: process.env.AWS_REGION || 'us-east-1',
       credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
       },
-    })
-  : null;
+    });
+  }
+  return rekognitionClient;
+};
 
-export const s3Client = hasAwsCredentials 
-  ? new S3Client({
+export const getS3Client = () => {
+  if (!s3Client && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+    const { S3Client } = require('@aws-sdk/client-s3');
+    s3Client = new S3Client({
       region: process.env.AWS_REGION || 'us-east-1',
       credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
       },
-    })
-  : null;
+    });
+  }
+  return s3Client;
+};
 
-export const dynamoClient = hasAwsCredentials 
-  ? new DynamoDBClient({
+export const getDynamoClient = () => {
+  if (!dynamoClient && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+    const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+    dynamoClient = new DynamoDBClient({
       region: process.env.AWS_REGION || 'us-east-1',
       credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
       },
-    })
-  : null;
+    });
+  }
+  return dynamoClient;
+};
 
 export default {
   rekognitionClient,

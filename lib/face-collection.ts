@@ -1,9 +1,10 @@
-import { rekognitionClient } from './aws-config';
+import { getRekognitionClient } from './aws-config';
 import { CreateCollectionCommand, IndexFacesCommand, SearchFacesByImageCommand, DeleteCollectionCommand, ListCollectionsCommand } from '@aws-sdk/client-rekognition';
 
 export class FaceCollectionService {
   // Create a face collection for an event
   static async createCollection(collectionId: string) {
+    const rekognitionClient = getRekognitionClient();
     if (!rekognitionClient) {
       throw new Error('AWS Rekognition not configured');
     }
@@ -28,6 +29,7 @@ export class FaceCollectionService {
 
   // Index faces from images
   static async indexFaces(collectionId: string, imageBytes: Buffer, externalImageId: string) {
+    const rekognitionClient = getRekognitionClient();
     if (!rekognitionClient) {
       throw new Error('AWS Rekognition not configured');
     }
@@ -54,6 +56,7 @@ export class FaceCollectionService {
 
   // Search for faces
   static async searchFaces(collectionId: string, imageBytes: Buffer, maxFaces: number = 10, threshold: number = 85) {
+    const rekognitionClient = getRekognitionClient();
     if (!rekognitionClient) {
       throw new Error('AWS Rekognition not configured');
     }
@@ -79,6 +82,7 @@ export class FaceCollectionService {
 
   // List all collections
   static async listCollections() {
+    const rekognitionClient = getRekognitionClient();
     if (!rekognitionClient) {
       throw new Error('AWS Rekognition not configured');
     }
@@ -98,6 +102,7 @@ export class FaceCollectionService {
 
   // Delete collection
   static async deleteCollection(collectionId: string) {
+    const rekognitionClient = getRekognitionClient();
     if (!rekognitionClient) {
       throw new Error('AWS Rekognition not configured');
     }
