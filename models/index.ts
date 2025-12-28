@@ -10,6 +10,7 @@ import './Film';
 import './Gallery';
 import './GalleryImage';
 import './HomepageContent';
+import './Advertisement';
 
 export { default as ShootingEvent } from './ShootingEvent';
 export { Booking } from './Booking';
@@ -22,3 +23,4 @@ export { default as Film } from './Film';
 export { default as Gallery } from './Gallery';
 export { default as GalleryImage } from './GalleryImage';
 export { default as HomepageContent } from './HomepageContent';
+export { default as Advertisement } from './Advertisement';

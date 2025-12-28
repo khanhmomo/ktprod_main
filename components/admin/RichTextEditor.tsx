@@ -46,7 +46,7 @@ export default function RichTextEditor({ content, onChange, placeholder = 'Write
     },
     editorProps: {
       attributes: {
-        class: 'prose max-w-none focus:outline-none min-h-[300px] p-4',
+        class: 'prose max-w-none focus:outline-none min-h-[150px] p-3',
       },
     },
     immediatelyRender: false,
@@ -60,7 +60,7 @@ export default function RichTextEditor({ content, onChange, placeholder = 'Write
 
   if (!editor) {
     return (
-      <div className="border border-gray-300 rounded-md p-4 min-h-[300px] flex items-center justify-center bg-gray-50">
+      <div className="border border-gray-300 rounded-md p-3 min-h-[150px] flex items-center justify-center bg-gray-50">
         <div className="animate-pulse">Loading editor...</div>
       </div>
     );

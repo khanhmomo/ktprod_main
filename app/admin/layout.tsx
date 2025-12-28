@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FiHome, FiFileText, FiImage, FiLogOut, FiFolder, FiMail, FiEdit3, FiCalendar, FiUsers, FiUser, FiMenu, FiX, FiBook, FiHeart } from 'react-icons/fi';
+import { FiHome, FiFileText, FiImage, FiLogOut, FiFolder, FiMail, FiEdit3, FiCalendar, FiUsers, FiUser, FiMenu, FiX, FiBook, FiHeart, FiVolume2 } from 'react-icons/fi';
 import CalendarAuthHandler from '@/components/CalendarAuthHandler';
 import './globals.css';
 
@@ -67,6 +67,11 @@ const pageContentItems = [
     name: 'Kind Words',
     href: '/admin/kind-words',
     icon: <FiHeart className="h-5 w-5" />,
+  },
+  {
+    name: 'Advertising',
+    href: '/admin/advertisements',
+    icon: <FiVolume2 className="h-5 w-5" />,
   },
 ];
 
