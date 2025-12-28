@@ -29,6 +29,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/date-fns": "^2.5.3",
     "@types/nodemailer": "^7.0.1",
+    "@vercel/analytics": "^1.6.1",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^2.7.0",
     "date-fns": "^4.1.0",

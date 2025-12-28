@@ -6,6 +6,7 @@ import Footer from '../components/Footer'
 import ClientLayout from './ClientLayout'
 import { JsonLd, websiteSchema } from '../components/StructuredData'
 import AdvertisementPopup from '../components/AdvertisementPopup'
+import { Analytics } from "@vercel/analytics/next"
 
 // Configure Lato as the default sans font
 const lato = Lato({ 
@@ -110,6 +111,7 @@ export default function RootLayout({
           {children}
         </ClientLayout>
         <AdvertisementPopup />
+        <Analytics />
       </body>
     </html>
   )
