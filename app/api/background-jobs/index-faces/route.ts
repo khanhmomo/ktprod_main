@@ -94,8 +94,8 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
   const maxConsecutiveErrors = 3;
   
   try {
-    // OPTIMIZED BATCH SIZE for maximum speed
-    const batchSize = 25; // Increased from 20 to 25 for faster processing
+    // MAXIMUM SPEED BATCH SIZE for fastest processing
+    const batchSize = 50; // Increased from 25 to 50 for maximum speed
     let indexedCount = 0;
     const totalBatches = Math.ceil(photos.length / batchSize);
     
@@ -141,62 +141,19 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
           const imageBuffer = Buffer.from(await response.arrayBuffer());
           console.log(`Photo ${photoIndex}: Fetched ${imageBuffer.length} bytes in ${fetchTime}ms`);
           
-          // Pre-check if image has faces before indexing
+          // Index faces directly without pre-check for maximum speed
           const rekognitionClient = require('@/lib/aws-config').getRekognitionClient();
           if (!rekognitionClient) {
             throw new Error('AWS Rekognition not configured');
           }
           
-          // First detect faces without indexing them
-          const { DetectFacesCommand } = require('@aws-sdk/client-rekognition');
-          const detectCommand = new DetectFacesCommand({
-            Image: { Bytes: imageBuffer },
-            Attributes: [] // No attributes needed, just detect presence
-          });
-          
-          const detectStart = Date.now();
-          const detectResult = await rekognitionClient.send(detectCommand);
-          const detectTime = Date.now() - detectStart;
-          
-          const faceCount = detectResult.FaceDetails?.length || 0;
-          console.log(`Photo ${photoIndex}: Detected ${faceCount} faces in ${detectTime}ms`);
-          
-          // Skip if no faces detected
-          if (faceCount === 0) {
-            console.log(`Photo ${photoIndex}: No faces found, skipping indexing`);
-            indexedCount++; // Still count as processed
-            
-            // Update progress for skipped photo
-            const elapsedMs = Date.now() - startTime;
-            const avgTimePerPhoto = elapsedMs / indexedCount;
-            const remainingPhotos = photos.length - indexedCount;
-            const remainingMs = remainingPhotos * avgTimePerPhoto;
-            const remainingMinutes = Math.ceil(remainingMs / 60000);
-            
-            const realisticMinutes = indexedCount < 10 
-              ? Math.ceil((photos.length - indexedCount) * 0.2) // Even faster since we skip many photos
-              : remainingMinutes;
-            
-            await CustomerGallery.updateOne(
-              { albumCode: albumCode.toLowerCase() },
-              {
-                'faceIndexing.indexedPhotos': indexedCount,
-                'faceIndexing.lastUpdated': new Date(),
-                'faceIndexing.estimatedTimeRemaining': realisticMinutes
-              }
-            );
-            
-            consecutiveErrors = 0; // Reset error counter
-            continue; // Skip to next photo
-          }
-          
-          // Index faces only if faces were detected
+          // Index faces directly (will skip if no faces found automatically)
           const { IndexFacesCommand } = require('@aws-sdk/client-rekognition');
           const command = new IndexFacesCommand({
             CollectionId: collectionId,
             Image: { Bytes: imageBuffer },
             ExternalImageId: `${albumCode}-${photoIndex}`,
-            MaxFaces: Math.min(faceCount, 10), // Only index detected faces
+            MaxFaces: 10,
             QualityFilter: 'AUTO'
           });
           
@@ -216,16 +173,10 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
           const remainingPhotos = photos.length - indexedCount;
           const remainingMs = remainingPhotos * avgTimePerPhoto;
           const remainingMinutes = Math.ceil(remainingMs / 60000);
-          
-          // Use realistic minimum after first few photos
           const realisticMinutes = indexedCount < 10 
-            ? Math.ceil((photos.length - indexedCount) * 0.5) // 30 seconds per photo estimate
+            ? Math.ceil((photos.length - indexedCount) * 0.05) // 3 seconds per photo estimate for maximum speed
             : remainingMinutes;
           
-          console.log(`Time calculation: elapsed=${elapsedMs}ms, avgPerPhoto=${avgTimePerPhoto}ms, remaining=${remainingPhotos} photos, ETA=${realisticMinutes}min`);
-          console.log(`Progress: ${indexedCount}/${photos.length} (${Math.round((indexedCount/photos.length)*100)}%) - ETA: ${realisticMinutes} min`);
-          
-          // Update progress after each photo for smooth progress bar
           await CustomerGallery.updateOne(
             { albumCode: albumCode.toLowerCase() },
             {
@@ -235,8 +186,8 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
             }
           );
           
-          // Minimal delay between photos for maximum speed
-          await new Promise(resolve => setTimeout(resolve, 50)); // Reduced from 200ms to 50ms
+          // No delay between photos for maximum speed
+          // await new Promise(resolve => setTimeout(resolve, 50)); // Removed for speed
           
         } catch (photoError) {
           consecutiveErrors++;
@@ -253,9 +204,9 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
         }
       }
       
-      // Minimal delay between batches for maximum speed
+      // No delay between batches for maximum speed
       console.log(`Batch ${batchIndex + 1} completed. Indexed ${indexedCount}/${photos.length} photos so far.`);
-      await new Promise(resolve => setTimeout(resolve, 100)); // Reduced from 200ms to 100ms
+      // await new Promise(resolve => setTimeout(resolve, 100)); // Removed for speed
     }
     
     // Final status update
