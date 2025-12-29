@@ -90,10 +90,12 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
   console.log(`Starting OPTIMIZED background indexing for ${photos.length} photos`);
   
   const startTime = Date.now();
+  let consecutiveErrors = 0;
+  const maxConsecutiveErrors = 3;
   
   try {
     // OPTIMIZED BATCH SIZE for maximum speed
-    const batchSize = 20; // Increased from 15 to 20 for faster processing
+    const batchSize = 25; // Increased from 20 to 25 for faster processing
     let indexedCount = 0;
     const totalBatches = Math.ceil(photos.length / batchSize);
     
@@ -116,35 +118,85 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
         try {
           console.log(`Fetching photo ${photoIndex}/${photos.length}: ${photo.alt}`);
           
-          // Fetch image with headers
+          // Fetch image with headers and timeout
           const fetchStart = Date.now();
-          const response = await fetch(photo.url, { 
+          const fetchPromise = fetch(photo.url, { 
             headers: {
               'User-Agent': 'Mozilla/5.0 (compatible; FaceIndexer/1.0)'
             }
           });
+          
+          // Add timeout to prevent hanging
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Fetch timeout')), 30000)
+          );
+          
+          const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
           const fetchTime = Date.now() - fetchStart;
           
           if (!response.ok) {
-            console.error(`Failed to fetch photo ${photoIndex}: ${response.status}`);
-            continue;
+            throw new Error(`Failed to fetch photo ${photoIndex}: ${response.status}`);
           }
           
           const imageBuffer = Buffer.from(await response.arrayBuffer());
           console.log(`Photo ${photoIndex}: Fetched ${imageBuffer.length} bytes in ${fetchTime}ms`);
           
-          // Index face with AWS Rekognition
+          // Pre-check if image has faces before indexing
           const rekognitionClient = require('@/lib/aws-config').getRekognitionClient();
           if (!rekognitionClient) {
             throw new Error('AWS Rekognition not configured');
           }
           
+          // First detect faces without indexing them
+          const { DetectFacesCommand } = require('@aws-sdk/client-rekognition');
+          const detectCommand = new DetectFacesCommand({
+            Image: { Bytes: imageBuffer },
+            Attributes: [] // No attributes needed, just detect presence
+          });
+          
+          const detectStart = Date.now();
+          const detectResult = await rekognitionClient.send(detectCommand);
+          const detectTime = Date.now() - detectStart;
+          
+          const faceCount = detectResult.FaceDetails?.length || 0;
+          console.log(`Photo ${photoIndex}: Detected ${faceCount} faces in ${detectTime}ms`);
+          
+          // Skip if no faces detected
+          if (faceCount === 0) {
+            console.log(`Photo ${photoIndex}: No faces found, skipping indexing`);
+            indexedCount++; // Still count as processed
+            
+            // Update progress for skipped photo
+            const elapsedMs = Date.now() - startTime;
+            const avgTimePerPhoto = elapsedMs / indexedCount;
+            const remainingPhotos = photos.length - indexedCount;
+            const remainingMs = remainingPhotos * avgTimePerPhoto;
+            const remainingMinutes = Math.ceil(remainingMs / 60000);
+            
+            const realisticMinutes = indexedCount < 10 
+              ? Math.ceil((photos.length - indexedCount) * 0.2) // Even faster since we skip many photos
+              : remainingMinutes;
+            
+            await CustomerGallery.updateOne(
+              { albumCode: albumCode.toLowerCase() },
+              {
+                'faceIndexing.indexedPhotos': indexedCount,
+                'faceIndexing.lastUpdated': new Date(),
+                'faceIndexing.estimatedTimeRemaining': realisticMinutes
+              }
+            );
+            
+            consecutiveErrors = 0; // Reset error counter
+            continue; // Skip to next photo
+          }
+          
+          // Index faces only if faces were detected
           const { IndexFacesCommand } = require('@aws-sdk/client-rekognition');
           const command = new IndexFacesCommand({
             CollectionId: collectionId,
             Image: { Bytes: imageBuffer },
             ExternalImageId: `${albumCode}-${photoIndex}`,
-            MaxFaces: 10,
+            MaxFaces: Math.min(faceCount, 10), // Only index detected faces
             QualityFilter: 'AUTO'
           });
           
@@ -154,6 +206,9 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
           indexedCount++;
           
           console.log(`Photo ${photoIndex}: Indexed ${result.FaceRecords?.length || 0} faces in ${awsTime}ms`);
+          
+          // Reset error counter on success
+          consecutiveErrors = 0;
           
           // Calculate time remaining (more accurate after 10+ photos)
           const elapsedMs = Date.now() - startTime;
@@ -180,18 +235,27 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
             }
           );
           
-          // Add rate limiting delay to avoid AWS throttling
-          await new Promise(resolve => setTimeout(resolve, 200)); // Increased from 50ms to 200ms
+          // Minimal delay between photos for maximum speed
+          await new Promise(resolve => setTimeout(resolve, 50)); // Reduced from 200ms to 50ms
           
         } catch (photoError) {
-          console.error(`Error processing photo ${photoIndex}:`, photoError);
+          consecutiveErrors++;
+          console.error(`Error processing photo ${photoIndex} (${consecutiveErrors}/${maxConsecutiveErrors}):`, photoError);
+          
+          // If too many consecutive errors, stop indexing
+          if (consecutiveErrors >= maxConsecutiveErrors) {
+            console.error(`Too many consecutive errors (${maxConsecutiveErrors}). Stopping indexing.`);
+            throw new Error(`Indexing stopped after ${maxConsecutiveErrors} consecutive errors`);
+          }
+          
           // Continue with next photo instead of failing entire batch
+          continue;
         }
       }
       
       // Minimal delay between batches for maximum speed
       console.log(`Batch ${batchIndex + 1} completed. Indexed ${indexedCount}/${photos.length} photos so far.`);
-      await new Promise(resolve => setTimeout(resolve, 200)); // Reduced from 500ms to 200ms
+      await new Promise(resolve => setTimeout(resolve, 100)); // Reduced from 200ms to 100ms
     }
     
     // Final status update
