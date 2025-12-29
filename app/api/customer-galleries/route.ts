@@ -106,52 +106,24 @@ export async function POST(request: NextRequest) {
     await gallery.save();
     console.log('Gallery saved successfully:', gallery);
     
-    // Test simple background job first
-      const simpleUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/background-jobs/simple`;
-      console.log('Testing SIMPLE background job at URL:', simpleUrl);
-      console.log('NEXT_PUBLIC_BASE_URL:', process.env.NEXT_PUBLIC_BASE_URL);
-      
-      try {
-        const simpleResponse = await fetch(simpleUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ albumCode: gallery.albumCode })
-        });
-        
-        if (simpleResponse.ok) {
-          console.log('SIMPLE TEST: Background job API works!');
-        } else {
-          const errorText = await simpleResponse.text();
-          console.error('SIMPLE TEST: Background job failed:', simpleResponse.status, errorText);
-        }
-      } catch (error) {
-        console.error('SIMPLE TEST: Failed to call background job:', error);
-      }
-
     // Start background face indexing if gallery has photos (regardless of status)
     if (gallery.photos && gallery.photos.length > 0) {
       console.log('Starting background face indexing for gallery:', gallery.albumCode);
       
-      // Trigger background job (don't wait for completion)
+      // Trigger background job asynchronously - don't wait for completion
       const indexingUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/background-jobs/index-faces`;
       console.log('Triggering indexing at URL:', indexingUrl);
       
-      try {
-        const response = await fetch(indexingUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ albumCode: gallery.albumCode })
-        });
-        
-        if (response.ok) {
-          console.log('Background indexing triggered successfully for:', gallery.albumCode);
-        } else {
-          const errorText = await response.text();
-          console.error('Failed to trigger indexing, response:', response.status, errorText);
-        }
-      } catch (error) {
+      // Fire and forget - don't await this
+      fetch(indexingUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ albumCode: gallery.albumCode })
+      }).catch(error => {
         console.error('Failed to start background indexing:', error);
-      }
+      });
+      
+      console.log('Indexing triggered - returning immediately');
     } else {
       console.log('No photos to index for gallery:', gallery.albumCode);
     }

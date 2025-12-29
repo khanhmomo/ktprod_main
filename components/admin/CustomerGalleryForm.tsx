@@ -128,9 +128,9 @@ export default function CustomerGalleryForm({
       const savedGallery = await response.json();
       
       if (isNew) {
-        // Show success modal for new galleries
-        setCreatedGallery(savedGallery);
-        setShowSuccessModal(true);
+        // For new galleries, redirect immediately to admin list
+        console.log('Gallery created successfully, redirecting to admin list...');
+        router.push('/admin/customer-galleries/list');
       } else {
         // For edits, just navigate back or call onSave
         if (onSave) {

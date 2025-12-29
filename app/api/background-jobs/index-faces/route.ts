@@ -67,10 +67,10 @@ export async function POST(request: NextRequest) {
     // Start indexing in background
     console.log('Starting background indexing process...');
     
-    // For debugging, run synchronously first
-    console.log('=== CALLING INDEXING FUNCTION DIRECTLY ===');
-    await indexPhotosInBackground(collectionId, gallery.photos, albumCode);
-    console.log('=== INDEXING FUNCTION COMPLETED ===');
+    // Fire and forget - don't wait for completion
+    console.log('=== CALLING INDEXING FUNCTION ASYNC ===');
+    indexPhotosInBackground(collectionId, gallery.photos, albumCode);
+    console.log('=== INDEXING FUNCTION STARTED (ASYNC) ===');
 
     return NextResponse.json({ 
       message: 'Background indexing started',
@@ -84,12 +84,12 @@ export async function POST(request: NextRequest) {
 }
 
 async function indexPhotosInBackground(collectionId: string, photos: any[], albumCode: string) {
-  console.log(`=== RELIABLE INDEXING STARTED ===`);
-  console.log(`Starting RELIABLE background indexing for ${photos.length} photos`);
+  console.log(`=== OPTIMIZED INDEXING STARTED ===`);
+  console.log(`Starting OPTIMIZED background indexing for ${photos.length} photos`);
   
   try {
-    // SMALLER BATCH SIZE for better reliability
-    const batchSize = 5; // Back to smaller batch for accuracy
+    // BALANCED BATCH SIZE for 2x speed improvement
+    const batchSize = 10; // Increased from 5 to 10 for 2x speed
     let indexedCount = 0;
     const totalBatches = Math.ceil(photos.length / batchSize);
     
@@ -114,7 +114,6 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
           
           // Fetch image with timeout and retry
           const response = await fetch(photo.url, { 
-            timeout: 30000, // 30 second timeout
             headers: {
               'User-Agent': 'Mozilla/5.0 (compatible; FaceIndexer/1.0)'
             }
@@ -157,8 +156,8 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
             }
           );
           
-          // Small delay between photos to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 500));
+          // Reduced delay between photos for 2x speed
+          await new Promise(resolve => setTimeout(resolve, 250)); // Reduced from 500ms to 250ms
           
         } catch (photoError) {
           console.error(`Error processing photo ${photoIndex}:`, photoError);
@@ -166,9 +165,9 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
         }
       }
       
-      // Longer delay between batches
+      // Reduced delay between batches for 2x speed
       console.log(`Batch ${batchIndex + 1} completed. Indexed ${indexedCount}/${photos.length} photos so far.`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced from 2000ms to 1000ms
     }
     
     // Final status update
