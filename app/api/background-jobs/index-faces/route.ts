@@ -28,7 +28,8 @@ export async function POST(request: NextRequest) {
         'faceIndexing.status': 'in_progress',
         'faceIndexing.totalPhotos': gallery.photos.length,
         'faceIndexing.indexedPhotos': 0,
-        'faceIndexing.lastUpdated': new Date()
+        'faceIndexing.lastUpdated': new Date(),
+        'faceIndexing.estimatedTimeRemaining': 0
       }
     );
 
@@ -156,6 +157,7 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
           const remainingMs = remainingPhotos * avgTimePerPhoto;
           const remainingMinutes = Math.ceil(remainingMs / 60000);
           
+          console.log(`Time calculation: elapsed=${elapsedMs}ms, avgPerPhoto=${avgTimePerPhoto}ms, remaining=${remainingPhotos} photos, ETA=${remainingMinutes}min`);
           console.log(`Progress: ${indexedCount}/${photos.length} (${Math.round((indexedCount/photos.length)*100)}%) - ETA: ${remainingMinutes} min`);
           
           // Update progress after each photo with time remaining

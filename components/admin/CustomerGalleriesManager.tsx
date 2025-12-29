@@ -367,8 +367,13 @@ function CustomerGalleriesManager() {
                     )}
                     <p className="text-xs text-gray-500 mt-1">
                       {gallery.indexingStatus.indexedPhotos} / {gallery.indexingStatus.totalPhotos} photos indexed
-                      {gallery.indexingStatus.status === 'in_progress' && gallery.indexingStatus.estimatedTimeRemaining > 0 && (
-                        <span className="ml-2">• {gallery.indexingStatus.estimatedTimeRemaining} min remaining</span>
+                      {gallery.indexingStatus.status === 'in_progress' && (
+                        <span className="ml-2">
+                          • {gallery.indexingStatus.estimatedTimeRemaining > 0 
+                            ? `${gallery.indexingStatus.estimatedTimeRemaining} min remaining`
+                            : 'Calculating...'
+                          }
+                        </span>
                       )}
                     </p>
                   </div>
