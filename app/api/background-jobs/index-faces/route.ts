@@ -87,6 +87,8 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
   console.log(`=== OPTIMIZED INDEXING STARTED ===`);
   console.log(`Starting OPTIMIZED background indexing for ${photos.length} photos`);
   
+  const startTime = Date.now();
+  
   try {
     // BALANCED BATCH SIZE for 2x speed improvement
     const batchSize = 10; // Increased from 5 to 10 for 2x speed
@@ -112,7 +114,7 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
         try {
           console.log(`Fetching photo ${photoIndex}/${photos.length}: ${photo.alt}`);
           
-          // Fetch image with timeout and retry
+          // Fetch image with headers
           const response = await fetch(photo.url, { 
             headers: {
               'User-Agent': 'Mozilla/5.0 (compatible; FaceIndexer/1.0)'
@@ -147,12 +149,22 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
           
           console.log(`Photo ${photoIndex}: Indexed ${result.FaceRecords?.length || 0} faces`);
           
-          // Update progress after each photo
+          // Calculate time remaining
+          const elapsedMs = Date.now() - startTime;
+          const avgTimePerPhoto = elapsedMs / indexedCount;
+          const remainingPhotos = photos.length - indexedCount;
+          const remainingMs = remainingPhotos * avgTimePerPhoto;
+          const remainingMinutes = Math.ceil(remainingMs / 60000);
+          
+          console.log(`Progress: ${indexedCount}/${photos.length} (${Math.round((indexedCount/photos.length)*100)}%) - ETA: ${remainingMinutes} min`);
+          
+          // Update progress after each photo with time remaining
           await CustomerGallery.updateOne(
             { albumCode: albumCode.toLowerCase() },
             {
               'faceIndexing.indexedPhotos': indexedCount,
-              'faceIndexing.lastUpdated': new Date()
+              'faceIndexing.lastUpdated': new Date(),
+              'faceIndexing.estimatedTimeRemaining': remainingMinutes
             }
           );
           
@@ -177,7 +189,8 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
         'faceIndexing.status': 'completed',
         'faceIndexing.indexedPhotos': indexedCount,
         'faceIndexing.isReadyToSend': indexedCount > 0,
-        'faceIndexing.lastUpdated': new Date()
+        'faceIndexing.lastUpdated': new Date(),
+        'faceIndexing.estimatedTimeRemaining': 0
       }
     );
     

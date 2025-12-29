@@ -29,7 +29,8 @@ export async function GET(
       indexedPhotos: gallery.faceIndexing.indexedPhotos,
       progress,
       lastUpdated: gallery.faceIndexing.lastUpdated,
-      isReadyToSend: gallery.faceIndexing.status === 'completed'
+      isReadyToSend: gallery.faceIndexing.status === 'completed',
+      estimatedTimeRemaining: gallery.faceIndexing.estimatedTimeRemaining || 0
     });
 
   } catch (error) {

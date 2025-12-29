@@ -101,6 +101,14 @@ const CustomerGallerySchema = new mongoose.Schema({
     lastUpdated: {
       type: Date,
       default: Date.now
+    },
+    estimatedTimeRemaining: {
+      type: Number,
+      default: 0 // in minutes
+    },
+    isReadyToSend: {
+      type: Boolean,
+      default: false
     }
   }
 }, {
