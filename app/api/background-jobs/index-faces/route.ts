@@ -111,8 +111,8 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
   const maxConsecutiveErrors = 3;
   
   try {
-    // MAXIMUM SPEED BATCH SIZE for fastest processing
-    const batchSize = 50; // Increased from 25 to 50 for maximum speed
+    // RELIABLE BATCH SIZE for accuracy (like original script)
+    const batchSize = 10; // Reduced from 50 to 10 for reliability
     let indexedCount = 0;
     const totalBatches = Math.ceil(photos.length / batchSize);
     
@@ -143,9 +143,9 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
             }
           });
           
-          // Add timeout to prevent hanging
+          // Add timeout to prevent hanging (increased from 30s to 60s)
           const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Fetch timeout')), 30000)
+            setTimeout(() => reject(new Error('Fetch timeout')), 60000)
           );
           
           const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
@@ -190,9 +190,9 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
           const remainingPhotos = photos.length - indexedCount;
           const remainingMs = remainingPhotos * avgTimePerPhoto;
           const remainingMinutes = Math.ceil(remainingMs / 60000);
-          const realisticMinutes = indexedCount < 10 
-            ? Math.ceil((photos.length - indexedCount) * 0.05) // 3 seconds per photo estimate for maximum speed
-            : remainingMinutes;
+          const realisticMinutes = indexedCount < 15 
+            ? Math.ceil((photos.length - indexedCount) * 1) // 60 seconds per photo with AWS delays
+            : Math.ceil(remainingMs / 60000);
           
           await CustomerGallery.updateOne(
             { albumCode: albumCode.toLowerCase() },
@@ -203,8 +203,8 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
             }
           );
           
-          // No delay between photos for maximum speed
-          // await new Promise(resolve => setTimeout(resolve, 50)); // Removed for speed
+          // AWS-safe delay between photos (stay well under 20 TPS limit)
+          await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second = 1 TPS (safe)
           
         } catch (photoError) {
           consecutiveErrors++;
@@ -227,9 +227,9 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
         }
       }
       
-      // No delay between batches for maximum speed
+      // AWS-safe delay between batches (extra buffer for rate limits)
       console.log(`Batch ${batchIndex + 1} completed. Indexed ${indexedCount}/${photos.length} photos so far.`);
-      // await new Promise(resolve => setTimeout(resolve, 100)); // Removed for speed
+      await new Promise(resolve => setTimeout(resolve, 5000)); // 5 second delay between batches
     }
     
     // Final status update
