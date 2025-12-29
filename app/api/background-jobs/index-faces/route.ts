@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Found gallery with', gallery.photos.length, 'photos');
+    console.log('Gallery photos sample:', gallery.photos.slice(0, 2).map((p: any) => p.alt));
 
     // Update indexing status to in_progress
     await CustomerGallery.updateOne(

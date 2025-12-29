@@ -110,9 +110,10 @@ export async function POST(request: NextRequest) {
     if (gallery.photos && gallery.photos.length > 0) {
       console.log('Starting background face indexing for gallery:', gallery.albumCode);
       
-      // Trigger background job asynchronously - don't wait for completion
+      // Always use the production URL for thewildstudio.org
       const indexingUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/background-jobs/index-faces`;
       console.log('Triggering indexing at URL:', indexingUrl);
+      console.log('NEXT_PUBLIC_BASE_URL:', process.env.NEXT_PUBLIC_BASE_URL);
       
       // Fire and forget - don't await this
       fetch(indexingUrl, {
