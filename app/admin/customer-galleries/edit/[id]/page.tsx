@@ -62,7 +62,7 @@ export default function EditCustomerGalleryPage() {
       const pathSegments = window.location.pathname.split('/');
       const galleryId = pathSegments[pathSegments.length - 1];
       
-      const response = await fetch(`/api/customer-galleries/${galleryId}`);
+      const response = await fetch(`/api/admin/customer-galleries/${galleryId}`);
       if (response.ok) {
         const data = await response.json();
         setInitialData(data);
