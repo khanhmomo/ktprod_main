@@ -84,78 +84,71 @@ export async function POST(request: NextRequest) {
 }
 
 async function indexPhotosInBackground(collectionId: string, photos: any[], albumCode: string) {
-  console.log(`=== INDEXING FUNCTION CALLED ===`);
-  console.log(`Starting FAST background indexing for ${photos.length} photos`);
+  console.log(`=== RELIABLE INDEXING STARTED ===`);
+  console.log(`Starting RELIABLE background indexing for ${photos.length} photos`);
   
   try {
-    // INCREASED BATCH SIZE for much faster processing
-    const batchSize = 20; // Increased from 5 to 20
+    // SMALLER BATCH SIZE for better reliability
+    const batchSize = 5; // Back to smaller batch for accuracy
     let indexedCount = 0;
     const totalBatches = Math.ceil(photos.length / batchSize);
     
-    // Pre-fetch all images in parallel for maximum speed
-    console.log('Pre-fetching all images in parallel...');
-    const imageBuffers: Buffer[] = [];
+    console.log(`Processing ${totalBatches} batches of ${batchSize} photos each`);
     
-    // Fetch all images concurrently (this is the bottleneck)
-    const fetchPromises = photos.map(async (photo, index) => {
-      try {
-        console.log(`Fetching photo ${index + 1}/${photos.length}: ${photo.url}`);
-        const response = await fetch(photo.url);
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        const imageBytes = Buffer.from(await response.arrayBuffer());
-        console.log(`Successfully fetched photo ${index + 1}, size: ${imageBytes.length} bytes`);
-        return { index, imageBytes };
-      } catch (error) {
-        console.error(`Failed to fetch photo ${index}:`, error);
-        return { index, imageBytes: null, error };
-      }
-    });
-    
-    const fetchedImages = await Promise.all(fetchPromises);
-    
-    // Sort by index and extract buffers
-    fetchedImages.sort((a, b) => a.index - b.index);
-    const validBuffers = fetchedImages
-      .map(item => item.imageBytes)
-      .filter(buffer => buffer !== null);
-    
-    const failedFetches = fetchedImages.filter(item => item.imageBytes === null);
-    if (failedFetches.length > 0) {
-      console.error(`Failed to fetch ${failedFetches.length} photos:`, failedFetches.map(f => f.error));
-    }
-    
-    console.log(`Fetched ${validBuffers.length}/${photos.length} images successfully`);
-    
-    if (validBuffers.length === 0) {
-      throw new Error('No images could be fetched successfully');
-    }
-    
-    // Process in larger batches with parallel AWS calls
-    for (let i = 0; i < validBuffers.length; i += batchSize) {
-      const batch = validBuffers.slice(i, i + batchSize);
+    // Process batches sequentially for reliability
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const startIndex = batchIndex * batchSize;
+      const endIndex = Math.min(startIndex + batchSize, photos.length);
+      const batch = photos.slice(startIndex, endIndex);
       
-      try {
-        console.log(`Processing batch ${Math.floor(i/batchSize) + 1}/${totalBatches} with ${batch.length} photos`);
+      console.log(`\n=== BATCH ${batchIndex + 1}/${totalBatches} ===`);
+      console.log(`Processing photos ${startIndex + 1}-${endIndex} of ${photos.length}`);
+      
+      // Process each photo individually for maximum reliability
+      for (let i = 0; i < batch.length; i++) {
+        const photo = batch[i];
+        const photoIndex = startIndex + i + 1;
         
-        // Process all photos in batch concurrently
-        const promises = batch.map(async (imageBuffer, batchIndex) => {
-          try {
-            await FaceCollectionService.indexFaces(collectionId, imageBuffer, `photo-${i + batchIndex}`);
-            return true;
-          } catch (error) {
-            console.error(`Failed to index photo ${i + batchIndex}:`, error);
-            return false;
+        try {
+          console.log(`Fetching photo ${photoIndex}/${photos.length}: ${photo.alt}`);
+          
+          // Fetch image with timeout and retry
+          const response = await fetch(photo.url, { 
+            timeout: 30000, // 30 second timeout
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (compatible; FaceIndexer/1.0)'
+            }
+          });
+          
+          if (!response.ok) {
+            console.error(`Failed to fetch photo ${photoIndex}: ${response.status}`);
+            continue;
           }
-        });
-        
-        const results = await Promise.all(promises);
-        indexedCount += results.filter(r => r).length;
-        
-        // Update progress less frequently to reduce DB writes
-        if (i % (batchSize * 2) === 0 || i + batchSize >= validBuffers.length) {
+          
+          const imageBuffer = Buffer.from(await response.arrayBuffer());
+          console.log(`Photo ${photoIndex}: Fetched ${imageBuffer.length} bytes`);
+          
+          // Index face with AWS Rekognition
+          const rekognitionClient = require('@/lib/aws-config').getRekognitionClient();
+          if (!rekognitionClient) {
+            throw new Error('AWS Rekognition not configured');
+          }
+          
+          const { IndexFacesCommand } = require('@aws-sdk/client-rekognition');
+          const command = new IndexFacesCommand({
+            CollectionId: collectionId,
+            Image: { Bytes: imageBuffer },
+            ExternalImageId: `${albumCode}-${photoIndex}`,
+            MaxFaces: 10,
+            QualityFilter: 'AUTO'
+          });
+          
+          const result = await rekognitionClient.send(command);
+          indexedCount++;
+          
+          console.log(`Photo ${photoIndex}: Indexed ${result.FaceRecords?.length || 0} faces`);
+          
+          // Update progress after each photo
           await CustomerGallery.updateOne(
             { albumCode: albumCode.toLowerCase() },
             {
@@ -164,34 +157,36 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
             }
           );
           
-          const progress = Math.round((indexedCount / photos.length) * 100);
-          console.log(`Progress: ${indexedCount}/${photos.length} (${progress}%) - Batch ${Math.floor(i/batchSize) + 1}/${totalBatches}`);
+          // Small delay between photos to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+        } catch (photoError) {
+          console.error(`Error processing photo ${photoIndex}:`, photoError);
+          // Continue with next photo instead of failing entire batch
         }
-        
-        // Small delay to prevent AWS rate limiting
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-      } catch (error) {
-        console.error(`Error in batch ${Math.floor(i/batchSize) + 1}:`, error);
       }
+      
+      // Longer delay between batches
+      console.log(`Batch ${batchIndex + 1} completed. Indexed ${indexedCount}/${photos.length} photos so far.`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
     
-    // Mark as completed
+    // Final status update
     await CustomerGallery.updateOne(
       { albumCode: albumCode.toLowerCase() },
       {
         'faceIndexing.status': 'completed',
         'faceIndexing.indexedPhotos': indexedCount,
+        'faceIndexing.isReadyToSend': indexedCount > 0,
         'faceIndexing.lastUpdated': new Date()
       }
     );
     
-    console.log(`FAST indexing completed! Indexed ${indexedCount}/${photos.length} photos`);
+    console.log(`=== INDEXING COMPLETED ===`);
+    console.log(`Successfully indexed ${indexedCount} out of ${photos.length} photos`);
     
   } catch (error) {
-    console.error('Critical error in indexing:', error);
-    
-    // Mark as failed
+    console.error('Indexing failed:', error);
     await CustomerGallery.updateOne(
       { albumCode: albumCode.toLowerCase() },
       {
