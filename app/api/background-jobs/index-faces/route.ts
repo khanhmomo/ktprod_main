@@ -150,27 +150,30 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
           
           console.log(`Photo ${photoIndex}: Indexed ${result.FaceRecords?.length || 0} faces`);
           
-          // Calculate time remaining
+          // Calculate time remaining (more accurate after 10+ photos)
           const elapsedMs = Date.now() - startTime;
           const avgTimePerPhoto = elapsedMs / indexedCount;
           const remainingPhotos = photos.length - indexedCount;
           const remainingMs = remainingPhotos * avgTimePerPhoto;
           const remainingMinutes = Math.ceil(remainingMs / 60000);
           
-          console.log(`Time calculation: elapsed=${elapsedMs}ms, avgPerPhoto=${avgTimePerPhoto}ms, remaining=${remainingPhotos} photos, ETA=${remainingMinutes}min`);
-          console.log(`Progress: ${indexedCount}/${photos.length} (${Math.round((indexedCount/photos.length)*100)}%) - ETA: ${remainingMinutes} min`);
+          // Use realistic minimum after first few photos
+          const realisticMinutes = indexedCount < 10 
+            ? Math.ceil((photos.length - indexedCount) * 0.5) // 30 seconds per photo estimate
+            : remainingMinutes;
           
-          // Update progress every 5 photos to reduce DB writes
-          if (indexedCount % 5 === 0 || indexedCount === photos.length) {
-            await CustomerGallery.updateOne(
-              { albumCode: albumCode.toLowerCase() },
-              {
-                'faceIndexing.indexedPhotos': indexedCount,
-                'faceIndexing.lastUpdated': new Date(),
-                'faceIndexing.estimatedTimeRemaining': remainingMinutes
-              }
-            );
-          }
+          console.log(`Time calculation: elapsed=${elapsedMs}ms, avgPerPhoto=${avgTimePerPhoto}ms, remaining=${remainingPhotos} photos, ETA=${realisticMinutes}min`);
+          console.log(`Progress: ${indexedCount}/${photos.length} (${Math.round((indexedCount/photos.length)*100)}%) - ETA: ${realisticMinutes} min`);
+          
+          // Update progress after each photo for smooth progress bar
+          await CustomerGallery.updateOne(
+            { albumCode: albumCode.toLowerCase() },
+            {
+              'faceIndexing.indexedPhotos': indexedCount,
+              'faceIndexing.lastUpdated': new Date(),
+              'faceIndexing.estimatedTimeRemaining': realisticMinutes
+            }
+          );
           
           // Further reduced delay between photos for faster processing
           await new Promise(resolve => setTimeout(resolve, 100)); // Reduced from 250ms to 100ms
