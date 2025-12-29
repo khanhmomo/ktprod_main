@@ -39,7 +39,7 @@ export class FaceCollectionService {
         CollectionId: collectionId,
         Image: { Bytes: imageBytes },
         ExternalImageId: externalImageId,
-        DetectionAttributes: ['ALL'],
+        DetectionAttributes: [], // Remove ALL attributes for faster processing
         MaxFaces: 1,
         QualityFilter: 'AUTO',
       });

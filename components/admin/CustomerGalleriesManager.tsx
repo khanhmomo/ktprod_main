@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiPlus, FiEdit2, FiTrash2, FiEye, FiCopy, FiCalendar, FiMail, FiUser, FiFolder, FiDownload, FiX, FiCheck, FiAlertCircle } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiEye, FiCopy, FiCalendar, FiMail, FiUser, FiFolder, FiDownload, FiX, FiCheck, FiAlertCircle, FiRefreshCw, FiSearch } from 'react-icons/fi';
 import Image from 'next/image';
 
 interface Photo {
@@ -29,6 +29,13 @@ interface CustomerGallery {
   notes: string;
   createdAt: string;
   updatedAt: string;
+  indexingStatus?: {
+    status: 'not_started' | 'in_progress' | 'completed' | 'failed';
+    totalPhotos: number;
+    indexedPhotos: number;
+    progress: number;
+    isReadyToSend: boolean;
+  };
 }
 
 function CustomerGalleriesManager() {
@@ -36,17 +43,113 @@ function CustomerGalleriesManager() {
   const [galleries, setGalleries] = useState<CustomerGallery[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     fetchGalleries();
+    
+    // Set up real-time polling for indexing status
+    const interval = setInterval(() => {
+      fetchIndexingStatuses();
+    }, 5000); // Update every 5 seconds
+
+    return () => clearInterval(interval);
   }, []);
+
+  const fetchIndexingStatuses = async () => {
+    try {
+      const response = await fetch('/api/customer-galleries');
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Fetch indexing status for each gallery
+        const galleriesWithStatus = await Promise.all(
+          data.map(async (gallery: CustomerGallery) => {
+            try {
+              const statusResponse = await fetch(`/api/customer-galleries/${gallery.albumCode}/indexing-status`);
+              if (statusResponse.ok) {
+                const statusData = await statusResponse.json();
+                return {
+                  ...gallery,
+                  indexingStatus: statusData
+                };
+              }
+            } catch (error) {
+              console.error(`Failed to fetch indexing status for ${gallery.albumCode}:`, error);
+            }
+            return gallery;
+          })
+        );
+        
+        setGalleries(prevGalleries => 
+          prevGalleries.map(prev => {
+            const updated = galleriesWithStatus.find(g => g._id === prev._id);
+            return updated ? { ...prev, indexingStatus: updated.indexingStatus } : prev;
+          })
+        );
+        setLastUpdated(new Date());
+      }
+    } catch (error) {
+      console.error('Error fetching indexing statuses:', error);
+    }
+  };
+
+  const triggerIndexing = async (albumCode: string) => {
+    if (!confirm('Start face recognition indexing for this album?')) return;
+
+    try {
+      const response = await fetch(`/api/customer-galleries/${albumCode}/index`, {
+        method: 'POST'
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(`Indexing started for ${result.totalPhotos} photos!`);
+        // Refresh status immediately
+        await fetchIndexingStatuses();
+      } else {
+        const error = await response.json();
+        alert(`Failed to start indexing: ${error.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error triggering indexing:', error);
+      alert('Failed to start indexing. Please try again.');
+    }
+  };
+
+  const manualRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchIndexingStatuses();
+    setTimeout(() => setIsRefreshing(false), 500);
+  };
 
   const fetchGalleries = async () => {
     try {
       const response = await fetch('/api/customer-galleries');
       if (response.ok) {
         const data = await response.json();
-        setGalleries(data);
+        
+        // Fetch indexing status for each gallery
+        const galleriesWithStatus = await Promise.all(
+          data.map(async (gallery: CustomerGallery) => {
+            try {
+              const statusResponse = await fetch(`/api/customer-galleries/${gallery.albumCode}/indexing-status`);
+              if (statusResponse.ok) {
+                const statusData = await statusResponse.json();
+                return {
+                  ...gallery,
+                  indexingStatus: statusData
+                };
+              }
+            } catch (error) {
+              console.error(`Failed to fetch indexing status for ${gallery.albumCode}:`, error);
+            }
+            return gallery;
+          })
+        );
+        
+        setGalleries(galleriesWithStatus);
       }
     } catch (error) {
       console.error('Error fetching galleries:', error);
@@ -59,21 +162,25 @@ function CustomerGalleriesManager() {
     if (!confirm('Are you sure you want to delete this gallery?')) return;
 
     try {
-      const response = await fetch(`/api/customer-galleries/${id}`, {
+      const response = await fetch(`/api/customer-galleries?id=${id}`, {
         method: 'DELETE'
       });
 
       if (response.ok) {
         await fetchGalleries();
+      } else {
+        const error = await response.json();
+        alert(`Failed to delete gallery: ${error.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error deleting gallery:', error);
+      alert('Failed to delete gallery. Please try again.');
     }
   };
 
   const handleStatusChange = async (id: string, status: 'draft' | 'published' | 'archived') => {
     try {
-      const response = await fetch(`/api/customer-galleries/${id}`, {
+      const response = await fetch(`/api/customer-galleries?id=${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
@@ -81,9 +188,13 @@ function CustomerGalleriesManager() {
 
       if (response.ok) {
         await fetchGalleries();
+      } else {
+        const error = await response.json();
+        alert(`Failed to update status: ${error.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error updating status:', error);
+      alert('Failed to update status. Please try again.');
     }
   };
 
@@ -125,15 +236,31 @@ function CustomerGalleriesManager() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Customer Galleries</h1>
-            <p className="text-gray-600 mt-2">Manage private photo galleries for your customers</p>
+            <div className="flex items-center space-x-4 mt-2">
+              <p className="text-gray-600">Manage private photo galleries for your customers</p>
+              <div className="flex items-center space-x-2 text-sm text-gray-500">
+                <FiRefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span>Last updated: {lastUpdated.toLocaleTimeString()}</span>
+              </div>
+            </div>
           </div>
-          <button
-            onClick={() => router.push('/admin/customer-galleries')}
-            className="flex items-center px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
-          >
-            <FiPlus className="w-4 h-4 mr-2" />
-            New Gallery
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={manualRefresh}
+              disabled={isRefreshing}
+              className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              <FiRefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+            <button
+              onClick={() => router.push('/admin/customer-galleries')}
+              className="flex items-center px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              <FiPlus className="w-4 h-4 mr-2" />
+              New Gallery
+            </button>
+          </div>
         </div>
 
         {/* Galleries Grid */}
@@ -203,6 +330,46 @@ function CustomerGalleriesManager() {
                   </div>
                 </div>
 
+                {/* Indexing Status */}
+                {gallery.indexingStatus && (
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-gray-700">Face Recognition</span>
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        gallery.indexingStatus.isReadyToSend
+                          ? 'bg-green-100 text-green-800'
+                          : gallery.indexingStatus.status === 'in_progress'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : gallery.indexingStatus.status === 'failed'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {gallery.indexingStatus.isReadyToSend
+                          ? 'Ready'
+                          : gallery.indexingStatus.status === 'in_progress'
+                          ? 'Indexing...'
+                          : gallery.indexingStatus.status === 'failed'
+                          ? 'Failed'
+                          : 'Not Started'
+                        }
+                      </span>
+                    </div>
+                    {gallery.indexingStatus.status === 'in_progress' && (
+                      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <motion.div 
+                          className="bg-yellow-500 h-2 rounded-full"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${gallery.indexingStatus.progress}%` }}
+                          transition={{ duration: 0.5, ease: "easeOut" }}
+                        />
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      {gallery.indexingStatus.indexedPhotos} / {gallery.indexingStatus.totalPhotos} photos indexed
+                    </p>
+                  </div>
+                )}
+
                 {/* Actions */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
@@ -219,6 +386,14 @@ function CustomerGalleriesManager() {
                       title="Edit"
                     >
                       <FiEdit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => triggerIndexing(gallery.albumCode)}
+                      className="p-2 text-gray-500 hover:text-purple-600 transition-colors"
+                      title="Start Face Recognition"
+                      disabled={gallery.indexingStatus?.status === 'in_progress'}
+                    >
+                      <FiSearch className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(gallery._id)}
