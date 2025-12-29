@@ -227,6 +227,23 @@ export async function DELETE(request: NextRequest) {
     
     console.log('Gallery deleted successfully:', gallery.albumCode);
     
+    // Clean up AWS Rekognition collection
+    try {
+      const collectionId = `gallery-${gallery.albumCode}`;
+      console.log('Cleaning up AWS collection:', collectionId);
+      
+      const { FaceCollectionService } = require('@/lib/face-collection');
+      await FaceCollectionService.deleteCollection(collectionId);
+      console.log('AWS collection deleted successfully:', collectionId);
+      
+      // Also clean up any related face search data if needed
+      console.log('AWS cleanup completed for album:', gallery.albumCode);
+      
+    } catch (awsError) {
+      console.log('AWS collection cleanup failed (may not exist):', awsError);
+      // Don't fail the delete if AWS cleanup fails
+    }
+    
     return NextResponse.json(
       { message: 'Gallery deleted successfully' },
       { status: 200 }
