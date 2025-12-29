@@ -20,6 +20,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Gallery not found' }, { status: 404 });
     }
 
+    // Check if face recognition is enabled for this gallery
+    if (!gallery.faceRecognitionEnabled) {
+      console.log('Face recognition is disabled for gallery:', albumCode);
+      return NextResponse.json({ 
+        error: 'Face recognition is not enabled for this gallery',
+        message: 'This gallery does not have face recognition enabled'
+      }, { status: 400 });
+    }
+
     console.log('Found gallery with', gallery.photos.length, 'photos');
     console.log('Gallery photos sample:', gallery.photos.slice(0, 2).map((p: any) => p.alt));
 

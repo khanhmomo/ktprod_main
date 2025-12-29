@@ -29,6 +29,7 @@ interface CustomerGallery {
   notes: string;
   createdAt: string;
   updatedAt: string;
+  faceRecognitionEnabled?: boolean;
   indexingStatus?: {
     status: 'not_started' | 'in_progress' | 'completed' | 'failed';
     totalPhotos: number;
@@ -288,8 +289,8 @@ function CustomerGalleriesManager() {
                   </div>
                 )}
                 
-                {/* Status Badge */}
-                <div className="absolute top-2 right-2">
+                {/* Status and Face Search Badges */}
+                <div className="absolute top-2 right-2 flex flex-col gap-1">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                     gallery.status === 'published' 
                       ? 'bg-green-100 text-green-800'
@@ -298,6 +299,15 @@ function CustomerGalleriesManager() {
                       : 'bg-yellow-100 text-yellow-800'
                   }`}>
                     {gallery.status}
+                  </span>
+                  
+                  {/* Face Search Status */}
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    gallery.faceRecognitionEnabled !== false
+                      ? 'bg-purple-100 text-purple-800'
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    Face: {gallery.faceRecognitionEnabled !== false ? 'ON' : 'OFF'}
                   </span>
                 </div>
               </div>

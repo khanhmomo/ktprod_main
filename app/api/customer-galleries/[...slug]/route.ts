@@ -45,8 +45,8 @@ export async function PUT(request: NextRequest, { params }: { params: { slug: st
     // Return response first
     const response = NextResponse.json(gallery);
     
-    // Start background face indexing AFTER response (async)
-    if (body.status === 'published' && gallery.photos && gallery.photos.length > 0) {
+    // Start background face indexing AFTER response (async) - only if face recognition is enabled
+    if (body.status === 'published' && gallery.photos && gallery.photos.length > 0 && gallery.faceRecognitionEnabled) {
       console.log('Starting background face indexing for published gallery:', gallery.albumCode);
       
       // Trigger background job asynchronously (don't wait)
@@ -133,10 +133,12 @@ export async function DELETE(request: NextRequest, { params }: { params: { slug:
 
 export async function PATCH(request: NextRequest, { params }: { params: { slug: string[] } }) {
   try {
+    console.log('PATCH request received for customer-galleries with slug:', params.slug);
     await connectDB();
     
     // Extract albumCode from slug array
     const albumCode = params.slug[0];
+    console.log('Extracted albumCode:', albumCode);
     
     if (!albumCode) {
       return NextResponse.json(

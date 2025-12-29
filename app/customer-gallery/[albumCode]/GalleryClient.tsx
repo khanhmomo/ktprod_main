@@ -29,6 +29,7 @@ interface Gallery {
   status: string;
   deliveryDate: string;
   notes: string;
+  faceRecognitionEnabled?: boolean;
 }
 
 interface GalleryClientProps {
@@ -782,20 +783,22 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">{gallery.title || gallery.customerName}</h1>
-              <p className="text-xl text-gray-600 mb-1">{gallery.customerName}</p>
-              <p className="text-lg text-gray-500">
+              <h1 className="text-2xl md:text-4xl font-bold text-gray-900 mb-1 md:mb-2">{gallery.title || gallery.customerName}</h1>
+              <p className="text-sm md:text-xl text-gray-600 mb-1">{gallery.customerName}</p>
+              <p className="text-xs md:text-lg text-gray-500">
                 {gallery.eventType} • {new Date(gallery.eventDate).toLocaleDateString()}
               </p>
             </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setShowFaceSearch(true)}
-                className="hidden md:flex items-center space-x-2 px-4 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600 transition-colors"
-              >
-                <FiSearch className="w-4 h-4" />
-                <span className="text-sm font-medium">Find My Photos</span>
-              </button>
+            <div className="flex flex-wrap items-center gap-2 md:gap-4">
+              {gallery.faceRecognitionEnabled !== false && (
+                <button
+                  onClick={() => setShowFaceSearch(true)}
+                  className="flex items-center space-x-1 md:space-x-2 px-2 py-2 md:px-4 rounded-lg bg-purple-500 text-white hover:bg-purple-600 transition-colors"
+                >
+                  <FiSearch className="w-4 h-4" />
+                  <span className="text-xs md:text-sm font-medium hidden sm:inline">Find My Photos</span>
+                </button>
+              )}
               <button
                 onClick={handleDownloadAlbum}
                 disabled={isDownloading}
@@ -812,21 +815,21 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
               </button>
               <button
                 onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                className="hidden md:p-2 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 {viewMode === 'grid' ? <FiList className="w-5 h-5" /> : <FiGrid className="w-5 h-5" />}
               </button>
               <button
                 onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                className={`flex items-center space-x-1 md:space-x-2 px-2 py-2 md:px-4 rounded-lg transition-colors ${
                   showFavoritesOnly
                     ? 'bg-red-500 text-white'
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               >
                 <FiHeart className={`w-4 h-4 ${showFavoritesOnly ? 'fill-current' : ''}`} />
-                <span className="text-sm font-medium">
-                  {showFavoritesOnly ? 'All Photos' : 'Show Favorites'}
+                <span className="text-xs md:text-sm font-medium hidden sm:inline">
+                  {showFavoritesOnly ? 'All Photos' : 'Favorites'}
                 </span>
               </button>
               
@@ -839,15 +842,15 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
                       setShowFavoritesOnly(false);
                     }
                   }}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                  className={`flex items-center space-x-1 md:space-x-2 px-2 py-2 md:px-4 rounded-lg transition-colors ${
                     showFaceMatchesOnly
                       ? 'bg-purple-500 text-white'
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                   }`}
                 >
                   <FiCamera className={`w-4 h-4 ${showFaceMatchesOnly ? 'fill-current' : ''}`} />
-                  <span className="text-sm font-medium">
-                    {showFaceMatchesOnly ? 'All Photos' : `Face Matches (${faceMatchPhotos.size})`}
+                  <span className="text-xs md:text-sm font-medium hidden sm:inline">
+                    {showFaceMatchesOnly ? 'All' : `Faces (${faceMatchPhotos.size})`}
                   </span>
                 </button>
               )}

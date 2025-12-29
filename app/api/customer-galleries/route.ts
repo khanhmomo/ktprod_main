@@ -38,7 +38,8 @@ export async function POST(request: NextRequest) {
       notes,
       coverPhotoUrl,
       photos,
-      status
+      status,
+      faceRecognitionEnabled
     } = body;
 
     console.log('Extracted fields:', {
@@ -100,14 +101,15 @@ export async function POST(request: NextRequest) {
       notes: notes || '',
       coverPhotoUrl: coverPhotoUrl || '',
       photos: photos || [],
-      status: status || 'draft'
+      status: status || 'draft',
+      faceRecognitionEnabled: faceRecognitionEnabled !== false // Default to true unless explicitly false
     });
 
     await gallery.save();
     console.log('Gallery saved successfully:', gallery);
     
-    // Start background face indexing if gallery has photos (regardless of status)
-    if (gallery.photos && gallery.photos.length > 0) {
+    // Start background face indexing only if gallery has photos AND face recognition is enabled
+    if (gallery.photos && gallery.photos.length > 0 && gallery.faceRecognitionEnabled) {
       console.log('Starting background face indexing for gallery:', gallery.albumCode);
       
       // Always use the production URL for thewildstudio.org

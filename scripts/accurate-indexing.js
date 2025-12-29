@@ -63,11 +63,21 @@ async function updateGalleryStatus(albumCode, status, indexedPhotos, totalPhotos
     };
 
     const req = https.request(options, (res) => {
-      res.on('data', () => {});
-      res.on('end', () => resolve());
+      console.log(`[${albumCode}] PATCH response status: ${res.statusCode}`);
+      res.on('data', (chunk) => {
+        console.log(`[${albumCode}] PATCH response:`, chunk.toString());
+      });
+      res.on('end', () => {
+        console.log(`[${albumCode}] PATCH completed`);
+        resolve();
+      });
     });
 
-    req.on('error', reject);
+    req.on('error', (error) => {
+      console.error(`[${albumCode}] PATCH request error:`, error);
+      reject(error);
+    });
+    
     req.write(data);
     req.end();
   });
@@ -118,13 +128,61 @@ async function downloadAndResizeImage(url) {
             return;
           }
           
-          const resizedImage = await sharp(imageBuffer)
-            .resize(800, 800, { 
-              fit: 'inside',
-              withoutEnlargement: true
+          // Calculate target quality based on original size
+          let quality = 85;
+          let targetSize = 800;
+          
+          // More aggressive resize for large images
+          if (imageBuffer.length > 10 * 1024 * 1024) { // >10MB
+            quality = 60;
+            targetSize = 600;
+          } else if (imageBuffer.length > 5 * 1024 * 1024) { // >5MB
+            quality = 70;
+            targetSize = 700;
+          }
+          
+          // Multi-stage resize for very large images
+          let sharpPipeline = sharp(imageBuffer);
+          
+          // For very large images, do progressive resize
+          if (imageBuffer.length > 10 * 1024 * 1024) {
+            sharpPipeline = sharpPipeline
+              .resize(1200, 1200, { fit: 'inside' }) // First stage
+              .resize(targetSize, targetSize, { fit: 'inside' }); // Second stage
+          } else {
+            sharpPipeline = sharpPipeline
+              .resize(targetSize, targetSize, { fit: 'inside' });
+          }
+          
+          const resizedImage = await sharpPipeline
+            .jpeg({ 
+              quality: quality,
+              progressive: true,
+              mozjpeg: true // Better compression
             })
-            .jpeg({ quality: 85 })
             .toBuffer();
+          
+          console.log(`DEBUG: Resized from ${imageBuffer.length} to ${resizedImage.length} bytes (quality: ${quality}%)`);
+          
+          // If still too large, try even more aggressive compression
+          if (resizedImage.length > 5 * 1024 * 1024) {
+            console.log(`DEBUG: Still too large, applying extreme compression...`);
+            const extremeResized = await sharp(resizedImage)
+              .resize(400, 400, { fit: 'inside' })
+              .jpeg({ quality: 40 })
+              .toBuffer();
+            
+            console.log(`DEBUG: Extreme compression: ${extremeResized.length} bytes`);
+            resolve(extremeResized);
+            return;
+          }
+          
+          // Final check - if still too large, use original but warn
+          if (resizedImage.length > 5 * 1024 * 1024) {
+            console.log(`DEBUG: Still too large after compression (${resizedImage.length} bytes), using original`);
+            resolve(imageBuffer);
+            return;
+          }
           
           console.log(`DEBUG: Resized to ${resizedImage.length} bytes`);
           resolve(resizedImage);
@@ -144,14 +202,147 @@ async function downloadAndResizeImage(url) {
   });
 }
 
-// Main indexing function
+
+// Table display functions
+function clearScreen() {
+  console.clear();
+}
+
+function clearFromLine(lineNumber) {
+  // Clear from specific line to bottom of terminal
+  process.stdout.write(`\x1b[${lineNumber};0H\x1b[J`);
+}
+
+function displayHeader() {
+  console.log('\n' + '='.repeat(100));
+  console.log('🎯 ACCURATE FACE INDEXING - DETAILED PROGRESS');
+  console.log('='.repeat(100));
+}
+
+function displayGalleryTable(galleries, currentGallery = null, currentIndex = 0, totalIndexed = 0) {
+  // Move cursor to top left (1,1) to overwrite previous content
+  process.stdout.write('\x1b[H');
+  displayHeader();
+  
+  console.log('Album Code'.padEnd(15) + ' | ' + 'Photos'.padEnd(8) + ' | ' + 'Indexed'.padEnd(8) + ' | ' + 'Status'.padEnd(12) + ' | ' + 'Progress');
+  console.log('-'.repeat(100));
+  
+  galleries.forEach((gallery, index) => {
+    const indexing = gallery.faceIndexing || {};
+    const status = indexing.status || 'not_started';
+    const indexed = indexing.indexedPhotos || 0;
+    const total = indexing.totalPhotos || (gallery.photos?.length || 0);
+    
+    let statusDisplay = status;
+    let progressDisplay = '';
+    let prefix = '';
+    
+    if (index === currentIndex && currentGallery) {
+      prefix = '👉 ';
+      statusDisplay = 'PROCESSING';
+      progressDisplay = `${totalIndexed}/${total}`;
+    } else if (status === 'completed') {
+      statusDisplay = '✅ COMPLETED';
+      progressDisplay = `${indexed}/${total}`;
+    } else if (status === 'in_progress') {
+      statusDisplay = '🔄 PROGRESS';
+      progressDisplay = `${indexed}/${total}`;
+    } else if (status === 'failed') {
+      statusDisplay = '❌ FAILED';
+      progressDisplay = `${indexed}/${total}`;
+    } else {
+      statusDisplay = '⏳ PENDING';
+      progressDisplay = `0/${total}`;
+    }
+    
+    console.log(
+      prefix + gallery.albumCode.padEnd(15) + ' | ' +
+      total.toString().padEnd(8) + ' | ' +
+      indexed.toString().padEnd(8) + ' | ' +
+      statusDisplay.padEnd(12) + ' | ' +
+      progressDisplay
+    );
+  });
+  
+  console.log('-'.repeat(100));
+  
+  if (currentGallery) {
+    const percent = Math.round((totalIndexed / currentGallery.photos.length) * 100);
+    const progressBar = '█'.repeat(Math.floor(percent / 2)) + '░'.repeat(50 - Math.floor(percent / 2));
+    console.log(`📊 Current: ${currentGallery.albumCode} - ${totalIndexed}/${currentGallery.photos.length} (${percent}%)`);
+    console.log(`[${progressBar}]`);
+  }
+  
+  console.log(`📈 Total galleries: ${galleries.length} | Overall progress: ${currentIndex}/${galleries.length}`);
+  console.log('='.repeat(100));
+  
+  // Clear any remaining content below
+  clearFromLine(20);
+}
+
+function displayPhotoProgressBelowTable(gallery, photoIndex, facesFound, startTime) {
+  const elapsed = Date.now() - startTime;
+  const avgTime = elapsed / photoIndex;
+  const remaining = (gallery.photos.length - photoIndex) * avgTime;
+  const eta = Math.ceil(remaining / 1000); // seconds
+  const currentTime = new Date().toLocaleTimeString();
+  
+  // Move cursor to line 15 (below the gallery table)
+  process.stdout.write('\x1b[15;0H');
+  
+  // Clear from this line down
+  clearFromLine(15);
+  
+  console.log(`\n🎯 Current Gallery: ${gallery.albumCode}`);
+  console.log(`⏰ ${currentTime} | 📸 Photo: ${photoIndex}/${gallery.photos.length} | 😊 Faces: ${facesFound} | ⏱️ ETA: ${eta}s`);
+  
+  const percent = Math.round((photoIndex / gallery.photos.length) * 100);
+  const filledBlocks = Math.floor(percent / 2);
+  const emptyBlocks = 50 - filledBlocks;
+  const progressBar = '█'.repeat(filledBlocks) + '░'.repeat(emptyBlocks);
+  
+  // Animated progress bar with current position indicator
+  const position = Math.floor((photoIndex / gallery.photos.length) * 50);
+  const animatedBar = '█'.repeat(position) + '🔥' + '░'.repeat(50 - position - 1);
+  
+  console.log(`📊 Progress: [${progressBar}] ${percent}%`);
+  console.log(`🔥 Current: [${animatedBar}]`);
+  
+  console.log('\n📈 Real-time Statistics:');
+  console.log(`   📁 Total Photos: ${gallery.photos.length}`);
+  console.log(`   ✅ Processed: ${photoIndex} (${Math.round((photoIndex / gallery.photos.length) * 100)}%)`);
+  console.log(`   😊 Faces Found: ${facesFound} (avg: ${(facesFound / photoIndex).toFixed(1)} per photo)`);
+  console.log(`   ⏱️ Time Elapsed: ${Math.round(elapsed / 1000)}s (${Math.round(avgTime)}ms per photo)`);
+  console.log(`   🎯 Est. Remaining: ${eta}s (${Math.round(remaining / 1000 / 60)}min)`);
+  console.log(`   🚀 Processing Speed: ${(photoIndex / (elapsed / 1000)).toFixed(2)} photos/sec`);
+  
+  console.log('\n' + '='.repeat(100));
+  console.log('🔄 Processing next photo... (2s delay for AWS rate limiting)');
+}
+
+function displayPhotoProgress(gallery, photoIndex, facesFound, startTime) {
+  // Keep this function for initial display or other uses
+  displayPhotoProgressBelowTable(gallery, photoIndex, facesFound, startTime);
+}
+
+// Update the main indexing function to use table display
 async function indexAllGalleries() {
-  console.log('Fetching galleries...');
+  console.log('🔍 Fetching galleries...');
   const galleries = await getGalleries();
   
-  for (const gallery of galleries) {
+  displayGalleryTable(galleries);
+  
+  for (let i = 0; i < galleries.length; i++) {
+    const gallery = galleries[i];
+    
     if (!gallery.photos || gallery.photos.length === 0) {
-      console.log(`Skipping ${gallery.albumCode} - no photos`);
+      console.log(`⏭️  Skipping ${gallery.albumCode} - no photos`);
+      continue;
+    }
+    
+    // Skip if face recognition is disabled
+    if (!gallery.faceRecognitionEnabled) {
+      console.log(`⏭️  Skipping ${gallery.albumCode} - face recognition disabled`);
       continue;
     }
     
@@ -160,20 +351,22 @@ async function indexAllGalleries() {
                      gallery.faceIndexing.indexedPhotos < gallery.photos.length;
     
     if (!needsIndexing) {
-      console.log(`Skipping ${gallery.albumCode} - already indexed`);
+      console.log(`✅ Skipping ${gallery.albumCode} - already indexed`);
       continue;
     }
     
-    console.log(`Starting indexing for ${gallery.albumCode} (${gallery.photos.length} photos)`);
+    console.log(`🚀 Starting indexing for ${gallery.albumCode} (${gallery.photos.length} photos)`);
     
     await ensureCollection(gallery.albumCode);
     await updateGalleryStatus(gallery.albumCode, 'in_progress', 0, gallery.photos.length);
     
     let indexedCount = 0;
+    let totalFacesFound = 0;
+    const startTime = Date.now();
     
-    for (let i = 0; i < gallery.photos.length; i++) {
-      const photo = gallery.photos[i];
-      const photoIndex = i + 1;
+    for (let j = 0; j < gallery.photos.length; j++) {
+      const photo = gallery.photos[j];
+      const photoIndex = j + 1;
       
       try {
         console.log(`[${gallery.albumCode}] Processing photo ${photoIndex}/${gallery.photos.length}`);
@@ -188,32 +381,58 @@ async function indexAllGalleries() {
           QualityFilter: 'AUTO'
         });
         
-               
         const result = await rekognitionClient.send(command);
         indexedCount++;
-        console.log(`[${gallery.albumCode}] Photo ${photoIndex}: Indexed ${result.FaceRecords?.length || 0} faces`);
+        const facesInPhoto = result.FaceRecords?.length || 0;
+        totalFacesFound += facesInPhoto;
         
-        // Update progress
+        console.log(`[${gallery.albumCode}] Photo ${photoIndex}: Indexed ${facesInPhoto} faces`);
+        
+        // Update server progress
         await updateGalleryStatus(gallery.albumCode, 'in_progress', indexedCount, gallery.photos.length);
         
-        // Delay to avoid AWS rate limiting (like your original script)
+        // Update gallery table display first (stays at top)
+        const updatedGalleries = await getGalleries();
+        displayGalleryTable(updatedGalleries, gallery, i, indexedCount);
+        
+        // Then show photo progress below the table
+        displayPhotoProgressBelowTable(gallery, photoIndex, totalFacesFound, startTime);
+        
+        // Brief pause to show the update before next photo
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Delay to avoid AWS rate limiting
         await new Promise(resolve => setTimeout(resolve, 2000));
         
       } catch (error) {
-        console.error(`Error processing photo ${photoIndex}:`, error.message);
+        console.error(`❌ Error processing photo ${photoIndex}:`, error.message);
         // Continue with next photo
       }
     }
     
     // Mark as completed
     await updateGalleryStatus(gallery.albumCode, 'completed', indexedCount, gallery.photos.length);
-    console.log(`Completed indexing ${gallery.albumCode}: ${indexedCount}/${gallery.photos.length} photos`);
+    
+    // Final display for completed gallery
+    const finalGalleries = await getGalleries();
+    displayGalleryTable(finalGalleries);
+    
+    console.log(`🎉 Completed indexing ${gallery.albumCode}: ${indexedCount}/${gallery.photos.length} photos, ${totalFacesFound} faces found`);
+    
+    // Brief pause between galleries
+    if (i < galleries.length - 1) {
+      console.log('⏸️  Brief pause before next gallery...');
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
   }
   
-  console.log('All galleries processed!');
+  clearScreen();
+  displayHeader();
+  console.log('🏆 ALL GALLERIES PROCESSED SUCCESSFULLY!');
+  console.log('='.repeat(100));
 }
 
 // Start indexing
-console.log('Starting accurate indexing...');
+console.log('🎯 Starting accurate indexing with enhanced table display...');
 indexAllGalleries().catch(console.error);
 
