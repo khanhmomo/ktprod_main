@@ -52,18 +52,35 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'AWS Rekognition not configured' }, { status: 500 });
       }
       console.log('AWS credentials OK, creating collection...');
+      
+      // Force create collection - this will create it if it doesn't exist
+      const { FaceCollectionService } = require('@/lib/face-collection');
       await FaceCollectionService.createCollection(collectionId);
       console.log('Face collection ready:', collectionId);
+      
+      // Verify collection exists before proceeding
+      const { ListCollectionsCommand } = require('@aws-sdk/client-rekognition');
+      const listCommand = new ListCollectionsCommand({});
+      const listResult = await rekognitionClient.send(listCommand);
+      
+      if (!listResult.CollectionIds?.includes(collectionId)) {
+        throw new Error(`Collection ${collectionId} was not created successfully`);
+      }
+      
+      console.log('Collection verified to exist:', collectionId);
+      
     } catch (error: any) {
-      if (error.name !== 'ResourceAlreadyExistsException') {
+      console.error('Collection creation error:', error);
+      if (error.name === 'ResourceAlreadyExistsException') {
+        console.log('Collection already exists:', collectionId);
+      } else {
         // Update status to failed
         await CustomerGallery.updateOne(
           { albumCode: albumCode.toLowerCase() },
           { 'faceIndexing.status': 'failed', 'faceIndexing.lastUpdated': new Date() }
         );
-        throw error;
+        return NextResponse.json({ error: `Failed to create collection: ${error.message}` }, { status: 500 });
       }
-      console.log('Face collection already exists:', collectionId);
     }
 
     // Start indexing in background
@@ -192,6 +209,12 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
         } catch (photoError) {
           consecutiveErrors++;
           console.error(`Error processing photo ${photoIndex} (${consecutiveErrors}/${maxConsecutiveErrors}):`, photoError);
+          
+          // If collection doesn't exist, stop indexing immediately
+          if ((photoError as any).name === 'ResourceNotFoundException' && (photoError as any).message?.includes('does not exist')) {
+            console.error(`Collection ${collectionId} does not exist. Stopping indexing.`);
+            throw new Error(`Collection ${collectionId} not found - indexing stopped`);
+          }
           
           // If too many consecutive errors, stop indexing
           if (consecutiveErrors >= maxConsecutiveErrors) {
