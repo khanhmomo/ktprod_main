@@ -179,8 +179,8 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
             }
           );
           
-          // Minimal delay between photos for maximum speed
-          await new Promise(resolve => setTimeout(resolve, 50)); // Reduced from 100ms to 50ms
+          // Add rate limiting delay to avoid AWS throttling
+          await new Promise(resolve => setTimeout(resolve, 200)); // Increased from 50ms to 200ms
           
         } catch (photoError) {
           console.error(`Error processing photo ${photoIndex}:`, photoError);
