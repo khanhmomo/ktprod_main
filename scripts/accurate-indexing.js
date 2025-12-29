@@ -328,43 +328,79 @@ function displayPhotoProgress(gallery, photoIndex, facesFound, startTime) {
 // Update the main indexing function to use table display
 async function indexAllGalleries() {
   console.log('🔍 Fetching galleries...');
-  const galleries = await getGalleries();
+  const allGalleries = await getGalleries();
   
-  displayGalleryTable(galleries);
-  
-  for (let i = 0; i < galleries.length; i++) {
-    const gallery = galleries[i];
-    
+  // Filter galleries that need indexing
+  const galleriesNeedingIndexing = allGalleries.filter(gallery => {
+    // Skip if no photos
     if (!gallery.photos || gallery.photos.length === 0) {
       console.log(`⏭️  Skipping ${gallery.albumCode} - no photos`);
-      continue;
+      return false;
     }
     
     // Skip if face recognition is disabled
     if (!gallery.faceRecognitionEnabled) {
       console.log(`⏭️  Skipping ${gallery.albumCode} - face recognition disabled`);
-      continue;
+      return false;
     }
     
+    // Skip if already completed or in progress
+    const indexing = gallery.faceIndexing || {};
+    if (indexing.status === 'completed') {
+      console.log(`✅ Skipping ${gallery.albumCode} - already completed (${indexing.indexedPhotos || 0}/${gallery.photos.length} photos indexed)`);
+      return false;
+    }
+    
+    if (indexing.status === 'in_progress') {
+      console.log(`🔄 Resuming ${gallery.albumCode} - continuing from photo ${(indexing.indexedPhotos || 0) + 1} (${indexing.indexedPhotos || 0}/${gallery.photos.length} photos indexed)`);
+      return true;
+    }
+    
+    // Check if needs indexing
     const needsIndexing = !gallery.faceIndexing || 
-                     gallery.faceIndexing.status !== 'completed' ||
-                     gallery.faceIndexing.indexedPhotos < gallery.photos.length;
+                         gallery.faceIndexing.status !== 'completed' ||
+                         gallery.faceIndexing.indexedPhotos < gallery.photos.length;
     
     if (!needsIndexing) {
       console.log(`✅ Skipping ${gallery.albumCode} - already indexed`);
-      continue;
+      return false;
     }
     
-    console.log(`🚀 Starting indexing for ${gallery.albumCode} (${gallery.photos.length} photos)`);
+    return true;
+  });
+  
+  console.log(`\n📊 Found ${galleriesNeedingIndexing.length} galleries needing indexing out of ${allGalleries.length} total`);
+  
+  if (galleriesNeedingIndexing.length === 0) {
+    console.log('🎉 All galleries are already indexed or skipped!');
+    return;
+  }
+  
+  displayGalleryTable(allGalleries);
+  
+  for (let i = 0; i < galleriesNeedingIndexing.length; i++) {
+    const gallery = galleriesNeedingIndexing[i];
+    
+    // Get current progress
+    const currentIndexing = gallery.faceIndexing || {};
+    const startIndex = currentIndexing.indexedPhotos || 0;
+    
+    if (startIndex > 0) {
+      console.log(`� Resuming indexing for ${gallery.albumCode} from photo ${startIndex + 1} (${gallery.photos.length} photos total)`);
+    } else {
+      console.log(`🚀 Starting indexing for ${gallery.albumCode} (${gallery.photos.length} photos)`);
+    }
     
     await ensureCollection(gallery.albumCode);
-    await updateGalleryStatus(gallery.albumCode, 'in_progress', 0, gallery.photos.length);
     
-    let indexedCount = 0;
+    let indexedCount = startIndex;
     let totalFacesFound = 0;
     const startTime = Date.now();
     
-    for (let j = 0; j < gallery.photos.length; j++) {
+    // Update status to in_progress (don't reset progress)
+    await updateGalleryStatus(gallery.albumCode, 'in_progress', indexedCount, gallery.photos.length);
+    
+    for (let j = startIndex; j < gallery.photos.length; j++) {
       const photo = gallery.photos[j];
       const photoIndex = j + 1;
       
@@ -420,7 +456,7 @@ async function indexAllGalleries() {
     console.log(`🎉 Completed indexing ${gallery.albumCode}: ${indexedCount}/${gallery.photos.length} photos, ${totalFacesFound} faces found`);
     
     // Brief pause between galleries
-    if (i < galleries.length - 1) {
+    if (i < galleriesNeedingIndexing.length - 1) {
       console.log('⏸️  Brief pause before next gallery...');
       await new Promise(resolve => setTimeout(resolve, 3000));
     }
@@ -433,6 +469,6 @@ async function indexAllGalleries() {
 }
 
 // Start indexing
-console.log('🎯 Starting accurate indexing with enhanced table display...');
+console.log('🎯 Starting accurate indexing with smart resume capability...');
 indexAllGalleries().catch(console.error);
 

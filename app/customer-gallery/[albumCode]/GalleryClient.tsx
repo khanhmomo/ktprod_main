@@ -789,48 +789,26 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
                 {gallery.eventType} • {new Date(gallery.eventDate).toLocaleDateString()}
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2 md:gap-4">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
               {gallery.faceRecognitionEnabled !== false && (
                 <button
                   onClick={() => setShowFaceSearch(true)}
-                  className="flex items-center space-x-1 md:space-x-2 px-2 py-2 md:px-4 rounded-lg bg-purple-500 text-white hover:bg-purple-600 transition-colors"
+                  className="flex items-center justify-center space-x-2 px-3 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600 transition-colors text-sm font-medium"
                 >
                   <FiSearch className="w-4 h-4" />
-                  <span className="text-xs md:text-sm font-medium hidden sm:inline">Find My Photos</span>
+                  <span>Find My Photos</span>
                 </button>
               )}
               <button
-                onClick={handleDownloadAlbum}
-                disabled={isDownloading}
-                className={`hidden md:flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                  isDownloading
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-blue-500 text-white hover:bg-blue-600'
-                }`}
-              >
-                <FiDownload className={`w-4 h-4 ${isDownloading ? 'animate-spin' : ''}`} />
-                <span className="text-sm font-medium">
-                  {isDownloading ? 'Preparing...' : 'Download Album'}
-                </span>
-              </button>
-              <button
-                onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                className="hidden md:p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                {viewMode === 'grid' ? <FiList className="w-5 h-5" /> : <FiGrid className="w-5 h-5" />}
-              </button>
-              <button
                 onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-                className={`flex items-center space-x-1 md:space-x-2 px-2 py-2 md:px-4 rounded-lg transition-colors ${
+                className={`flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
                   showFavoritesOnly
                     ? 'bg-red-500 text-white'
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               >
                 <FiHeart className={`w-4 h-4 ${showFavoritesOnly ? 'fill-current' : ''}`} />
-                <span className="text-xs md:text-sm font-medium hidden sm:inline">
-                  {showFavoritesOnly ? 'All Photos' : 'Favorites'}
-                </span>
+                <span>{showFavoritesOnly ? 'All Photos' : 'Favorites'}</span>
               </button>
               
               {/* Face Filter Button */}
@@ -842,18 +820,38 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
                       setShowFavoritesOnly(false);
                     }
                   }}
-                  className={`flex items-center space-x-1 md:space-x-2 px-2 py-2 md:px-4 rounded-lg transition-colors ${
+                  className={`flex items-center justify-center space-x-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
                     showFaceMatchesOnly
                       ? 'bg-purple-500 text-white'
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                   }`}
                 >
                   <FiCamera className={`w-4 h-4 ${showFaceMatchesOnly ? 'fill-current' : ''}`} />
-                  <span className="text-xs md:text-sm font-medium hidden sm:inline">
-                    {showFaceMatchesOnly ? 'All' : `Faces (${faceMatchPhotos.size})`}
-                  </span>
+                  <span>{showFaceMatchesOnly ? 'All' : `Faces (${faceMatchPhotos.size})`}</span>
                 </button>
               )}
+              
+              {/* Desktop-only buttons */}
+              <div className="hidden md:flex items-center gap-3">
+                <button
+                  onClick={handleDownloadAlbum}
+                  disabled={isDownloading}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+                    isDownloading
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                  }`}
+                >
+                  <FiDownload className={`w-4 h-4 ${isDownloading ? 'animate-spin' : ''}`} />
+                  <span>{isDownloading ? 'Preparing...' : 'Download'}</span>
+                </button>
+                <button
+                  onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  {viewMode === 'grid' ? <FiList className="w-5 h-5" /> : <FiGrid className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
           </div>
         </div>
