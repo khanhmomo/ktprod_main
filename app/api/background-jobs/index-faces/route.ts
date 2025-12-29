@@ -91,8 +91,8 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
   const startTime = Date.now();
   
   try {
-    // BALANCED BATCH SIZE for 2x speed improvement
-    const batchSize = 10; // Increased from 5 to 10 for 2x speed
+    // BALANCED BATCH SIZE for better speed
+    const batchSize = 15; // Increased from 10 to 15 for faster processing
     let indexedCount = 0;
     const totalBatches = Math.ceil(photos.length / batchSize);
     
@@ -160,18 +160,20 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
           console.log(`Time calculation: elapsed=${elapsedMs}ms, avgPerPhoto=${avgTimePerPhoto}ms, remaining=${remainingPhotos} photos, ETA=${remainingMinutes}min`);
           console.log(`Progress: ${indexedCount}/${photos.length} (${Math.round((indexedCount/photos.length)*100)}%) - ETA: ${remainingMinutes} min`);
           
-          // Update progress after each photo with time remaining
-          await CustomerGallery.updateOne(
-            { albumCode: albumCode.toLowerCase() },
-            {
-              'faceIndexing.indexedPhotos': indexedCount,
-              'faceIndexing.lastUpdated': new Date(),
-              'faceIndexing.estimatedTimeRemaining': remainingMinutes
-            }
-          );
+          // Update progress every 5 photos to reduce DB writes
+          if (indexedCount % 5 === 0 || indexedCount === photos.length) {
+            await CustomerGallery.updateOne(
+              { albumCode: albumCode.toLowerCase() },
+              {
+                'faceIndexing.indexedPhotos': indexedCount,
+                'faceIndexing.lastUpdated': new Date(),
+                'faceIndexing.estimatedTimeRemaining': remainingMinutes
+              }
+            );
+          }
           
-          // Reduced delay between photos for 2x speed
-          await new Promise(resolve => setTimeout(resolve, 250)); // Reduced from 500ms to 250ms
+          // Further reduced delay between photos for faster processing
+          await new Promise(resolve => setTimeout(resolve, 100)); // Reduced from 250ms to 100ms
           
         } catch (photoError) {
           console.error(`Error processing photo ${photoIndex}:`, photoError);
@@ -179,9 +181,9 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
         }
       }
       
-      // Reduced delay between batches for 2x speed
+      // Further reduced delay between batches for faster processing
       console.log(`Batch ${batchIndex + 1} completed. Indexed ${indexedCount}/${photos.length} photos so far.`);
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Reduced from 2000ms to 1000ms
+      await new Promise(resolve => setTimeout(resolve, 500)); // Reduced from 1000ms to 500ms
     }
     
     // Final status update
