@@ -120,6 +120,11 @@ export async function POST(request: NextRequest) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ albumCode: gallery.albumCode })
+      }).then(response => {
+        console.log('Indexing trigger response status:', response.status);
+        return response.text();
+      }).then(text => {
+        console.log('Indexing trigger response:', text);
       }).catch(error => {
         console.error('Failed to start background indexing:', error);
       });
@@ -129,7 +134,10 @@ export async function POST(request: NextRequest) {
       console.log('No photos to index for gallery:', gallery.albumCode);
     }
     
-    return NextResponse.json(gallery, { status: 201 });
+    return NextResponse.json({ 
+      gallery, 
+      redirect: '/admin/customer-galleries/list'
+    }, { status: 201 });
   } catch (error) {
     console.error('Error creating customer gallery:', error);
     return NextResponse.json(
@@ -173,21 +181,26 @@ export async function PUT(request: NextRequest) {
     
     console.log('Gallery updated successfully:', gallery.albumCode);
     
-    // Start background face indexing if status changed to published and gallery has photos
+    // Return response first
+    const response = NextResponse.json(gallery);
+    
+    // Start background face indexing AFTER response (async)
     if (body.status === 'published' && gallery.photos && gallery.photos.length > 0) {
       console.log('Starting background face indexing for published gallery:', gallery.albumCode);
       
-      // Trigger background job (don't wait for completion)
-      fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/background-jobs/index-faces`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ albumCode: gallery.albumCode })
-      }).catch(error => {
-        console.error('Failed to start background indexing:', error);
-      });
+      // Trigger background job asynchronously (don't wait)
+      setTimeout(() => {
+        fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/background-jobs/index-faces`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ albumCode: gallery.albumCode })
+        }).catch(error => {
+          console.error('Failed to start background indexing:', error);
+        });
+      }, 0);
     }
     
-    return NextResponse.json(gallery);
+    return response;
     
   } catch (error) {
     console.error('Error updating gallery:', error);

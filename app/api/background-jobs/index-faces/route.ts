@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { FaceCollectionService } from '@/lib/face-collection';
 import CustomerGallery from '@/models/CustomerGallery';
 import dbConnect from '@/lib/db';
+import sharp from 'sharp';
 
 export async function POST(request: NextRequest) {
   try {
@@ -111,8 +112,8 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
   const maxConsecutiveErrors = 3;
   
   try {
-    // RELIABLE BATCH SIZE for accuracy (like original script)
-    const batchSize = 10; // Reduced from 50 to 10 for reliability
+    // SERVERLESS-OPTIMIZED BATCH SIZE
+    const batchSize = 3; // Very small for serverless reliability
     let indexedCount = 0;
     const totalBatches = Math.ceil(photos.length / batchSize);
     
@@ -183,6 +184,72 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
           const imageBuffer = Buffer.from(await response.arrayBuffer());
           console.log(`Photo ${photoIndex}: Fetched ${imageBuffer.length} bytes in ${fetchTime}ms`);
           
+          // Resize image with Sharp (aggressive for large images)
+          let resizedImage;
+          try {
+            console.log(`Photo ${photoIndex}: Starting Sharp resize...`);
+            
+            // Calculate target quality based on original size
+            let quality = 85;
+            let targetSize = 800;
+            
+            // More aggressive resize for large images
+            if (imageBuffer.length > 10 * 1024 * 1024) { // >10MB
+              quality = 60;
+              targetSize = 600;
+            } else if (imageBuffer.length > 5 * 1024 * 1024) { // >5MB
+              quality = 70;
+              targetSize = 700;
+            }
+            
+            // Multi-stage resize for very large images
+            let sharpPipeline = sharp(imageBuffer);
+            
+            // For very large images, do progressive resize
+            if (imageBuffer.length > 10 * 1024 * 1024) {
+              sharpPipeline = sharpPipeline
+                .resize(1200, 1200, { fit: 'inside' }) // First stage
+                .resize(targetSize, targetSize, { fit: 'inside' }); // Second stage
+            } else {
+              sharpPipeline = sharpPipeline
+                .resize(targetSize, targetSize, { fit: 'inside' });
+            }
+            
+            resizedImage = await sharpPipeline
+              .jpeg({ 
+                quality: quality,
+                progressive: true,
+                mozjpeg: true // Better compression
+              })
+              .toBuffer();
+            
+            console.log(`Photo ${photoIndex}: Resized from ${imageBuffer.length} to ${resizedImage.length} bytes (quality: ${quality}%)`);
+            
+            // If still too large, try even more aggressive compression
+            if (resizedImage.length > 5 * 1024 * 1024) {
+              console.log(`Photo ${photoIndex}: Still too large, applying extreme compression...`);
+              resizedImage = await sharp(resizedImage)
+                .resize(400, 400, { fit: 'inside' })
+                .jpeg({ quality: 40 })
+                .toBuffer();
+              
+              console.log(`Photo ${photoIndex}: Extreme compression: ${resizedImage.length} bytes`);
+            }
+            
+            // Final check - if still too large, skip
+            if (resizedImage.length > 5 * 1024 * 1024) {
+              console.log(`Photo ${photoIndex}: Still too large after compression (${resizedImage.length} bytes), skipping`);
+              indexedCount++; // Count as processed for progress
+              continue;
+            }
+            
+          } catch (sharpError) {
+            console.error(`Photo ${photoIndex}: Sharp resize failed:`, sharpError);
+            // Fallback to original image if Sharp fails
+            resizedImage = imageBuffer;
+            console.log(`Photo ${photoIndex}: Using original image (${resizedImage.length} bytes)`);
+          }
+          
           // Index faces directly without pre-check for maximum speed
           const rekognitionClient = require('@/lib/aws-config').getRekognitionClient();
           if (!rekognitionClient) {
@@ -193,7 +260,7 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
           const { IndexFacesCommand } = require('@aws-sdk/client-rekognition');
           const command = new IndexFacesCommand({
             CollectionId: collectionId,
-            Image: { Bytes: imageBuffer },
+            Image: { Bytes: resizedImage }, // Use resized image
             ExternalImageId: `${albumCode}-${photoIndex}`,
             MaxFaces: 10,
             QualityFilter: 'AUTO'
@@ -216,7 +283,7 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
           const remainingMs = remainingPhotos * avgTimePerPhoto;
           const remainingMinutes = Math.ceil(remainingMs / 60000);
           const realisticMinutes = indexedCount < 15 
-            ? Math.ceil((photos.length - indexedCount) * 1) // 60 seconds per photo with AWS delays
+            ? Math.ceil((photos.length - indexedCount) * 0.3) // 18 seconds per photo with Sharp resizing
             : Math.ceil(remainingMs / 60000);
           
           await CustomerGallery.updateOne(
@@ -228,8 +295,8 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
             }
           );
           
-          // AWS-safe delay between photos (stay well under 20 TPS limit)
-          await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second = 1 TPS (safe)
+          // Reduced delay since images are now much smaller (80KB vs 2-5MB)
+          await new Promise(resolve => setTimeout(resolve, 500)); // 500ms = 2 TPS (still safe)
           
         } catch (photoError) {
           consecutiveErrors++;
@@ -262,7 +329,7 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
             const remainingMinutes = Math.ceil(remainingMs / 60000);
             
             const realisticMinutes = indexedCount < 15 
-              ? Math.ceil((photos.length - indexedCount) * 1) // 60 seconds per photo with AWS delays
+              ? Math.ceil((photos.length - indexedCount) * 0.3) // 18 seconds per photo with Sharp resizing
               : Math.ceil(remainingMs / 60000);
             
             await CustomerGallery.updateOne(
@@ -283,9 +350,9 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
         }
       }
       
-      // AWS-safe delay between batches (extra buffer for rate limits)
+      // Reduced batch delay since images are smaller
       console.log(`Batch ${batchIndex + 1} completed. Indexed ${indexedCount}/${photos.length} photos so far.`);
-      await new Promise(resolve => setTimeout(resolve, 5000)); // 5 second delay between batches
+      await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay between batches
     }
     
     // Final status update
