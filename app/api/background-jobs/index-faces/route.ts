@@ -91,8 +91,8 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
   const startTime = Date.now();
   
   try {
-    // BALANCED BATCH SIZE for better speed
-    const batchSize = 15; // Increased from 10 to 15 for faster processing
+    // OPTIMIZED BATCH SIZE for maximum speed
+    const batchSize = 20; // Increased from 15 to 20 for faster processing
     let indexedCount = 0;
     const totalBatches = Math.ceil(photos.length / batchSize);
     
@@ -116,11 +116,13 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
           console.log(`Fetching photo ${photoIndex}/${photos.length}: ${photo.alt}`);
           
           // Fetch image with headers
+          const fetchStart = Date.now();
           const response = await fetch(photo.url, { 
             headers: {
               'User-Agent': 'Mozilla/5.0 (compatible; FaceIndexer/1.0)'
             }
           });
+          const fetchTime = Date.now() - fetchStart;
           
           if (!response.ok) {
             console.error(`Failed to fetch photo ${photoIndex}: ${response.status}`);
@@ -128,7 +130,7 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
           }
           
           const imageBuffer = Buffer.from(await response.arrayBuffer());
-          console.log(`Photo ${photoIndex}: Fetched ${imageBuffer.length} bytes`);
+          console.log(`Photo ${photoIndex}: Fetched ${imageBuffer.length} bytes in ${fetchTime}ms`);
           
           // Index face with AWS Rekognition
           const rekognitionClient = require('@/lib/aws-config').getRekognitionClient();
@@ -145,10 +147,12 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
             QualityFilter: 'AUTO'
           });
           
+          const awsStart = Date.now();
           const result = await rekognitionClient.send(command);
+          const awsTime = Date.now() - awsStart;
           indexedCount++;
           
-          console.log(`Photo ${photoIndex}: Indexed ${result.FaceRecords?.length || 0} faces`);
+          console.log(`Photo ${photoIndex}: Indexed ${result.FaceRecords?.length || 0} faces in ${awsTime}ms`);
           
           // Calculate time remaining (more accurate after 10+ photos)
           const elapsedMs = Date.now() - startTime;
@@ -175,8 +179,8 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
             }
           );
           
-          // Further reduced delay between photos for faster processing
-          await new Promise(resolve => setTimeout(resolve, 100)); // Reduced from 250ms to 100ms
+          // Minimal delay between photos for maximum speed
+          await new Promise(resolve => setTimeout(resolve, 50)); // Reduced from 100ms to 50ms
           
         } catch (photoError) {
           console.error(`Error processing photo ${photoIndex}:`, photoError);
@@ -184,9 +188,9 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
         }
       }
       
-      // Further reduced delay between batches for faster processing
+      // Minimal delay between batches for maximum speed
       console.log(`Batch ${batchIndex + 1} completed. Indexed ${indexedCount}/${photos.length} photos so far.`);
-      await new Promise(resolve => setTimeout(resolve, 500)); // Reduced from 1000ms to 500ms
+      await new Promise(resolve => setTimeout(resolve, 200)); // Reduced from 500ms to 200ms
     }
     
     // Final status update
