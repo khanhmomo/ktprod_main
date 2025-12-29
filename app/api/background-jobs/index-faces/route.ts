@@ -135,20 +135,45 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
         try {
           console.log(`Fetching photo ${photoIndex}/${photos.length}: ${photo.alt}`);
           
-          // Fetch image with headers and timeout
+          // Fetch image with headers, timeout, and retry logic
           const fetchStart = Date.now();
-          const fetchPromise = fetch(photo.url, { 
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (compatible; FaceIndexer/1.0)'
+          let response: Response | null = null;
+          let retryCount = 0;
+          const maxRetries = 3;
+          
+          while (retryCount < maxRetries) {
+            try {
+              const fetchPromise = fetch(photo.url, { 
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (compatible; FaceIndexer/1.0)'
+                }
+              });
+              
+              // Add timeout to prevent hanging (increased from 30s to 60s)
+              const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Fetch timeout')), 60000)
+              );
+              
+              response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
+              break; // Success, exit retry loop
+              
+            } catch (fetchError) {
+              retryCount++;
+              console.log(`Photo ${photoIndex}: Fetch attempt ${retryCount}/${maxRetries} failed:`, fetchError);
+              
+              if (retryCount >= maxRetries) {
+                throw fetchError; // Re-throw after max retries
+              }
+              
+              // Wait before retry (exponential backoff)
+              await new Promise(resolve => setTimeout(resolve, 2000 * retryCount));
             }
-          });
+          }
           
-          // Add timeout to prevent hanging (increased from 30s to 60s)
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Fetch timeout')), 60000)
-          );
+          if (!response) {
+            throw new Error(`Failed to fetch photo ${photoIndex} after ${maxRetries} retries`);
+          }
           
-          const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
           const fetchTime = Date.now() - fetchStart;
           
           if (!response.ok) {
@@ -220,6 +245,37 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
           if (consecutiveErrors >= maxConsecutiveErrors) {
             console.error(`Too many consecutive errors (${maxConsecutiveErrors}). Stopping indexing.`);
             throw new Error(`Indexing stopped after ${maxConsecutiveErrors} consecutive errors`);
+          }
+          
+          // For fetch failures, skip the photo but continue indexing
+          if ((photoError as any).message?.includes('fetch failed') || 
+              (photoError as any).message?.includes('Fetch timeout') ||
+              (photoError as any).message?.includes('Failed to fetch')) {
+            console.log(`Photo ${photoIndex}: Skipping due to fetch error, continuing with next photo`);
+            indexedCount++; // Still count as processed for progress
+            
+            // Update progress for skipped photo
+            const elapsedMs = Date.now() - startTime;
+            const avgTimePerPhoto = elapsedMs / indexedCount;
+            const remainingPhotos = photos.length - indexedCount;
+            const remainingMs = remainingPhotos * avgTimePerPhoto;
+            const remainingMinutes = Math.ceil(remainingMs / 60000);
+            
+            const realisticMinutes = indexedCount < 15 
+              ? Math.ceil((photos.length - indexedCount) * 1) // 60 seconds per photo with AWS delays
+              : Math.ceil(remainingMs / 60000);
+            
+            await CustomerGallery.updateOne(
+              { albumCode: albumCode.toLowerCase() },
+              {
+                'faceIndexing.indexedPhotos': indexedCount,
+                'faceIndexing.lastUpdated': new Date(),
+                'faceIndexing.estimatedTimeRemaining': realisticMinutes
+              }
+            );
+            
+            consecutiveErrors = 0; // Reset error counter for skipped photos
+            continue; // Skip to next photo
           }
           
           // Continue with next photo instead of failing entire batch
