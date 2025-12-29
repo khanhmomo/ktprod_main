@@ -131,6 +131,67 @@ export async function DELETE(request: NextRequest, { params }: { params: { slug:
   }
 }
 
+export async function PATCH(request: NextRequest, { params }: { params: { slug: string[] } }) {
+  try {
+    await connectDB();
+    
+    // Extract albumCode from slug array
+    const albumCode = params.slug[0];
+    
+    if (!albumCode) {
+      return NextResponse.json(
+        { error: 'Album code is required' },
+        { status: 400 }
+      );
+    }
+    
+    const body = await request.json();
+    const { status, indexedPhotos, totalPhotos } = body;
+    
+    console.log(`Updating gallery status for ${albumCode}:`, { status, indexedPhotos, totalPhotos });
+    
+    // Find and update the gallery by albumCode
+    const gallery = await CustomerGallery.findOneAndUpdate(
+      { albumCode: albumCode.toLowerCase() },
+      { 
+        $set: {
+          'faceIndexing.status': status,
+          'faceIndexing.indexedPhotos': indexedPhotos,
+          'faceIndexing.totalPhotos': totalPhotos,
+          'faceIndexing.lastUpdated': new Date(),
+          'faceIndexing.isReadyToSend': status === 'completed' && indexedPhotos > 0
+        }
+      },
+      { new: true, upsert: false }
+    );
+    
+    if (!gallery) {
+      console.log(`Gallery not found for album code: ${albumCode}`);
+      return NextResponse.json(
+        { error: 'Gallery not found' },
+        { status: 404 }
+      );
+    }
+    
+    console.log(`Gallery status updated successfully: ${albumCode}`);
+    
+    return NextResponse.json({ 
+      message: 'Gallery status updated successfully',
+      albumCode,
+      status,
+      indexedPhotos,
+      totalPhotos
+    });
+    
+  } catch (error) {
+    console.error('Error updating gallery status:', error);
+    return NextResponse.json(
+      { error: 'Failed to update gallery status' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest, { params }: { params: { slug: string[] } }) {
   // This will handle POST requests for dynamic routes if needed
   return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });

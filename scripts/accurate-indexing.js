@@ -183,7 +183,7 @@ async function indexAllGalleries() {
         const command = new IndexFacesCommand({
           CollectionId: `gallery-${gallery.albumCode}`,
           Image: { Bytes: imageBuffer },
-          ExternalImageId: `${gallery.albumCode}-${photoIndex}`,
+          ExternalImageId: `photo-${photoIndex - 1}`, // Use 0-based index to match face search
           MaxFaces: 10,
           QualityFilter: 'AUTO'
         });

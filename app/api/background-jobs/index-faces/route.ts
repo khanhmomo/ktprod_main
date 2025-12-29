@@ -261,7 +261,7 @@ async function indexPhotosInBackground(collectionId: string, photos: any[], albu
           const command = new IndexFacesCommand({
             CollectionId: collectionId,
             Image: { Bytes: resizedImage }, // Use resized image
-            ExternalImageId: `${albumCode}-${photoIndex}`,
+            ExternalImageId: `photo-${photoIndex - 1}`, // Use 0-based index to match face search
             MaxFaces: 10,
             QualityFilter: 'AUTO'
           });
