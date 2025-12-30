@@ -80,10 +80,10 @@ const CustomerGallerySchema = new mongoose.Schema({
     ref: 'CustomerFavorite'
   }],
   // Global favorites shared by all users
-  globalFavorites: [{
-    type: Number,
+  globalFavorites: {
+    type: [Number],
     default: []
-  }],
+  },
   isActive: {
     type: Boolean,
     default: true
