@@ -28,8 +28,9 @@ export async function GET(request: Request) {
     // Get the file ID from the query parameters
     const { searchParams } = new URL(request.url);
     const fileId = searchParams.get('id');
+    const size = searchParams.get('size'); // 'small', 'medium', 'large'
     
-    log('Request received', { fileId });
+    log('Request received', { fileId, size });
     
     if (!fileId) {
       const error = 'File ID is required';
@@ -50,10 +51,18 @@ export async function GET(request: Request) {
         }
       );
     }
+
+    // Construct the Google Drive image URL with size parameter
+    let imageUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
     
-    // Construct the direct Google Drive image URL
-    const imageUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-    log('Fetching image from Google Drive', { imageUrl });
+    // Add size parameter for smaller images during downloads
+    if (size === 'small' || size === 'medium') {
+      // Use the thumbnail API for smaller sizes
+      imageUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=${size === 'small' ? '200' : '800'}`;
+      log('Using thumbnail URL for faster download', { imageUrl, size });
+    } else {
+      log('Fetching full-size image from Google Drive', { imageUrl });
+    }
     
     // Fetch the image from Google Drive
     const controller = new AbortController();

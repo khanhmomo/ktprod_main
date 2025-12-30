@@ -50,7 +50,7 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
   const [favorites, setFavorites] = useState<Set<number>>(new Set());
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [showFaceMatchesOnly, setShowFaceMatchesOnly] = useState(false);
-  const [faceMatchPhotos, setFaceMatchPhotos] = useState<Set<number>>(new Set());
+  const [faceMatchedPhotos, setFaceMatchedPhotos] = useState<Photo[]>([]); // Store actual photo objects
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [imageLoadState, setImageLoadState] = useState<Record<string, ImageLoadState>>({});
   const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
@@ -96,6 +96,15 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
     
     console.log('Face search stopped by user');
   };
+
+  // Monitor faceMatchedPhotos state changes
+  useEffect(() => {
+    console.log('faceMatchedPhotos state changed:', {
+      size: faceMatchedPhotos.length,
+      urls: faceMatchedPhotos.slice(0, 3).map(p => p.url),
+      showFaceMatchesOnly
+    });
+  }, [faceMatchedPhotos, showFaceMatchesOnly]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -328,10 +337,21 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
 
       setFaceSearchResults(data.matches || []);
       
-      // Set face filter with matched photo indices
-      const matchedIndices = new Set<number>((data.matches || []).map((match: any) => match.index));
-      setFaceMatchPhotos(matchedIndices);
+      // Extract actual photo objects from face search results
+      const apiMatches = data.matches || [];
+      const matchedPhotoObjects: Photo[] = apiMatches
+        .map((match: any) => gallery.photos[match.index])
+        .filter(photo => photo && photo.url); // Only include valid photos
+      
+      console.log('Matched photo objects count:', matchedPhotoObjects.length);
+      console.log('Matched photo objects preview:', matchedPhotoObjects.slice(0, 3).map(p => p.url));
+      
+      setFaceMatchedPhotos(matchedPhotoObjects);
       setShowFaceMatchesOnly(true);
+      
+      console.log('=== Face search completed ===');
+      console.log('setFaceMatchedPhotos called with', matchedPhotoObjects.length, 'photos');
+      console.log('setShowFaceMatchesOnly called with: true');
       
       setIsSearchingFaces(false);
 
@@ -352,60 +372,69 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
       // Build download URL based on type
       let url;
       if (downloadType === 'favorites') {
-        url = `/api/customer-gallery/${params.albumCode}/download?type=favorites&favorites=${Array.from(favorites).join(',')}`;
+        url = `/api/customer-gallery/${params.albumCode}/download-progress?type=favorites&favorites=${Array.from(favorites).join(',')}&progress=true`;
       } else if (downloadType === 'face-matches') {
-        url = `/api/customer-gallery/${params.albumCode}/download?type=face-matches&faces=${Array.from(faceMatchPhotos).join(',')}`;
+        // Get the original indices for face-matched photos
+        const faceMatchIndices = faceMatchedPhotos.map(photo => {
+          const index = gallery.photos.findIndex(p => p.url === photo.url);
+          return index >= 0 ? index : 0;
+        });
+        url = `/api/customer-gallery/${params.albumCode}/download-progress?type=face-matches&faces=${faceMatchIndices.join(',')}&progress=true`;
       } else {
-        url = `/api/customer-gallery/${params.albumCode}/download?type=full`;
+        url = `/api/customer-gallery/${params.albumCode}/download-progress?type=full&progress=true`;
       }
       
-      const response = await fetch(url);
+      // Use EventSource for progress updates
+      const eventSource = new EventSource(url);
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Download failed');
-      }
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          setDownloadProgress(data.progress);
+          setDownloadStatus(data.status);
+          
+          // When download is ready, trigger the actual download
+          if (data.progress === 100 && data.downloadUrl) {
+            eventSource.close();
+            
+            // Create a temporary link to download the file
+            const link = document.createElement('a');
+            link.href = data.downloadUrl;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Reset download state after a short delay
+            setTimeout(() => {
+              setIsDownloading(false);
+              setDownloadProgress(0);
+              setDownloadStatus('');
+            }, 2000);
+          }
+        } catch (error) {
+          console.error('Error parsing progress data:', error);
+        }
+      };
       
-      // Get the filename from the Content-Disposition header
-      const contentDisposition = response.headers.get('Content-Disposition');
-      const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
-      const suffix = downloadType === 'favorites' ? '_Favorites' : '';
-      const filename = filenameMatch?.[1] || `${gallery.customerName}_${gallery.eventType}${suffix}_Photos.tar.gz`;
-      
-      setDownloadStatus('Downloading archive...');
-      setDownloadProgress(90);
-      
-      // Create blob and download
-      const blob = await response.blob();
-      const url2 = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url2;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url2);
-      document.body.removeChild(a);
-      
-      setDownloadProgress(100);
-      setDownloadStatus('Download complete!');
-      
-      // Reset after a short delay
-      setTimeout(() => {
-        setIsDownloading(false);
-        setDownloadProgress(0);
-        setDownloadStatus('');
-      }, 2000);
+      eventSource.onerror = (error) => {
+        console.error('Download progress error:', error);
+        eventSource.close();
+        // Reset after a short delay
+        setTimeout(() => {
+          setIsDownloading(false);
+          setDownloadProgress(0);
+          setDownloadStatus('');
+        }, 2000);
+      };
       
     } catch (error) {
       console.error('Download error:', error);
+      setIsDownloading(false);
       setDownloadStatus('Download failed');
-      setTimeout(() => {
-        setIsDownloading(false);
-        setDownloadProgress(0);
-        setDownloadStatus('');
-      }, 3000);
+      setDownloadProgress(0);
     }
-  };
+  }
 
   if (!gallery) {
     return (
@@ -426,32 +455,87 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
 
   // Filter photos based on favorites and face matches
   const getFilteredPhotos = () => {
+    console.log('=== getFilteredPhotos called ===');
+    console.log('showFavoritesOnly:', showFavoritesOnly);
+    console.log('showFaceMatchesOnly:', showFaceMatchesOnly);
+    console.log('faceMatchedPhotos.length:', faceMatchedPhotos.length);
+    console.log('gallery.photos.length:', gallery.photos.length);
+    
     if (showFavoritesOnly) {
-      return gallery.photos.filter((_, index) => favorites.has(index));
+      const sortedFavorites = Array.from(favorites).sort((a, b) => a - b);
+      console.log('Favorites filter - sorted indices:', sortedFavorites);
+      const result = sortedFavorites.map(index => gallery.photos[index]);
+      console.log('Favorites filter - result length:', result.length);
+      return result;
     }
     if (showFaceMatchesOnly) {
-      return gallery.photos.filter((_, index) => faceMatchPhotos.has(index));
+      console.log('Face matches filter - using stored photo objects');
+      console.log('Face matched photos count:', faceMatchedPhotos.length);
+      return faceMatchedPhotos; // Return the actual photo objects directly
     }
+    console.log('No filter - returning all photos');
     return gallery.photos;
   };
 
   const filteredPhotos = getFilteredPhotos();
 
+  // Monitor filteredPhotos changes
+  useEffect(() => {
+    console.log('filteredPhotos changed:', {
+      count: filteredPhotos.length,
+      showFavoritesOnly,
+      showFaceMatchesOnly,
+      favoritesSize: favorites.size,
+      faceMatchedPhotosSize: faceMatchedPhotos.length
+    });
+  }, [filteredPhotos, showFavoritesOnly, showFaceMatchesOnly, favorites.size, faceMatchedPhotos.length]);
+
   // Get original indices for filtered photos
   const getOriginalIndex = (filteredIndex: number) => {
     if (showFavoritesOnly) {
-      return Array.from(favorites)[filteredIndex];
+      return Array.from(favorites).sort((a, b) => a - b)[filteredIndex];
     }
     if (showFaceMatchesOnly) {
-      return Array.from(faceMatchPhotos)[filteredIndex];
+      // Find the index in the original gallery for this face-matched photo
+      const faceMatchedPhoto = faceMatchedPhotos[filteredIndex];
+      if (!faceMatchedPhoto) return 0;
+      
+      // Find this photo in the original gallery array
+      const originalIndex = gallery.photos.findIndex(photo => 
+        photo.url === faceMatchedPhoto.url
+      );
+      return originalIndex >= 0 ? originalIndex : 0;
     }
     return filteredIndex;
   };
 
+  // Get current filtered index from original index
+  const getFilteredIndex = (originalIndex: number) => {
+    if (showFavoritesOnly) {
+      const sortedFavorites = Array.from(favorites).sort((a, b) => a - b);
+      return sortedFavorites.indexOf(originalIndex);
+    }
+    if (showFaceMatchesOnly) {
+      // Find this photo in the face-matched array
+      const originalPhoto = gallery.photos[originalIndex];
+      if (!originalPhoto) return 0;
+      
+      const filteredIndex = faceMatchedPhotos.findIndex(photo => 
+        photo.url === originalPhoto.url
+      );
+      return filteredIndex >= 0 ? filteredIndex : 0;
+    }
+    return originalIndex;
+  };
+
   // Debug logging
   console.log('Filter state:', { showFavoritesOnly, showFaceMatchesOnly });
-  console.log('Face matches count:', faceMatchPhotos.size);
+  console.log('Favorites count:', favorites.size);
+  console.log('Face matches count:', faceMatchedPhotos.length);
   console.log('Filtered photos count:', filteredPhotos.length);
+  console.log('Face matched photos URLs:', faceMatchedPhotos.slice(0, 5).map(p => p.url));
+  console.log('Total photos in gallery:', gallery.photos.length);
+  console.log('Face search results count:', faceSearchResults.length);
 
   // Masonry breakpoints - same as albums section
   const breakpointColumnsObj = {
@@ -509,7 +593,7 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
               </button>
               
               {/* Face Matches Download Option */}
-              {faceMatchPhotos.size > 0 && (
+              {faceMatchedPhotos.length > 0 && (
                 <button
                   onClick={() => handleDownloadChoice('face-matches')}
                   className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -518,7 +602,7 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
                     <FiCamera className="w-5 h-5 text-purple-500 mr-3" />
                     <div className="text-left">
                       <p className="font-medium text-gray-900">Face Matches Only</p>
-                      <p className="text-sm text-gray-500">{faceMatchPhotos.size} matched photos</p>
+                      <p className="text-sm text-gray-500">{faceMatchedPhotos.length} matched photos</p>
                     </div>
                   </div>
                   <span className="text-purple-500">→</span>
@@ -812,7 +896,7 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
               </button>
               
               {/* Face Filter Button */}
-              {faceMatchPhotos.size > 0 && (
+              {faceMatchedPhotos.length > 0 && (
                 <button
                   onClick={() => {
                     setShowFaceMatchesOnly(!showFaceMatchesOnly);
@@ -827,7 +911,7 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
                   }`}
                 >
                   <FiCamera className={`w-4 h-4 ${showFaceMatchesOnly ? 'fill-current' : ''}`} />
-                  <span>{showFaceMatchesOnly ? 'All' : `Faces (${faceMatchPhotos.size})`}</span>
+                  <span>{showFaceMatchesOnly ? 'All' : `Faces (${faceMatchedPhotos.length})`}</span>
                 </button>
               )}
               
@@ -1101,15 +1185,17 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
                   />
                 </motion.div>
 
-                {gallery.photos.length > 1 && (
+                {filteredPhotos.length > 1 && (
                   <>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSelectedPhotoIndex(Math.max(0, selectedPhotoIndex - 1));
+                        const currentFilteredIndex = getFilteredIndex(selectedPhotoIndex);
+                        const prevFilteredIndex = Math.max(0, currentFilteredIndex - 1);
+                        setSelectedPhotoIndex(getOriginalIndex(prevFilteredIndex));
                       }}
                       className="absolute left-4 text-white hover:text-gray-300 transition-colors z-10"
-                      disabled={selectedPhotoIndex === 0}
+                      disabled={getFilteredIndex(selectedPhotoIndex) === 0}
                     >
                       <FiChevronLeft className="w-8 h-8" />
                     </button>
@@ -1117,10 +1203,12 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSelectedPhotoIndex(Math.min(gallery.photos.length - 1, selectedPhotoIndex + 1));
+                        const currentFilteredIndex = getFilteredIndex(selectedPhotoIndex);
+                        const nextFilteredIndex = Math.min(filteredPhotos.length - 1, currentFilteredIndex + 1);
+                        setSelectedPhotoIndex(getOriginalIndex(nextFilteredIndex));
                       }}
                       className="absolute right-4 text-white hover:text-gray-300 transition-colors z-10"
-                      disabled={selectedPhotoIndex === gallery.photos.length - 1}
+                      disabled={getFilteredIndex(selectedPhotoIndex) === filteredPhotos.length - 1}
                     >
                       <FiChevronRight className="w-8 h-8" />
                     </button>

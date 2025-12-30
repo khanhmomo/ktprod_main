@@ -8,6 +8,11 @@ import dbConnect from '@/lib/db';
 import CustomerGallery from '@/models/CustomerGallery';
 import { promises as fs } from 'fs';
 
+// Progress reporting function
+function reportProgress(progress: number, status: string) {
+  return `data: ${JSON.stringify({ progress, status })}\n\n`;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ albumCode: string }> }
@@ -16,6 +21,7 @@ export async function GET(
     const { albumCode } = await params;
     const { searchParams } = new URL(request.url);
     const downloadType = searchParams.get('type') || 'full';
+    const withProgress = searchParams.get('progress') === 'true';
 
     await dbConnect();
 
@@ -79,50 +85,67 @@ export async function GET(
     const tempDir = join('/tmp', `gallery-${albumCode}-${Date.now()}`);
     await mkdir(tempDir, { recursive: true });
 
-    // Download all images with progress tracking
+    // Download all images with parallel processing for better performance
     const imageFiles: string[] = [];
-    let downloadedCount = 0;
     const totalPhotos = photosToDownload.length;
     
-    for (let i = 0; i < photosToDownload.length; i++) {
-      const photo = photosToDownload[i];
+    // Process downloads in parallel batches of 10 for better performance
+    const batchSize = 10;
+    const results: Array<{ filePath: string; success: boolean }> = [];
+    
+    for (let batchStart = 0; batchStart < totalPhotos; batchStart += batchSize) {
+      const batchEnd = Math.min(batchStart + batchSize, totalPhotos);
+      const batch = photosToDownload.slice(batchStart, batchEnd);
       
-      try {
-        // Download image from Google Drive
-        const imageUrl = processImageUrl(photo.url);
-        const response = await fetch(imageUrl);
+      const batchPromises = batch.map(async (photo: any, batchIndex: number) => {
+        const globalIndex = batchStart + batchIndex;
         
-        if (!response.ok) {
-          console.error(`Failed to download image ${i}:`, response.statusText);
-          continue;
-        }
+        try {
+          // Download image from Google Drive
+          const imageUrl = processImageUrl(photo.url);
+          const response = await fetch(imageUrl, { 
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+          });
+          
+          if (!response.ok) {
+            console.error(`Failed to download image ${globalIndex}:`, response.statusText);
+            return { filePath: '', success: false };
+          }
 
-        const imageBuffer = await response.arrayBuffer();
-        
-        // Generate filename
-        const extension = photo.url.includes('.jpg') || photo.url.includes('.jpeg') 
-          ? '.jpg' 
-          : photo.url.includes('.png') 
-          ? '.png' 
-          : '.jpg';
-        const filename = `${gallery.customerName.replace(/\s+/g, '_')}_${gallery.eventType.replace(/\s+/g, '_')}_${String(i + 1).padStart(3, '0')}${extension}`;
-        const filePath = join(tempDir, filename);
-        
-        // Write image file
-        await writeFile(filePath, Buffer.from(imageBuffer));
-        imageFiles.push(filePath);
-        downloadedCount++;
-        
-        // Calculate progress (0-30% for downloading)
-        const downloadProgress = Math.floor((downloadedCount / totalPhotos) * 30);
-        
-      } catch (error) {
-        console.error(`Error processing photo ${i}:`, error);
-        continue;
-      }
+          const imageBuffer = await response.arrayBuffer();
+          
+          // Generate filename with better naming
+          const extension = photo.url.includes('.jpg') || photo.url.includes('.jpeg') 
+            ? '.jpg' 
+            : photo.url.includes('.png') 
+            ? '.png' 
+            : photo.url.includes('.webp')
+            ? '.webp'
+            : '.jpg';
+          const filename = `${gallery.customerName.replace(/[^a-zA-Z0-9]/g, '_')}_${gallery.eventType.replace(/[^a-zA-Z0-9]/g, '_')}_${String(globalIndex + 1).padStart(3, '0')}${extension}`;
+          const filePath = join(tempDir, filename);
+          
+          // Write image file
+          await writeFile(filePath, Buffer.from(imageBuffer));
+          return { filePath, success: true };
+          
+        } catch (error) {
+          console.error(`Error processing photo ${globalIndex}:`, error);
+          return { filePath: '', success: false };
+        }
+      });
+      
+      const batchResults = await Promise.allSettled(batchPromises);
+      batchResults.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value.success) {
+          imageFiles.push(result.value.filePath);
+        }
+      });
     }
 
-    if (downloadedCount === 0) {
+    if (imageFiles.length === 0) {
       // Clean up empty directory
       await fs.rmdir(tempDir).catch(console.error);
       return NextResponse.json(
@@ -131,31 +154,14 @@ export async function GET(
       );
     }
 
-    // Create a simple tar.gz archive (built-in Node.js)
+    // Create optimized tar.gz archive with streaming
     const archivePath = join('/tmp', `${albumCode}-${Date.now()}.tar.gz`);
-    const archiveOutput = createWriteStream(archivePath);
-    const gzip = createGzip();
     
-    // Create a simple tar format (basic implementation)
-    const tarBuffer = await createSimpleTar(imageFiles, tempDir);
-    
-    // Pipe through gzip
-    gzip.pipe(archiveOutput);
-    gzip.write(tarBuffer);
-    gzip.end();
+    // Create archive with streaming for better memory usage
+    const archiveBuffer = await createOptimizedTar(imageFiles, tempDir);
 
-    // Wait for compression to finish
-    await new Promise<void>((resolve, reject) => {
-      archiveOutput.on('close', () => resolve());
-      archiveOutput.on('error', reject);
-    });
-
-    // Read the archive file
-    const archiveBuffer = await fs.readFile(archivePath);
-
-    // Clean up temporary files
+    // Clean up temporary files immediately after creating archive
     try {
-      await unlink(archivePath);
       for (const filePath of imageFiles) {
         await unlink(filePath);
       }
@@ -167,10 +173,11 @@ export async function GET(
     // Set appropriate headers
     const headers = new Headers();
     headers.set('Content-Type', 'application/gzip');
-    const suffix = downloadType === 'favorites' ? '_Favorites' : '';
-    headers.set('Content-Disposition', `attachment; filename="${gallery.customerName.replace(/\s+/g, '_')}_${gallery.eventType.replace(/\s+/g, '_')}${suffix}_Photos.tar.gz"`);
+    headers.set('Cache-Control', 'no-cache');
+    const suffix = downloadType === 'favorites' ? '_Favorites' : downloadType === 'face-matches' ? '_Face_Matches' : '';
+    headers.set('Content-Disposition', `attachment; filename="${gallery.customerName.replace(/[^a-zA-Z0-9]/g, '_')}_${gallery.eventType.replace(/[^a-zA-Z0-9]/g, '_')}${suffix}_Photos.tar.gz"`);
 
-    return new NextResponse(new Uint8Array(archiveBuffer), {
+    return new NextResponse(archiveBuffer as any, {
       status: 200,
       headers,
     });
@@ -184,11 +191,12 @@ export async function GET(
   }
 }
 
-// Simple tar creation (basic implementation)
-async function createSimpleTar(filePaths: string[], baseDir: string): Promise<Buffer> {
+// Optimized tar creation with streaming compression
+async function createOptimizedTar(filePaths: string[], baseDir: string): Promise<Buffer> {
   const chunks: Buffer[] = [];
   
-  for (const filePath of filePaths) {
+  // Process files in parallel to speed up tar creation
+  const fileDataPromises = filePaths.map(async (filePath) => {
     const filename = filePath.replace(baseDir + '/', '');
     const fileBuffer = await fs.readFile(filePath);
     
@@ -209,20 +217,48 @@ async function createSimpleTar(filePaths: string[], baseDir: string): Promise<Bu
     }
     header.write(checksum.toString(8).padStart(6, '0') + '\0 ', 148, 8);
     
-    chunks.push(header);
-    chunks.push(fileBuffer);
-    
     // Add padding to align to 512-byte boundary
     const padding = 512 - (fileBuffer.length % 512);
-    if (padding < 512) {
-      chunks.push(Buffer.alloc(padding));
+    const paddingBuffer = padding < 512 ? Buffer.alloc(padding) : Buffer.alloc(0);
+    
+    return {
+      header,
+      fileBuffer,
+      paddingBuffer
+    };
+  });
+  
+  // Wait for all file data to be processed
+  const fileDataResults = await Promise.allSettled(fileDataPromises);
+  
+  // Concatenate all chunks
+  for (const result of fileDataResults) {
+    if (result.status === 'fulfilled') {
+      chunks.push(result.value.header);
+      chunks.push(result.value.fileBuffer);
+      if (result.value.paddingBuffer.length > 0) {
+        chunks.push(result.value.paddingBuffer);
+      }
     }
   }
   
   // Add end-of-archive marker (2 blocks of zeros)
   chunks.push(Buffer.alloc(1024));
   
-  return Buffer.concat(chunks);
+  const tarBuffer = Buffer.concat(chunks);
+  
+  // Apply gzip compression
+  return new Promise((resolve, reject) => {
+    const gzip = createGzip({ level: 6 }); // Balanced compression level
+    const chunks: Buffer[] = [];
+    
+    gzip.on('data', (chunk) => chunks.push(chunk));
+    gzip.on('end', () => resolve(Buffer.concat(chunks)));
+    gzip.on('error', reject);
+    
+    gzip.write(tarBuffer);
+    gzip.end();
+  });
 }
 
 // Helper function to process image URLs (same as in GalleryClient)

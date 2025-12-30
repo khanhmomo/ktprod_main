@@ -214,8 +214,11 @@ function clearFromLine(lineNumber) {
 }
 
 function displayHeader() {
-  console.log('\n' + '='.repeat(100));
-  console.log('🎯 ACCURATE FACE INDEXING - DETAILED PROGRESS');
+  // Clear screen and move to top
+  process.stdout.write('\x1b[2J\x1b[H');
+  console.log('='.repeat(100));
+  console.log('🏢 TheWild Backend Admin System');
+  console.log('🤖 Face Recognition Indexing System V2.0');
   console.log('='.repeat(100));
 }
 
@@ -468,7 +471,60 @@ async function indexAllGalleries() {
   console.log('='.repeat(100));
 }
 
+async function indexSpecificAlbum(albumCode) {
+  try {
+    console.log(`🔍 Looking for album: ${albumCode}`);
+    
+    // Get all galleries
+    const galleries = await getGalleries();
+    
+    // Find the specific album
+    const targetGallery = galleries.find(g => g.albumCode.toLowerCase() === albumCode.toLowerCase());
+    
+    if (!targetGallery) {
+      console.log(`❌ Album ${albumCode} not found!`);
+      console.log(`📋 Available albums:`);
+      galleries.forEach(g => console.log(`   - ${g.albumCode}`));
+      return;
+    }
+    
+    console.log(`✅ Found album: ${targetGallery.albumCode} - ${targetGallery.title || 'Untitled'}`);
+    console.log(`📊 Photos: ${targetGallery.photos.length}`);
+    
+    // Check if it needs indexing
+    const indexing = targetGallery.faceIndexing || {};
+    const needsIndexing = indexing.status !== 'completed' || 
+                         indexing.indexedPhotos < targetGallery.photos.length;
+    
+    if (!needsIndexing) {
+      console.log(`✅ Album ${albumCode} already completed indexing!`);
+      return;
+    }
+    
+    // Index this specific album
+    console.log(`🚀 Starting indexing for ${albumCode}...`);
+    await indexGallery(targetGallery, 0, [targetGallery]);
+    
+    console.log(`🎉 Album ${albumCode} indexing completed!`);
+    
+  } catch (error) {
+    console.error(`❌ Error indexing album ${albumCode}:`, error);
+  }
+}
+
+// Parse command line arguments
+const args = process.argv.slice(2);
+const targetAlbum = args.includes('--album') ? args[args.indexOf('--album') + 1] : null;
+
 // Start indexing
-console.log('🎯 Starting accurate indexing with smart resume capability...');
-indexAllGalleries().catch(console.error);
+// Clear screen immediately to remove command echo
+process.stdout.write('\x1b[2J\x1b[H');
+
+if (targetAlbum) {
+  console.log(`🎯 Starting indexing for specific album: ${targetAlbum}...`);
+  indexSpecificAlbum(targetAlbum).catch(console.error);
+} else {
+  console.log('🎯 Starting accurate indexing with smart resume capability...');
+  indexAllGalleries().catch(console.error);
+}
 
