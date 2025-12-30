@@ -5,6 +5,7 @@ import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import ClientLayout from './ClientLayout'
 import { JsonLd, websiteSchema } from '../components/StructuredData'
+import ConditionalAnalytics from '../components/ConditionalAnalytics'
 import { Analytics } from "@vercel/analytics/react"
 import DynamicComponents from '../components/DynamicComponents'
 
@@ -111,7 +112,9 @@ export default function RootLayout({
           {children}
         </ClientLayout>
         <DynamicComponents />
-        <Analytics />
+        <ConditionalAnalytics>
+          <Analytics />
+        </ConditionalAnalytics>
       </body>
     </html>
   )

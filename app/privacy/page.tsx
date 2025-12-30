@@ -42,6 +42,17 @@ export default function PrivacyPolicy() {
                 <li><strong>Work Samples:</strong> Selected images for our portfolio (with your consent)</li>
               </ul>
 
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Face Recognition Data</h3>
+              <p className="text-gray-700 mb-4">When you use our face recognition feature to find your photos:</p>
+              <ul className="list-disc pl-6 text-gray-700 space-y-2 mb-6">
+                <li><strong>One-Time Processing:</strong> Your selfie is used only for a single face recognition session</li>
+                <li><strong>No Permanent Storage:</strong> Your personal selfie is <strong>never saved</strong> to our servers or database</li>
+                <li><strong>Private Access:</strong> Only you have access to your selfie during the recognition process</li>
+                <li><strong>Temporary Processing:</strong> Face data exists only momentarily during the matching process</li>
+                <li><strong>No Sharing:</strong> Your selfie is never shared with third parties or used for other purposes</li>
+                <li><strong>Immediate Deletion:</strong> All face recognition data is automatically deleted after each session</li>
+              </ul>
+
               <h3 className="text-lg font-medium text-gray-900 mb-3">Website and Authentication Data</h3>
               <p className="text-gray-700 mb-4">When you use our website or client portal:</p>
               <ul className="list-disc pl-6 text-gray-700 space-y-2">
@@ -56,6 +67,7 @@ export default function PrivacyPolicy() {
               <p className="text-gray-700 mb-4">We use your information to:</p>
               <ul className="list-disc pl-6 text-gray-700 space-y-2">
                 <li><strong>Provide Photography Services:</strong> Schedule sessions, coordinate events, deliver final images</li>
+                <li><strong>Face Recognition:</strong> Help you find your photos using one-time facial matching (selfie never saved)</li>
                 <li><strong>Process Payments:</strong> Handle billing, send invoices, process refunds</li>
                 <li><strong>Client Communication:</strong> Send booking confirmations, updates, and deliverables</li>
                 <li><strong>Portfolio and Marketing:</strong> Display selected work (with explicit consent), create promotional materials</li>
@@ -66,10 +78,68 @@ export default function PrivacyPolicy() {
             </section>
 
             <section className="mb-8">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4">Face Recognition Privacy & Security</h2>
+              <p className="text-gray-700 mb-4">
+                Our face recognition feature is designed with your privacy as the top priority. We understand the sensitivity 
+                of facial recognition technology and have implemented strict privacy protections:
+              </p>
+              
+              <h3 className="text-lg font-medium text-gray-900 mb-3">How It Works</h3>
+              <ul className="list-disc pl-6 text-gray-700 space-y-2 mb-6">
+                <li><strong>Upload Selfie:</strong> You upload a selfie to find your photos in the gallery</li>
+                <li><strong>Temporary Processing:</strong> The selfie is processed momentarily to create a face signature</li>
+                <li><strong>Photo Matching:</strong> The signature is matched against photos to find your images</li>
+                <li><strong>Immediate Deletion:</strong> The selfie and signature are immediately deleted after matching</li>
+              </ul>
+
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Privacy Guarantees</h3>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                <ul className="list-disc pl-6 text-green-800 space-y-2">
+                  <li><strong>NEVER SAVED:</strong> Your selfie is <strong>never permanently stored</strong> on our servers</li>
+                  <li><strong>ONE-TIME USE:</strong> Used only for your current face recognition session</li>
+                  <li><strong>NO DATABASE STORAGE:</strong> Face data is not stored in any database</li>
+                  <li><strong>NO THIRD-PARTY SHARING:</strong> Your selfie is never shared with anyone</li>
+                  <li><strong>NO TRAINING DATA:</strong> Your photos are never used to train AI models</li>
+                  <li><strong>COMPLETE CONTROL:</strong> Only you can initiate face recognition for your photos</li>
+                </ul>
+              </div>
+
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Technical Implementation</h3>
+              <ul className="list-disc pl-6 text-gray-700 space-y-2 mb-6">
+                <li><strong>Client-Side Processing:</strong> Face recognition happens securely in your browser session</li>
+                <li><strong>Memory-Only Storage:</strong> Face data exists only in temporary memory during processing</li>
+                <li><strong>Automatic Cleanup:</strong> All face recognition data is automatically deleted when you close the browser or finish the session</li>
+                <li><strong>No Persistent Storage:</strong> No face recognition data is written to disk or databases</li>
+              </ul>
+
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Your Control</h3>
+              <ul className="list-disc pl-6 text-gray-700 space-y-2">
+                <li><strong>Voluntary Use:</strong> Face recognition is completely optional</li>
+                <li><strong>Session-Based:</strong> Each use is a separate, isolated session</li>
+                <li><strong>Instant Deletion:</strong> Face data is gone the moment your session ends</li>
+                <li><strong>No Long-Term Impact:</strong> Using face recognition has no effect on your privacy or data</li>
+              </ul>
+            </section>
+
+            <section className="mb-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">Data Sharing and Disclosure</h2>
               <p className="text-gray-700 mb-4">
                 We respect your privacy and do not sell your personal information. We may share your information only in these limited circumstances:
               </p>
+              
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Face Recognition Data</h3>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <p className="text-red-800 font-medium mb-2">
+                  <strong>IMPORTANT:</strong> Your face recognition data is <strong>NEVER</strong> shared with anyone:
+                </p>
+                <ul className="list-disc pl-6 text-red-800 space-y-1">
+                  <li>Your selfie is never shared with third parties</li>
+                  <li>Face recognition data is never sold or licensed</li>
+                  <li>No government agencies have access to your face data</li>
+                  <li>No advertising companies receive your facial information</li>
+                  <li>Face data is never used for marketing or profiling</li>
+                </ul>
+              </div>
               
               <h3 className="text-lg font-medium text-gray-900 mb-3">Google OAuth Integration</h3>
               <p className="text-gray-700 mb-4">

@@ -1,9 +1,12 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import CookieConsent from '../components/CookieConsent';
+import CookieSettings from '../components/CookieSettings';
+import { useCookieManager, CookiePreferences } from '../hooks/useCookieManager';
 
 export default function ClientLayout({
   children,
@@ -16,6 +19,13 @@ export default function ClientLayout({
   const isAdminPage = pathname?.startsWith('/admin');
   const isWorkspacePage = pathname?.startsWith('/workspace');
   const shouldHideNavFooter = isInvitation || isAdminPage || isWorkspacePage;
+
+  const { updatePreferences } = useCookieManager();
+
+  // Create a stable callback function
+  const handleCookieAccept = useCallback((preferences: CookiePreferences) => {
+    updatePreferences(preferences);
+  }, [updatePreferences]);
 
   useEffect(() => {
     // Remove any existing nav and footer for pages that should hide them
@@ -35,6 +45,8 @@ export default function ClientLayout({
         {children}
       </main>
       {!shouldHideNavFooter && <Footer />}
+      <CookieConsent onAccept={handleCookieAccept} />
+      <CookieSettings />
     </div>
   );
 }
