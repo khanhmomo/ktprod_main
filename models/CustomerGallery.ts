@@ -79,6 +79,11 @@ const CustomerGallerySchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'CustomerFavorite'
   }],
+  // Global favorites shared by all users
+  globalFavorites: [{
+    type: Number,
+    default: []
+  }],
   isActive: {
     type: Boolean,
     default: true

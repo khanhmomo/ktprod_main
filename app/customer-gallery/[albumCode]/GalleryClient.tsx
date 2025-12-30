@@ -221,39 +221,53 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
 
   const loadFavorites = async () => {
     try {
+      console.log('Loading global favorites for album:', params.albumCode);
       const response = await fetch(`/api/customer-galleries/favorites/${params.albumCode}`);
+      console.log('Global favorites response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Global favorites data received:', data);
         setFavorites(new Set(data.favorites || []));
+        console.log('Global favorites set to:', new Set(data.favorites || []));
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to load global favorites:', errorData);
       }
     } catch (error) {
-      console.error('Error loading favorites:', error);
+      console.error('Error loading global favorites:', error);
     }
   };
 
   const toggleFavorite = async (photoIndex: number) => {
+    console.log('Toggling global favorite for photo index:', photoIndex);
     const newFavorites = new Set(favorites);
     if (newFavorites.has(photoIndex)) {
       newFavorites.delete(photoIndex);
+      console.log('Removing global favorite');
     } else {
       newFavorites.add(photoIndex);
+      console.log('Adding global favorite');
     }
     setFavorites(newFavorites);
 
     try {
+      console.log('Sending global favorite toggle request...');
       const response = await fetch(`/api/customer-galleries/favorites/${params.albumCode}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ photoIndex }),
       });
 
+      console.log('Toggle global favorite response status:', response.status);
+
       if (!response.ok) {
         // Revert on error
         setFavorites(favorites);
-        console.error('Failed to update favorite');
+        console.error('Failed to update global favorite');
       } else {
         const result = await response.json();
-        console.log('Favorite toggle result:', result);
+        console.log('Toggle global favorite result:', result);
         
         // Update local state based on server response
         if (result.action === 'added') {
@@ -269,7 +283,7 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
     } catch (error) {
       // Revert on error
       setFavorites(favorites);
-      console.error('Error updating favorite:', error);
+      console.error('Error updating global favorite:', error);
     }
   };
 
@@ -583,9 +597,9 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
                     favorites.size === 0 ? 'text-gray-400' : 'text-red-500'
                   }`} />
                   <div className="text-left">
-                    <p className="font-medium text-gray-900">Favorites Only</p>
+                    <p className="font-medium text-gray-900">Global Favorites</p>
                     <p className="text-sm text-gray-500">
-                      {favorites.size === 0 ? 'No favorites selected' : `${favorites.size} favorite photos`}
+                      {favorites.size === 0 ? 'No global favorites' : `${favorites.size} global favorites`}
                     </p>
                   </div>
                 </div>
@@ -892,7 +906,7 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
                 }`}
               >
                 <FiHeart className={`w-4 h-4 ${showFavoritesOnly ? 'fill-current' : ''}`} />
-                <span>{showFavoritesOnly ? 'All Photos' : 'Favorites'}</span>
+                <span>{showFavoritesOnly ? 'All Photos' : 'Global Favorites'}</span>
               </button>
               
               {/* Face Filter Button */}
