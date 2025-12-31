@@ -22,10 +22,18 @@ const menuItems = [
     href: '/admin/customer-galleries/list',
     icon: <FiImage className="h-5 w-5" />,
   },
+];
+
+const contactItems = [
   {
     name: 'Inquiries',
     href: '/admin/inquiries',
     icon: <FiMail className="h-5 w-5" />,
+  },
+  {
+    name: 'Live Chat',
+    href: '/admin/chats',
+    icon: <FiMessageCircle className="h-5 w-5" />,
   },
 ];
 
@@ -39,11 +47,6 @@ const eventManagerItems = [
     name: 'Crew',
     href: '/admin/crew',
     icon: <FiUsers className="h-5 w-5" />,
-  },
-  {
-    name: 'Live Chat',
-    href: '/admin/chats',
-    icon: <FiMessageCircle className="h-5 w-5" />,
   },
 ];
 
@@ -263,6 +266,30 @@ export default function AdminLayout({
                 href={item.href}
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors md:hover:md:hover:bg-gray-100 ${
+                  currentPath === item.href
+                    ? 'bg-blue-50 text-blue-600'
+                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                }`}
+              >
+                <span className="mr-3 text-gray-500 flex-shrink-0">{item.icon}</span>
+                {item.name}
+              </Link>
+            ))}
+            
+            {/* Separator */}
+            <div className="my-4 border-t border-gray-200"></div>
+            
+            {/* Contact section */}
+            <div className="mb-2">
+              <h3 className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Contact</h3>
+            </div>
+            
+            {contactItems.map((item) => (
+              <Link
+                key={item.name}
+                href={item.href}
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                   currentPath === item.href
                     ? 'bg-blue-50 text-blue-600'
                     : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'

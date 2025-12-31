@@ -235,10 +235,11 @@ function CustomerGalleriesManager() {
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Customer Galleries</h1>
-            <div className="flex items-center space-x-4 mt-2">
+        <div className="mb-8">
+          {/* Title Section */}
+          <div className="mb-6">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Customer Galleries</h1>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 mt-2 space-y-2 sm:space-y-0">
               <p className="text-gray-600">Manage private photo galleries for your customers</p>
               <div className="flex items-center space-x-2 text-sm text-gray-500">
                 <FiRefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -246,22 +247,30 @@ function CustomerGalleriesManager() {
               </div>
             </div>
           </div>
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={manualRefresh}
-              disabled={isRefreshing}
-              className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              <FiRefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
-            <button
-              onClick={() => router.push('/admin/customer-galleries')}
-              className="flex items-center px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
-            >
-              <FiPlus className="w-4 h-4 mr-2" />
-              New Gallery
-            </button>
+          
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+            <div className="order-2 sm:order-1">
+              {/* Mobile: New Gallery button first */}
+              <button
+                onClick={() => router.push('/admin/customer-galleries')}
+                className="w-full sm:w-auto flex items-center justify-center px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                <FiPlus className="w-4 h-4 mr-2" />
+                New Gallery
+              </button>
+            </div>
+            <div className="order-1 sm:order-2">
+              {/* Mobile: Refresh button second */}
+              <button
+                onClick={manualRefresh}
+                disabled={isRefreshing}
+                className="w-full sm:w-auto flex items-center justify-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                <FiRefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
           </div>
         </div>
 
@@ -390,8 +399,8 @@ function CustomerGalleriesManager() {
                 )}
 
                 {/* Actions */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+                  <div className="flex items-center justify-center sm:justify-start space-x-2">
                     <button
                       onClick={() => window.open(`/customer-gallery/${gallery.albumCode}`, '_blank')}
                       className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
@@ -427,7 +436,7 @@ function CustomerGalleriesManager() {
                   <select
                     value={gallery.status}
                     onChange={(e) => handleStatusChange(gallery._id, e.target.value as any)}
-                    className="text-xs border border-gray-300 rounded px-2 py-1"
+                    className="w-full sm:w-auto text-xs border border-gray-300 rounded px-2 py-1 text-center"
                   >
                     <option value="draft">Draft</option>
                     <option value="published">Published</option>
@@ -441,13 +450,13 @@ function CustomerGalleriesManager() {
 
         {/* Empty State */}
         {galleries.length === 0 && (
-          <div className="text-center py-12">
+          <div className="text-center py-12 px-4">
             <FiFolder className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No galleries yet</h3>
             <p className="text-gray-600 mb-4">Create your first customer gallery to get started</p>
             <button
               onClick={() => router.push('/admin/customer-galleries')}
-              className="flex items-center px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors mx-auto"
+              className="w-full sm:w-auto flex items-center justify-center px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors mx-auto"
             >
               <FiPlus className="w-4 h-4 mr-2" />
               Create Gallery
