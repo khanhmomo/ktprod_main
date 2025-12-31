@@ -61,7 +61,7 @@ export default function CustomerGalleryForm({
     coverPhotoUrl: '',
     photos: [],
     status: 'draft',
-    faceRecognitionEnabled: true // Default to true for new galleries
+    faceRecognitionEnabled: false // Default to false for new galleries
   });
 
   // Initialize form with initialData
@@ -79,7 +79,7 @@ export default function CustomerGalleryForm({
         coverPhotoUrl: initialData.coverPhotoUrl || '',
         photos: initialData.photos || [],
         status: initialData.status || 'draft',
-        faceRecognitionEnabled: initialData.faceRecognitionEnabled ?? true // Default to true if not set
+        faceRecognitionEnabled: initialData.faceRecognitionEnabled ?? false // Default to false if not set
       });
     }
   }, [initialData]);

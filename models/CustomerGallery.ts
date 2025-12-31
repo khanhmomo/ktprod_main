@@ -91,7 +91,7 @@ const CustomerGallerySchema = new mongoose.Schema({
   // Face recognition settings
   faceRecognitionEnabled: {
     type: Boolean,
-    default: true // Default to true for backward compatibility
+    default: false // Default to false for new galleries
   },
   // Face indexing status
   faceIndexing: {
