@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import CustomerGallery from '@/models/CustomerGallery';
+import mongoose from 'mongoose';
 
 export async function GET() {
   try {
@@ -15,6 +16,116 @@ export async function GET() {
     console.error('Error fetching customer galleries:', error);
     return NextResponse.json(
       { error: 'Failed to fetch customer galleries' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    await connectDB();
+    
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    const body = await request.json();
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Gallery ID is required' },
+        { status: 400 }
+      );
+    }
+    
+    const gallery = await CustomerGallery.findByIdAndUpdate(
+      id,
+      { ...body, updatedAt: new Date() },
+      { new: true, runValidators: true }
+    );
+    
+    if (!gallery) {
+      return NextResponse.json(
+        { error: 'Gallery not found' },
+        { status: 404 }
+      );
+    }
+    
+    return NextResponse.json(gallery);
+  } catch (error) {
+    console.error('Error updating gallery:', error);
+    return NextResponse.json(
+      { error: 'Failed to update gallery' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    console.log('DELETE request received');
+    await connectDB();
+    console.log('Database connected');
+    
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    
+    console.log('Extracted ID:', id);
+    
+    if (!id) {
+      console.log('No ID provided');
+      return NextResponse.json(
+        { error: 'Gallery ID is required' },
+        { status: 400 }
+      );
+    }
+    
+    // Validate ID format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      console.log('Invalid ID format:', id);
+      return NextResponse.json(
+        { error: 'Invalid gallery ID format' },
+        { status: 400 }
+      );
+    }
+    
+    console.log('Attempting to delete gallery with ID:', id);
+    
+    // First try to find the gallery
+    const gallery = await CustomerGallery.findById(id);
+    if (!gallery) {
+      console.log('Gallery not found:', id);
+      return NextResponse.json(
+        { error: 'Gallery not found' },
+        { status: 404 }
+      );
+    }
+    
+    console.log('Found gallery:', gallery.albumCode);
+    
+    // Delete the gallery
+    const deletedGallery = await CustomerGallery.findByIdAndDelete(id);
+    
+    if (!deletedGallery) {
+      console.log('Failed to delete gallery, it may have been deleted already');
+      return NextResponse.json(
+        { error: 'Gallery not found or already deleted' },
+        { status: 404 }
+      );
+    }
+    
+    console.log('Successfully deleted gallery:', deletedGallery.albumCode);
+    
+    return NextResponse.json({ 
+      message: 'Gallery deleted successfully',
+      deletedGallery: {
+        id: deletedGallery._id,
+        albumCode: deletedGallery.albumCode
+      }
+    });
+  } catch (error) {
+    console.error('Error deleting gallery:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    return NextResponse.json(
+      { error: 'Failed to delete gallery: ' + (error instanceof Error ? error.message : 'Unknown error') },
       { status: 500 }
     );
   }
