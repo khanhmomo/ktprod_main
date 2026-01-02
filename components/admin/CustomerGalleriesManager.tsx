@@ -97,29 +97,6 @@ function CustomerGalleriesManager() {
     }
   };
 
-  const triggerIndexing = async (albumCode: string) => {
-    if (!confirm('Start face recognition indexing for this album?')) return;
-
-    try {
-      const response = await fetch(`/api/customer-galleries/${albumCode}/index`, {
-        method: 'POST'
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        alert(`Indexing started for ${result.totalPhotos} photos!`);
-        // Refresh status immediately
-        await fetchIndexingStatuses();
-      } else {
-        const error = await response.json();
-        alert(`Failed to start indexing: ${error.error || 'Unknown error'}`);
-      }
-    } catch (error) {
-      console.error('Error triggering indexing:', error);
-      alert('Failed to start indexing. Please try again.');
-    }
-  };
-
   const manualRefresh = async () => {
     setIsRefreshing(true);
     await fetchIndexingStatuses();
@@ -414,14 +391,6 @@ function CustomerGalleriesManager() {
                       title="Edit"
                     >
                       <FiEdit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => triggerIndexing(gallery.albumCode)}
-                      className="p-2 text-gray-500 hover:text-purple-600 transition-colors"
-                      title="Start Face Recognition"
-                      disabled={gallery.indexingStatus?.status === 'in_progress'}
-                    >
-                      <FiSearch className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(gallery._id)}

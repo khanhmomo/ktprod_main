@@ -47,3 +47,48 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to trigger indexing' }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ albumCode: string }> }
+) {
+  try {
+    const { albumCode } = await params;
+    
+    await dbConnect();
+    
+    const gallery = await CustomerGallery.findOne({ 
+      albumCode: albumCode.toLowerCase()
+    });
+
+    if (!gallery) {
+      return NextResponse.json({ error: 'Gallery not found' }, { status: 404 });
+    }
+
+    // Reset indexing status to stop server indexing
+    console.log('Manual stop: Resetting face indexing status for gallery:', albumCode);
+    
+    const updatedGallery = await CustomerGallery.updateOne(
+      { albumCode: albumCode.toLowerCase() },
+      { 
+        $set: {
+          'faceIndexing.status': 'stopped',
+          'faceIndexing.lastUpdated': new Date()
+        }
+      }
+    );
+
+    if (updatedGallery.matchedCount === 0) {
+      return NextResponse.json({ error: 'Gallery not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ 
+      message: 'Server indexing stopped successfully',
+      albumCode: albumCode
+    });
+
+  } catch (error) {
+    console.error('Error stopping server indexing:', error);
+    return NextResponse.json({ error: 'Failed to stop server indexing' }, { status: 500 });
+  }
+}
