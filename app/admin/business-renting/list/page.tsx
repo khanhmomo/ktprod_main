@@ -157,111 +157,193 @@ export default function BusinessRentingListPage() {
               </Link>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Gallery
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Business
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Event
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Photos
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Created
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden lg:block overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Gallery
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Business
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Event
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Photos
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Created
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {galleries.map((gallery) => (
+                      <tr key={gallery._id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {gallery.title || 'Untitled'}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {gallery.albumCode}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {gallery.businessName}
+                            </div>
+                            <div className="text-sm text-gray-500 flex items-center">
+                              <FiMail className="w-3 h-3 mr-1" />
+                              {gallery.businessEmail}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm text-gray-900">
+                              {gallery.eventType}
+                            </div>
+                            <div className="text-sm text-gray-500 flex items-center">
+                              <FiCalendar className="w-3 h-3 mr-1" />
+                              {new Date(gallery.eventDate).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(gallery.status)}`}>
+                            {gallery.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {gallery.photos?.length || 0}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(gallery.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex items-center justify-end space-x-2">
+                            <a
+                              href={`/business-gallery/${gallery.albumCode}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-indigo-600 hover:text-indigo-900"
+                              title="View Gallery"
+                            >
+                              <FiEye className="w-4 h-4" />
+                            </a>
+                            <Link
+                              href={`/admin/business-renting/edit/${gallery._id}`}
+                              className="text-gray-600 hover:text-gray-900"
+                              title="Edit Gallery"
+                            >
+                              <FiEdit2 className="w-4 h-4" />
+                            </Link>
+                            <button
+                              onClick={() => deleteGallery(gallery._id)}
+                              className="text-red-600 hover:text-red-900"
+                              title="Delete Gallery"
+                            >
+                              <FiTrash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="lg:hidden">
+                <div className="divide-y divide-gray-200">
                   {galleries.map((gallery) => (
-                    <tr key={gallery._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
+                    <div key={gallery._id} className="p-4 hover:bg-gray-50">
+                      {/* Header with title and status */}
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1">
+                          <h3 className="text-sm font-medium text-gray-900">
                             {gallery.title || 'Untitled'}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {gallery.albumCode}
-                          </div>
+                          </h3>
+                          <p className="text-xs text-gray-500">{gallery.albumCode}</p>
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {gallery.businessName}
-                          </div>
-                          <div className="text-sm text-gray-500 flex items-center">
-                            <FiMail className="w-3 h-3 mr-1" />
-                            {gallery.businessEmail}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm text-gray-900">
-                            {gallery.eventType}
-                          </div>
-                          <div className="text-sm text-gray-500 flex items-center">
-                            <FiCalendar className="w-3 h-3 mr-1" />
-                            {new Date(gallery.eventDate).toLocaleDateString()}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(gallery.status)}`}>
                           {gallery.status}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {gallery.photos?.length || 0}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(gallery.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end space-x-2">
+                      </div>
+
+                      {/* Business Info */}
+                      <div className="mb-3">
+                        <div className="text-sm font-medium text-gray-900">
+                          {gallery.businessName}
+                        </div>
+                        <div className="text-xs text-gray-500 flex items-center">
+                          <FiMail className="w-3 h-3 mr-1" />
+                          {gallery.businessEmail}
+                        </div>
+                      </div>
+
+                      {/* Event Info */}
+                      <div className="mb-3">
+                        <div className="text-sm text-gray-900">
+                          {gallery.eventType}
+                        </div>
+                        <div className="text-xs text-gray-500 flex items-center">
+                          <FiCalendar className="w-3 h-3 mr-1" />
+                          {new Date(gallery.eventDate).toLocaleDateString()}
+                        </div>
+                      </div>
+
+                      {/* Stats and Actions */}
+                      <div className="flex justify-between items-center">
+                        <div className="flex space-x-4 text-xs text-gray-500">
+                          <span>{gallery.photos?.length || 0} photos</span>
+                          <span>Created {new Date(gallery.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        
+                        {/* Action Buttons */}
+                        <div className="flex items-center space-x-2">
                           <a
                             href={`/business-gallery/${gallery.albumCode}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-indigo-600 hover:text-indigo-900"
+                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                             title="View Gallery"
                           >
                             <FiEye className="w-4 h-4" />
                           </a>
                           <Link
                             href={`/admin/business-renting/edit/${gallery._id}`}
-                            className="text-gray-600 hover:text-gray-900"
+                            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                             title="Edit Gallery"
                           >
                             <FiEdit2 className="w-4 h-4" />
                           </Link>
                           <button
                             onClick={() => deleteGallery(gallery._id)}
-                            className="text-red-600 hover:text-red-900"
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             title="Delete Gallery"
                           >
                             <FiTrash2 className="w-4 h-4" />
                           </button>
                         </div>
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>
