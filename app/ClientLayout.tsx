@@ -18,7 +18,8 @@ export default function ClientLayout({
   const isAcademyPage = pathname?.startsWith('/academy');
   const isAdminPage = pathname?.startsWith('/admin');
   const isWorkspacePage = pathname?.startsWith('/workspace');
-  const shouldHideNavFooter = isInvitation || isAdminPage || isWorkspacePage;
+  const isBusinessGalleryPage = pathname?.startsWith('/business-gallery');
+  const shouldHideNavFooter = isInvitation || isAdminPage || isWorkspacePage || isBusinessGalleryPage;
 
   const { updatePreferences } = useCookieManager();
 

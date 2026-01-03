@@ -8,6 +8,7 @@ import { JsonLd, websiteSchema } from '../components/StructuredData'
 import ConditionalAnalytics from '../components/ConditionalAnalytics'
 import { Analytics } from "@vercel/analytics/react"
 import DynamicComponents from '../components/DynamicComponents'
+import ConditionalDynamicComponents from '../components/ConditionalDynamicComponents'
 
 // Configure Lato as the default sans font
 const lato = Lato({ 
@@ -111,7 +112,7 @@ export default function RootLayout({
         <ClientLayout>
           {children}
         </ClientLayout>
-        <DynamicComponents />
+        <ConditionalDynamicComponents />
         <ConditionalAnalytics>
           <Analytics />
         </ConditionalAnalytics>

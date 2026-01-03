@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FiHome, FiFileText, FiImage, FiLogOut, FiFolder, FiMail, FiEdit3, FiCalendar, FiUsers, FiUser, FiMenu, FiX, FiBook, FiHeart, FiVolume2, FiMessageCircle } from 'react-icons/fi';
+import { FiHome, FiFileText, FiImage, FiLogOut, FiFolder, FiMail, FiEdit3, FiCalendar, FiUsers, FiUser, FiMenu, FiX, FiBook, FiHeart, FiVolume2, FiMessageCircle, FiBriefcase } from 'react-icons/fi';
 import CalendarAuthHandler from '@/components/CalendarAuthHandler';
 import './globals.css';
 
@@ -21,6 +21,11 @@ const menuItems = [
     name: 'Customer Galleries',
     href: '/admin/customer-galleries/list',
     icon: <FiImage className="h-5 w-5" />,
+  },
+  {
+    name: 'Business Renting',
+    href: '/admin/business-renting/list',
+    icon: <FiBriefcase className="h-5 w-5" />,
   },
 ];
 
