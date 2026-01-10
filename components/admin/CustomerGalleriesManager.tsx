@@ -161,24 +161,37 @@ function CustomerGalleriesManager() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this gallery?')) return;
 
+    // Optimistically remove from UI immediately
+    const originalGalleries = [...galleries];
+    setGalleries(prev => prev.filter(g => g._id !== id));
+
     try {
       const response = await fetch(`/api/customer-galleries?id=${id}`, {
         method: 'DELETE'
       });
 
-      if (response.ok) {
-        await fetchGalleries();
-      } else {
+      if (!response.ok) {
+        // Revert optimistic update if delete failed
+        setGalleries(originalGalleries);
         const error = await response.json();
         alert(`Failed to delete gallery: ${error.error || 'Unknown error'}`);
       }
+      // If successful, the optimistic update remains
     } catch (error) {
+      // Revert optimistic update if error
+      setGalleries(originalGalleries);
       console.error('Error deleting gallery:', error);
       alert('Failed to delete gallery. Please try again.');
     }
   };
 
   const handleStatusChange = async (id: string, status: 'draft' | 'published' | 'archived') => {
+    // Optimistically update UI immediately
+    const originalGalleries = [...galleries];
+    setGalleries(prev => prev.map(g => 
+      g._id === id ? { ...g, status } : g
+    ));
+
     try {
       const response = await fetch(`/api/customer-galleries?id=${id}`, {
         method: 'PUT',
@@ -186,13 +199,16 @@ function CustomerGalleriesManager() {
         body: JSON.stringify({ status })
       });
 
-      if (response.ok) {
-        await fetchGalleries();
-      } else {
+      if (!response.ok) {
+        // Revert optimistic update if failed
+        setGalleries(originalGalleries);
         const error = await response.json();
         alert(`Failed to update status: ${error.error || 'Unknown error'}`);
       }
+      // If successful, the optimistic update remains
     } catch (error) {
+      // Revert optimistic update if error
+      setGalleries(originalGalleries);
       console.error('Error updating status:', error);
       alert('Failed to update status. Please try again.');
     }
