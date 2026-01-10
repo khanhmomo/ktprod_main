@@ -47,6 +47,7 @@ function CustomerGalleriesManager() {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [statusCache, setStatusCache] = useState<Map<string, any>>(new Map());
 
   useEffect(() => {
     fetchGalleries();
@@ -54,7 +55,7 @@ function CustomerGalleriesManager() {
     // Set up real-time polling for indexing status
     const interval = setInterval(() => {
       fetchIndexingStatuses();
-    }, 5000); // Update every 5 seconds
+    }, 30000); // Update every 30 seconds instead of 5
 
     return () => clearInterval(interval);
   }, []);
@@ -65,13 +66,33 @@ function CustomerGalleriesManager() {
       if (response.ok) {
         const data = await response.json();
         
-        // Fetch indexing status for each gallery
+        // Only fetch status for galleries that don't have cached status or cache is old
         const galleriesWithStatus = await Promise.all(
           data.map(async (gallery: CustomerGallery) => {
+            const cacheKey = gallery.albumCode;
+            const cached = statusCache.get(cacheKey);
+            const cacheAge = Date.now() - (cached?.timestamp || 0);
+            
+            // Use cached status if it's less than 2 minutes old
+            if (cached && cacheAge < 120000) {
+              return {
+                ...gallery,
+                indexingStatus: cached.status
+              };
+            }
+            
+            // Otherwise fetch fresh status
             try {
               const statusResponse = await fetch(`/api/customer-galleries/${gallery.albumCode}/indexing-status`);
               if (statusResponse.ok) {
                 const statusData = await statusResponse.json();
+                
+                // Update cache
+                setStatusCache(prev => new Map(prev.set(cacheKey, {
+                  status: statusData,
+                  timestamp: Date.now()
+                })));
+                
                 return {
                   ...gallery,
                   indexingStatus: statusData

@@ -34,15 +34,15 @@ const server = createServer(async (req, res) => {
 const io = new Server(server, {
   path: '/api/socket/io',
   addTrailingSlash: false,
-  transports: ['polling', 'websocket'], // Allow both transports
-  allowEIO3: true, // Allow Engine.IO v3 compatibility
+  transports: ['websocket'], // Use only WebSocket, no polling
+  allowEIO3: true,
   cors: {
     origin: dev ? ['http://localhost:3000', 'http://127.0.0.1:3000'] : process.env.NEXTAUTH_URL,
     methods: ['GET', 'POST'],
     credentials: true
   },
   pingTimeout: 60000,
-  pingInterval: 25000
+  pingInterval: 60000 // Reduce ping frequency from 25s to 60s
 });
 
 // Store io in global scope and socket instance
