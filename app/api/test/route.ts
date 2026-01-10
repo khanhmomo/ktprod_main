@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import dbConnect from '@/lib/db/connect';
 
 export async function GET() {
@@ -31,5 +31,39 @@ export async function GET() {
       },
       { status: 500 }
     );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  console.log('POST test received');
+  
+  try {
+    console.log('Reading request body...');
+    const body = await request.json();
+    console.log('Request body:', body);
+    
+    console.log('Creating response...');
+    const response = NextResponse.json({
+      success: true,
+      message: 'POST test successful',
+      received: body
+    });
+    
+    console.log('Response created:', response);
+    return response;
+    
+  } catch (error) {
+    console.error('POST test error:', error);
+    
+    try {
+      return NextResponse.json({
+        success: false,
+        error: 'POST test failed',
+        details: error instanceof Error ? error.message : String(error)
+      }, { status: 500 });
+    } catch (jsonError) {
+      console.error('Failed to create JSON response:', jsonError);
+      return new NextResponse('POST test failed', { status: 500 });
+    }
   }
 }

@@ -3,6 +3,7 @@ import connectDB from '@/lib/mongodb';
 import CustomerGallery from '@/models/CustomerGallery';
 import mongoose from 'mongoose';
 
+// GET all customer galleries (for admin list)
 export async function GET() {
   try {
     await connectDB();
@@ -21,21 +22,201 @@ export async function GET() {
   }
 }
 
-export async function PUT(request: NextRequest) {
+export async function POST(request: NextRequest) {
+  console.log('=== CUSTOMER GALLERIES POST START ===');
+  
   try {
-    await connectDB();
+    console.log('POST request received for customer gallery');
+    console.log('Request URL:', request.url);
+    console.log('Request method:', request.method);
+    console.log('Request headers:', Object.fromEntries(request.headers.entries()));
     
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+    // Check if request has valid JSON
+    const contentType = request.headers.get('content-type');
+    console.log('Content-Type:', contentType);
+    
+    if (!contentType || !contentType.includes('application/json')) {
+      console.log('Invalid content type:', contentType);
+      return NextResponse.json(
+        { error: 'Content-Type must be application/json' },
+        { status: 400 }
+      );
+    }
+    
+    console.log('Content type validation passed');
+    
+    await connectDB();
+    console.log('Database connected successfully');
+    
+    console.log('Attempting to read JSON body...');
     const body = await request.json();
+    console.log('POST request body:', body);
+    
+    const {
+      title,
+      customerName,
+      customerEmail,
+      eventDate,
+      eventType,
+      driveFolderId,
+      driveFolderUrl,
+      notes,
+      coverPhotoUrl,
+      photos,
+      status,
+      faceRecognitionEnabled
+    } = body;
+
+    console.log('Extracted fields:', {
+      title,
+      customerName,
+      customerEmail,
+      eventDate,
+      eventType,
+      driveFolderId,
+      driveFolderUrl,
+      notes,
+      coverPhotoUrl,
+      photos: photos?.length || 0,
+      status
+    });
+
+    // Validate required fields
+    console.log('Validating required fields...');
+    const missingFields = [];
+    if (!customerName) missingFields.push('customerName');
+    if (!customerEmail) missingFields.push('customerEmail');
+    if (!eventDate) missingFields.push('eventDate');
+    if (!eventType) missingFields.push('eventType');
+    if (!title) missingFields.push('title');
+    
+    if (missingFields.length > 0) {
+      console.log('Validation failed - missing required fields:', missingFields);
+      return NextResponse.json(
+        { error: 'Missing required fields: ' + missingFields.join(', ') },
+        { status: 400 }
+      );
+    }
+    
+    console.log('All required fields present');
+
+    // Generate album code manually if not provided
+    let albumCode = body.albumCode;
+    if (!albumCode) {
+      albumCode = Math.random().toString(36).substring(2, 10).toLowerCase();
+    }
+
+    console.log('Validation passed, creating gallery...');
+    
+    // Create new gallery
+    const gallery = new CustomerGallery({
+      albumCode,
+      title,
+      customerName,
+      customerEmail,
+      eventDate: new Date(eventDate),
+      eventType,
+      driveFolderId: driveFolderId || '',
+      driveFolderUrl: driveFolderUrl || `https://drive.google.com/drive/folders/${driveFolderId}`,
+      notes: notes || '',
+      coverPhotoUrl: coverPhotoUrl || '',
+      photos: photos || [],
+      status: status || 'draft',
+      faceRecognitionEnabled: faceRecognitionEnabled !== false, // Default to true unless explicitly false
+      // Initialize face indexing
+      faceIndexing: {
+        status: 'not_started',
+        indexedPhotos: 0,
+        totalPhotos: photos?.length || 0,
+        lastIndexedAt: null,
+        errorMessage: ''
+      }
+    });
+
+    console.log('Gallery object created, attempting to save...');
+    await gallery.save();
+    console.log('Gallery saved successfully:', gallery.albumCode);
+    
+    // Auto-indexing removed - will be handled by home server app
+    
+    console.log('Creating final response...');
+    const responseData = { 
+      gallery, 
+      redirect: '/admin/customer-galleries/list'
+    };
+    console.log('Response data:', responseData);
+    
+    const response = NextResponse.json(responseData, { status: 201 });
+    console.log('Response created successfully');
+    console.log('=== CUSTOMER GALLERIES POST SUCCESS ===');
+    
+    return response;
+  } catch (error) {
+    console.error('Error creating customer gallery:', error);
+    console.error('Error type:', typeof error);
+    console.error('Error name:', error instanceof Error ? error.name : 'Unknown');
+    console.error('Error message:', error instanceof Error ? error.message : 'No message');
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    
+    // Ensure we always return JSON
+    try {
+      return NextResponse.json(
+        { 
+          error: 'Failed to create customer gallery: ' + (error instanceof Error ? error.message : 'Unknown error'),
+          details: error instanceof Error ? error.name : 'Unknown error'
+        },
+        { status: 500 }
+      );
+    } catch (jsonError) {
+      console.error('Failed to create JSON response:', jsonError);
+      // Last resort - return plain text response
+      return new NextResponse('Failed to create customer gallery', { status: 500 });
+    }
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  console.log('=== CUSTOMER GALLERIES PUT START ===');
+  
+  try {
+    console.log('PUT request received for customer gallery');
+    console.log('Request URL:', request.url);
+    
+    await connectDB();
+    console.log('Database connected successfully');
+    
+    // Extract ID from URL path - handle both /api/customer-galleries/[id] and ?id= format
+    const url = new URL(request.url);
+    const pathname = url.pathname;
+    const queryId = url.searchParams.get('id');
+    
+    console.log('Pathname:', pathname);
+    console.log('Query ID:', queryId);
+    
+    // Try to extract ID from pathname first (e.g., /api/customer-galleries/696205b290f02498f3392578)
+    let id = null;
+    const pathSegments = pathname.split('/');
+    if (pathSegments.length > 3 && pathSegments[3]) {
+      id = pathSegments[3];
+      console.log('Extracted ID from pathname:', id);
+    } else if (queryId) {
+      id = queryId;
+      console.log('Using ID from query parameter:', id);
+    }
     
     if (!id) {
+      console.log('No ID found in URL');
       return NextResponse.json(
         { error: 'Gallery ID is required' },
         { status: 400 }
       );
     }
     
+    console.log('Reading request body...');
+    const body = await request.json();
+    console.log('Request body:', body);
+    
+    console.log('Updating gallery with ID:', id);
     const gallery = await CustomerGallery.findByIdAndUpdate(
       id,
       { ...body, updatedAt: new Date() },
@@ -43,19 +224,39 @@ export async function PUT(request: NextRequest) {
     );
     
     if (!gallery) {
+      console.log('Gallery not found:', id);
       return NextResponse.json(
         { error: 'Gallery not found' },
         { status: 404 }
       );
     }
     
+    console.log('Gallery updated successfully:', gallery.albumCode);
+    console.log('=== CUSTOMER GALLERIES PUT SUCCESS ===');
+    
     return NextResponse.json(gallery);
   } catch (error) {
     console.error('Error updating gallery:', error);
-    return NextResponse.json(
-      { error: 'Failed to update gallery' },
-      { status: 500 }
-    );
+    console.error('Error type:', typeof error);
+    console.error('Error name:', error instanceof Error ? error.name : 'Unknown');
+    console.error('Error message:', error instanceof Error ? error.message : 'No message');
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    console.log('=== CUSTOMER GALLERIES PUT FAILED ===');
+    
+    // Ensure we always return JSON
+    try {
+      return NextResponse.json(
+        { 
+          error: 'Failed to update gallery: ' + (error instanceof Error ? error.message : 'Unknown error'),
+          details: error instanceof Error ? error.name : 'Unknown error'
+        },
+        { status: 500 }
+      );
+    } catch (jsonError) {
+      console.error('Failed to create JSON response:', jsonError);
+      // Last resort - return plain text response
+      return new NextResponse('Failed to update gallery', { status: 500 });
+    }
   }
 }
 
@@ -126,135 +327,6 @@ export async function DELETE(request: NextRequest) {
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json(
       { error: 'Failed to delete gallery: ' + (error instanceof Error ? error.message : 'Unknown error') },
-      { status: 500 }
-    );
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    await connectDB();
-    
-    const body = await request.json();
-    console.log('POST request body:', body);
-    
-    const {
-      title,
-      customerName,
-      customerEmail,
-      eventDate,
-      eventType,
-      driveFolderId,
-      driveFolderUrl,
-      notes,
-      coverPhotoUrl,
-      photos,
-      status,
-      faceRecognitionEnabled
-    } = body;
-
-    console.log('Extracted fields:', {
-      title,
-      customerName,
-      customerEmail,
-      eventDate,
-      eventType,
-      driveFolderId,
-      driveFolderUrl,
-      notes,
-      coverPhotoUrl,
-      photos: photos?.length || 0,
-      status
-    });
-
-    // Validate required fields
-    if (!customerName || !customerEmail || !eventDate || !eventType) {
-      console.log('Validation failed - missing required fields');
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
-
-    // Generate album code manually if not provided
-    let albumCode = body.albumCode;
-    if (!albumCode) {
-      albumCode = Math.random().toString(36).substring(2, 10).toLowerCase();
-    }
-
-    console.log('Validation passed, creating gallery...');
-    
-    // Create new gallery
-    console.log('Creating gallery with data:', {
-      albumCode,
-      title,
-      customerName,
-      customerEmail,
-      eventDate,
-      eventType,
-      driveFolderId,
-      driveFolderUrl,
-      notes,
-      coverPhotoUrl,
-      photos: photos?.length || 0,
-      status
-    });
-
-    const gallery = new CustomerGallery({
-      albumCode,
-      title,
-      customerName,
-      customerEmail,
-      eventDate: new Date(eventDate),
-      eventType,
-      driveFolderId: driveFolderId || '',
-      driveFolderUrl: driveFolderUrl || `https://drive.google.com/drive/folders/${driveFolderId}`,
-      notes: notes || '',
-      coverPhotoUrl: coverPhotoUrl || '',
-      photos: photos || [],
-      status: status || 'draft',
-      faceRecognitionEnabled: faceRecognitionEnabled !== false // Default to true unless explicitly false
-    });
-
-    await gallery.save();
-    console.log('Gallery saved successfully:', gallery);
-    
-    // Start background face indexing only if gallery has photos AND face recognition is enabled
-    if (gallery.photos && gallery.photos.length > 0 && gallery.faceRecognitionEnabled) {
-      console.log('Starting background face indexing for gallery:', gallery.albumCode);
-      
-      // Always use the production URL for thewildstudio.org
-      const indexingUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/background-jobs/index-faces`;
-      console.log('Triggering indexing at URL:', indexingUrl);
-      console.log('NEXT_PUBLIC_BASE_URL:', process.env.NEXT_PUBLIC_BASE_URL);
-      
-      // Fire and forget - don't await this
-      fetch(indexingUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ albumCode: gallery.albumCode })
-      }).then(response => {
-        console.log('Indexing trigger response status:', response.status);
-        return response.text();
-      }).then(text => {
-        console.log('Indexing trigger response:', text);
-      }).catch(error => {
-        console.error('Failed to start background indexing:', error);
-      });
-      
-      console.log('Indexing triggered - returning immediately');
-    } else {
-      console.log('No photos to index for gallery:', gallery.albumCode);
-    }
-    
-    return NextResponse.json({ 
-      gallery, 
-      redirect: '/admin/customer-galleries/list'
-    }, { status: 201 });
-  } catch (error) {
-    console.error('Error creating customer gallery:', error);
-    return NextResponse.json(
-      { error: 'Failed to create customer gallery' },
       { status: 500 }
     );
   }

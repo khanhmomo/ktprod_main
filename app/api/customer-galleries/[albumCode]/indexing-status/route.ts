@@ -30,7 +30,9 @@ export async function GET(
       progress,
       lastUpdated: gallery.faceIndexing.lastUpdated,
       isReadyToSend: gallery.faceIndexing.status === 'completed',
-      estimatedTimeRemaining: gallery.faceIndexing.estimatedTimeRemaining || 0
+      estimatedTimeRemaining: gallery.faceIndexing.estimatedTimeRemaining || 0,
+      electronApp: gallery.faceIndexing.electronApp || false,
+      serverStopped: gallery.faceIndexing.serverStopped || false
     });
 
   } catch (error) {
