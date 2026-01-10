@@ -38,6 +38,13 @@ interface CustomerGallery {
     isReadyToSend: boolean;
     estimatedTimeRemaining: number; // in minutes
   };
+  faceIndexing?: {
+    status: 'not_started' | 'in_progress' | 'completed' | 'failed';
+    indexedPhotos: number;
+    totalPhotos: number;
+    lastIndexedAt: string | null;
+    errorMessage: string;
+  };
 }
 
 function CustomerGalleriesManager() {
@@ -182,6 +189,48 @@ function CustomerGalleriesManager() {
       setGalleries(originalGalleries);
       console.error('Error deleting gallery:', error);
       alert('Failed to delete gallery. Please try again.');
+    }
+  };
+
+  const handleReIndex = async (albumCode: string) => {
+    if (!confirm(`Are you sure you want to re-index album "${albumCode}" with super accurate processing? This will take longer but provide better results.`)) return;
+
+    try {
+      // Reset indexing status to not_started
+      const response = await fetch(`/api/customer-galleries/${albumCode}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          faceIndexing: { 
+            status: 'not_started', 
+            indexedPhotos: 0, 
+            totalPhotos: 0,
+            lastIndexedAt: null,
+            errorMessage: ''
+          }
+        })
+      });
+
+      if (response.ok) {
+        // Trigger the home server to start indexing
+        const homeServerResponse = await fetch(`/api/customer-galleries/${albumCode}/index`, {
+          method: 'POST'
+        });
+        
+        if (homeServerResponse.ok) {
+          alert('Re-indexing started! The home server will process this album with super accurate face recognition.');
+          // Refresh the galleries to show updated status
+          await fetchGalleries();
+        } else {
+          alert('Failed to trigger re-indexing. Please ensure the home server is running.');
+        }
+      } else {
+        const error = await response.json();
+        alert(`Failed to reset album: ${error.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error re-indexing album:', error);
+      alert('Failed to re-index album. Please try again.');
     }
   };
 
@@ -428,6 +477,14 @@ function CustomerGalleriesManager() {
                       title="Edit"
                     >
                       <FiEdit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleReIndex(gallery.albumCode)}
+                      className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
+                      title="Re-index with Super Accurate Mode"
+                      disabled={gallery.faceIndexing?.status === 'in_progress'}
+                    >
+                      <FiRefreshCw className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(gallery._id)}
