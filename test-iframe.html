@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Gallery Iframe Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        iframe {
+            width: 100%;
+            height: 600px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+        }
+        .test-info {
+            background: #f0f8ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-info">
+        <h2>Business Gallery Iframe Embedding Test</h2>
+        <p>This page tests if business galleries can be embedded in iframes from external domains.</p>
+        <p><strong>Expected:</strong> The business gallery should load below without any "refused to connect" errors.</p>
+    </div>
+    
+    <h3>Business Gallery Embed:</h3>
+    <iframe 
+        src="https://thewildstudio.org/business-gallery/tipht20260102mqxz" 
+        allowfullscreen
+        loading="lazy">
+    </iframe>
+    
+    <script>
+        // Monitor iframe loading
+        const iframe = document.querySelector('iframe');
+        
+        iframe.addEventListener('load', function() {
+            console.log('Iframe loaded successfully!');
+        });
+        
+        iframe.addEventListener('error', function() {
+            console.error('Iframe failed to load');
+        });
+        
+        // Check for console errors
+        window.addEventListener('message', function(event) {
+            console.log('Message from iframe:', event.data);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Iframe Test</title>
+</head>
+<body>
+    <h1>Testing Business Gallery Iframe</h1>
+    <iframe src="http://localhost:3000/business-gallery/tipht20260102mqxz" width="800" height="600"></iframe>
+    
+    <script>
+        // Log iframe events
+        const iframe = document.querySelector('iframe');
+        iframe.onload = () => console.log('Iframe loaded successfully');
+        iframe.onerror = (e) => console.error('Iframe error:', e);
+    </script>
+</body>
+</html>

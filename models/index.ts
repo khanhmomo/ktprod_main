@@ -1,0 +1,30 @@
+// Import all models to ensure they are registered with Mongoose
+import './ShootingEvent';
+import './Booking';
+import './Crew';
+import './Inquiry';
+import './Album';
+import './BlogPost';
+import './Category';
+import './Film';
+import './Gallery';
+import './GalleryImage';
+import './HomepageContent';
+import './Advertisement';
+import './Showcase';
+import './Chat';
+
+export { default as ShootingEvent } from './ShootingEvent';
+export { Booking } from './Booking';
+export { Crew } from './Crew';
+export { default as Inquiry } from './Inquiry';
+export { default as Album } from './Album';
+export { default as BlogPost } from './BlogPost';
+export { Category } from './Category';
+export { default as Film } from './Film';
+export { default as Gallery } from './Gallery';
+export { default as GalleryImage } from './GalleryImage';
+export { default as HomepageContent } from './HomepageContent';
+export { default as Advertisement } from './Advertisement';
+export { default as Showcase } from './Showcase';
+export { Chat, ChatMessage } from './Chat';

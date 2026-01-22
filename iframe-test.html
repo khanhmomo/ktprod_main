@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iframe Test - Business Gallery</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        iframe { width: 100%; height: 600px; border: 2px solid #ccc; border-radius: 8px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>Business Gallery Iframe Test</h1>
+    <div id="status"></div>
+    
+    <iframe 
+        id="galleryFrame"
+        src="http://localhost:3000/business-gallery/tipht20260102mqxz"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+        loading="lazy">
+    </iframe>
+    
+    <script>
+        const status = document.getElementById('status');
+        const iframe = document.getElementById('galleryFrame');
+        
+        function showStatus(message, isError = false) {
+            status.innerHTML = `<div class="status ${isError ? 'error' : 'success'}">${message}</div>`;
+        }
+        
+        iframe.onload = function() {
+            showStatus('✅ Iframe loaded successfully!');
+            console.log('Iframe loaded');
+        };
+        
+        iframe.onerror = function() {
+            showStatus('❌ Iframe failed to load. Check console for details.', true);
+            console.error('Iframe failed to load');
+        };
+        
+        // Test connection
+        fetch('http://localhost:3000/business-gallery/tipht20260102mqxz')
+            .then(response => {
+                if (response.ok) {
+                    showStatus('🔗 Server connection successful');
+                } else {
+                    showStatus(`❌ Server responded with ${response.status}`, true);
+                }
+            })
+            .catch(error => {
+                showStatus(`❌ Connection failed: ${error.message}`, true);
+            });
+    </script>
+</body>
+</html>
