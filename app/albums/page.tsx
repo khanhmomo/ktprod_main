@@ -28,6 +28,37 @@ type Category = 'All' | 'Wedding' | 'Prewedding' | 'Event' | 'Studio';
 
 const categories: Category[] = ['All', 'Wedding', 'Prewedding', 'Event', 'Studio'];
 
+// Function to process image URLs to use our high quality proxy
+function processImageUrl(url: string): string {
+  if (!url) return '';
+  if (url.startsWith('data:')) return url;
+
+  try {
+    if (url.includes('drive.google.com') || url.includes('googleusercontent.com')) {
+      let fileId = '';
+      
+      if (url.includes('/file/d/')) {
+        fileId = url.split('/file/d/')[1]?.split('/')[0];
+      } else if (url.includes('id=')) {
+        fileId = new URL(url).searchParams.get('id') || '';
+      } else {
+        const match = url.match(/[\w-]{25,}/);
+        if (match) fileId = match[0];
+      }
+      
+      if (fileId) {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
+        // Use high quality size for album covers (2048px)
+        return `${baseUrl}/api/drive/image?id=${fileId}&size=high`;
+      }
+    }
+  } catch (e) {
+    console.error("Error processing image URL:", url, e);
+  }
+  
+  return url;
+}
+
 export default function AlbumsPage() {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [filteredAlbums, setFilteredAlbums] = useState<Album[]>([]);
@@ -77,13 +108,20 @@ export default function AlbumsPage() {
         
         const data = await response.json();
         const albumsData = Array.isArray(data) ? data : [];
-        setAlbums(albumsData);
-        setFilteredAlbums(albumsData); // Initialize filtered albums with all albums
+        
+        // Process album cover images to use high quality proxy
+        const processedAlbums = albumsData.map((album: Album) => ({
+          ...album,
+          coverImage: processImageUrl(album.coverImage)
+        }));
+        
+        setAlbums(processedAlbums);
+        setFilteredAlbums(processedAlbums); // Initialize filtered albums with all albums
 
         // Calculate aspect ratios for all album covers
         const aspectRatios: Record<string, string> = {};
         await Promise.all(
-          albumsData.map(async (album: Album) => {
+          processedAlbums.map(async (album: Album) => {
             try {
               const dimensions = await getImageDimensions(album.coverImage);
               aspectRatios[album._id] = `aspect-[${dimensions.width}/${dimensions.height}]`;
