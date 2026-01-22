@@ -156,9 +156,9 @@ export async function GET(request: Request) {
         'Content-Type': contentType,
         'X-Request-ID': requestId,
         'X-Image-Source': 'primary',
-        'Cache-Control': process.env.NODE_ENV === 'production' 
-          ? 'public, max-age=3600, must-revalidate' // 1 hour cache for production
-          : `public, max-age=${cacheMaxAge}, immutable`,
+        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
         ...corsHeaders
       }
     });

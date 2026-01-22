@@ -143,8 +143,10 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
             return formats[Math.floor(Math.random() * formats.length)];
           }
           const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
-          // Use high quality size by default for browsing (2048px max long edge)
-          return `${baseUrl}/api/drive/image?id=${fileId}&size=high`;
+          // Use high quality with aggressive cache-busting for production
+          const version = 'v2'; // Increment this to force cache refresh
+          const timestamp = process.env.NODE_ENV === 'production' ? `&t=${Date.now()}&v=${version}` : '';
+          return `${baseUrl}/api/drive/image?id=${fileId}&size=high${timestamp}`;
         }
       }
     } catch (e) {
