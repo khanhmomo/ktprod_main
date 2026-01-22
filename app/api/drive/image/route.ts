@@ -52,24 +52,16 @@ export async function GET(request: Request) {
       );
     }
 
-    // Smart sizing: default to medium for browsing, full only for downloads
+    // Construct the Google Drive image URL with size parameter
     let imageUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-    let cacheMaxAge = 31536000; // 1 year for all images
     
-    if (download === 'true' || size === 'full') {
-      // Full size only for explicit downloads
-      imageUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-      log('Fetching full-size image for download', { imageUrl });
-    } else if (size === 'small') {
-      // Small thumbnails
-      imageUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=200`;
-      cacheMaxAge = 31536000; // 1 year - thumbnails never change
-      log('Using small thumbnail', { imageUrl });
+    // Add size parameter for smaller images during downloads
+    if (size === 'small' || size === 'medium') {
+      // Use the thumbnail API for smaller sizes
+      imageUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=${size === 'small' ? '200' : '800'}`;
+      log('Using thumbnail URL for faster download', { imageUrl, size });
     } else {
-      // Default to high quality - use direct download for best quality
-      imageUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-      cacheMaxAge = 31536000; // 1 year
-      log('Using direct download for high quality (full resolution)', { imageUrl });
+      log('Fetching full-size image from Google Drive', { imageUrl });
     }
     
     // Fetch the image from Google Drive

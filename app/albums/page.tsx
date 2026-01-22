@@ -48,8 +48,7 @@ function processImageUrl(url: string): string {
       
       if (fileId) {
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
-        // Use high quality size for album covers (2048px)
-        return `${baseUrl}/api/drive/image?id=${fileId}&size=high`;
+        return `${baseUrl}/api/drive/image?id=${fileId}`;
       }
     }
   } catch (e) {
