@@ -265,7 +265,8 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
       if (!response.ok) {
         // Revert on error
         setFavorites(favorites);
-        console.error('Failed to update global favorite');
+        const errorText = await response.text();
+        console.error('Failed to update global favorite:', response.status, errorText);
       } else {
         const result = await response.json();
         console.log('Toggle global favorite result:', result);
