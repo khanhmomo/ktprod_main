@@ -66,10 +66,10 @@ export async function GET(request: Request) {
       cacheMaxAge = 31536000; // 1 year - thumbnails never change
       log('Using small thumbnail', { imageUrl });
     } else {
-      // Default to high quality size for browsing (2048px - excellent quality)
-      imageUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=2048`;
+      // Default to high quality - use direct download for best quality
+      imageUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
       cacheMaxAge = 31536000; // 1 year
-      log('Using high quality size by default (2048px)', { imageUrl });
+      log('Using direct download for high quality (full resolution)', { imageUrl });
     }
     
     // Fetch the image from Google Drive
@@ -156,7 +156,9 @@ export async function GET(request: Request) {
         'Content-Type': contentType,
         'X-Request-ID': requestId,
         'X-Image-Source': 'primary',
-        'Cache-Control': `public, max-age=${cacheMaxAge}, immutable`,
+        'Cache-Control': process.env.NODE_ENV === 'production' 
+          ? 'public, max-age=3600, must-revalidate' // 1 hour cache for production
+          : `public, max-age=${cacheMaxAge}, immutable`,
         ...corsHeaders
       }
     });
