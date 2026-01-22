@@ -1,10 +1,18 @@
 # Vercel Cost Optimization Guide
 
-## 🎯 Changes Made to Reduce Costs:
+## 🖼️ **Image Quality Settings (Updated for High Quality)**
 
-### 1. Smart Image Sizing (BIGGEST IMPACT)
-- **Default**: Medium size (800px) for browsing
-- **Full size**: Only when `download=true` parameter is used
+### **New Image Sizing Strategy:**
+- **High Quality (Default)**: 2048px max long edge - Excellent quality for viewing
+- **Small Thumbnails**: 200px - For grid views and quick loading
+- **Full Size**: Original resolution - Only for downloads
+- **Cache**: 1-year immutable for all sizes
+
+### **Quality Impact:**
+- **Before**: 800px medium (acceptable quality)
+- **After**: 2048px high quality (excellent quality)
+- **Bandwidth**: ~3x increase but still optimized vs full-size
+- **User Experience**: Significantly better image clarity and detail used
 - **Small**: 200px thumbnails for previews
 - **Impact**: ~80% reduction in bandwidth for image browsing
 

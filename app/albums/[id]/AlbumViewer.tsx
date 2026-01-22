@@ -115,7 +115,7 @@ export default function AlbumViewer({ album, id, category = 'gallery' }: AlbumVi
             return formats[Math.floor(Math.random() * formats.length)];
           }
           const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
-          return `${baseUrl}/api/drive/image?id=${fileId}&size=medium`;
+          return `${baseUrl}/api/drive/image?id=${fileId}&size=high`;
         }
       }
       

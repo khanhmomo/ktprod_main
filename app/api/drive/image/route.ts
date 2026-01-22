@@ -66,10 +66,10 @@ export async function GET(request: Request) {
       cacheMaxAge = 31536000; // 1 year - thumbnails never change
       log('Using small thumbnail', { imageUrl });
     } else {
-      // Default to medium size for browsing (800px - good balance)
-      imageUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=800`;
+      // Default to high quality size for browsing (2048px - excellent quality)
+      imageUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=2048`;
       cacheMaxAge = 31536000; // 1 year
-      log('Using medium size by default (cost optimization)', { imageUrl });
+      log('Using high quality size by default (2048px)', { imageUrl });
     }
     
     // Fetch the image from Google Drive

@@ -143,8 +143,8 @@ export default function GalleryClient({ gallery: initialGallery }: GalleryClient
             return formats[Math.floor(Math.random() * formats.length)];
           }
           const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
-          // Use medium size by default for browsing (cost optimization)
-          return `${baseUrl}/api/drive/image?id=${fileId}&size=medium`;
+          // Use high quality size by default for browsing (2048px max long edge)
+          return `${baseUrl}/api/drive/image?id=${fileId}&size=high`;
         }
       }
     } catch (e) {

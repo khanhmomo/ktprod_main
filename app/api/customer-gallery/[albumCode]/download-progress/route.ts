@@ -31,9 +31,9 @@ function processImageUrl(url: string, forProgress = false): string {
       
       if (fileId) {
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
-        // Use medium size only for progress estimation, not actual download
+        // Use high quality size only for progress estimation, not actual download
         if (forProgress) {
-          return `${baseUrl}/api/drive/image?id=${fileId}&size=medium`;
+          return `${baseUrl}/api/drive/image?id=${fileId}&size=high`;
         }
         // Full size for actual download
         return `${baseUrl}/api/drive/image?id=${fileId}`;
