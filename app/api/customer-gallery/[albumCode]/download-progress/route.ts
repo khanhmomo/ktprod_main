@@ -298,7 +298,21 @@ export async function GET(
                 : photo.url.includes('.webp')
                 ? '.webp'
                 : '.jpg';
-              const filename = `${gallery.customerName.replace(/[^a-zA-Z0-9]/g, '_')}_${gallery.eventType.replace(/[^a-zA-Z0-9]/g, '_')}_${String(globalIndex + 1).padStart(3, '0')}${extension}`;
+              // Use original filename from alt text, fallback to generated name if alt is empty
+              let originalName = photo.alt?.trim();
+              if (!originalName) {
+                originalName = `${gallery.customerName.replace(/[^a-zA-Z0-9]/g, '_')}_${gallery.eventType.replace(/[^a-zA-Z0-9]/g, '_')}_${String(globalIndex + 1).padStart(3, '0')}`;
+              }
+              
+              // Clean the filename to be safe for filesystem
+              const cleanName = originalName
+                .replace(/[^a-zA-Z0-9._-]/g, '_')  // Replace invalid chars with underscore
+                .replace(/_{2,}/g, '_')             // Replace multiple underscores with single
+                .replace(/^_+|_+$/g, '');           // Remove leading/trailing underscores
+              
+              // Ensure the filename has the correct extension
+              const hasExtension = /\.(jpg|jpeg|png|webp)$/i.test(cleanName);
+              const filename = hasExtension ? cleanName : `${cleanName}${extension}`;
               const filePath = join(tempDir, filename);
               
               await writeFile(filePath, imageBuffer);
